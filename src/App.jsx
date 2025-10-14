@@ -1,0 +1,108 @@
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { Toaster } from "sonner";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { AnimatePresence, motion } from "framer-motion";
+
+import DarkModeProvider from "@configs/DarkModeProvider";
+import MainLayout from "@layouts/MainLayout";
+
+import Home from "@pages/Home";
+import Department from "@pages/Department";
+import Project from "@pages/Project";
+import VarianceAnalysis from "@pages/VarianceAnalysis";
+import NotFound from "@pages/NotFound";
+
+
+// animation wrapper
+function PageWrapper({ children }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className="min-h-[80vh]"
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+//Route
+function AnimatedRoutes() {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route
+          path="/"
+          element={
+            <PageWrapper>
+              <Home />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/department"
+          element={
+            <PageWrapper>
+              <Department />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/project/:departmentId"
+          element={
+            <PageWrapper>
+              <Project />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/variance-analysis"
+          element={
+            <PageWrapper>
+              <VarianceAnalysis />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="*"
+          element={
+            <PageWrapper>
+              <NotFound />
+            </PageWrapper>
+          }
+        />
+      </Routes>
+    </AnimatePresence>
+  );
+}
+
+//App
+function App() {
+
+  useEffect(() => {
+  }, []);
+
+  return (
+    <DarkModeProvider>
+      <TooltipProvider>
+        <BrowserRouter>
+          <MainLayout>
+            <Toaster richColors position="top-center" />
+            <AnimatedRoutes />
+          </MainLayout>
+        </BrowserRouter>
+      </TooltipProvider>
+    </DarkModeProvider>
+  );
+}
+
+export default App;
