@@ -13,6 +13,7 @@ export default function Project() {
     ],
     2: [
       { id: 2, name: t("varianceAnalysisProject"), status: "In Progress", description: t("varianceAnalysisDesc"), link: "/variance-analysis" },
+      { id: 3, name: t("contractOCRProject"), status: "In Progress", description: t("contractOCRDesc"), link: "/contract-ocr" },
     ],
   };
 

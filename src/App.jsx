@@ -12,6 +12,7 @@ import Department from "@pages/Department";
 import Project from "@pages/Project";
 import VarianceAnalysis from "@pages/VarianceAnalysis";
 import ExcelComparison from "@pages/ExcelComparison";
+import ContractOCR from "@pages/ContractOCR";
 import NotFound from "@pages/NotFound";
 
 
@@ -78,6 +79,15 @@ function AnimatedRoutes() {
           element={
             <PageWrapper>
               <ExcelComparison />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/contract-ocr"
+          element={
+            <PageWrapper>
+              <ContractOCR />
             </PageWrapper>
           }
         />
