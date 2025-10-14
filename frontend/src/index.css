@@ -1,35 +1,39 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* Custom Primary Blue Color Scale */
+/* Tailwind v4 Theme Configuration */
+@theme {
+  /* Custom Primary Blue Color Scale */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
+
+  /* Custom Ocean Blue Color Scale */
+  --color-ocean-50: #f0f9ff;
+  --color-ocean-100: #e0f2fe;
+  --color-ocean-200: #bae6fd;
+  --color-ocean-300: #7dd3fc;
+  --color-ocean-400: #38bdf8;
+  --color-ocean-500: #0ea5e9;
+  --color-ocean-600: #0284c7;
+  --color-ocean-700: #0369a1;
+  --color-ocean-800: #075985;
+  --color-ocean-900: #0c4a6e;
+
+  /* Custom Animations */
+  --animate-fade-in-up: fade-in-up 0.6s ease-out;
+  --animate-shimmer: shimmer 2s infinite;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+}
+
 @layer base {
-  :root {
-    --color-primary-50: #eff6ff;
-    --color-primary-100: #dbeafe;
-    --color-primary-200: #bfdbfe;
-    --color-primary-300: #93c5fd;
-    --color-primary-400: #60a5fa;
-    --color-primary-500: #3b82f6;
-    --color-primary-600: #2563eb;
-    --color-primary-700: #1d4ed8;
-    --color-primary-800: #1e40af;
-    --color-primary-900: #1e3a8a;
-    --color-primary-950: #172554;
-
-    /* Custom Ocean Blue Color Scale */
-    --color-ocean-50: #f0f9ff;
-    --color-ocean-100: #e0f2fe;
-    --color-ocean-200: #bae6fd;
-    --color-ocean-300: #7dd3fc;
-    --color-ocean-400: #38bdf8;
-    --color-ocean-500: #0ea5e9;
-    --color-ocean-600: #0284c7;
-    --color-ocean-700: #0369a1;
-    --color-ocean-800: #075985;
-    --color-ocean-900: #0c4a6e;
-  }
-
   body {
     font-smooth: antialiased;
     -webkit-font-smoothing: antialiased;

@@ -11,6 +11,7 @@ import Home from "@pages/Home";
 import Department from "@pages/Department";
 import Project from "@pages/Project";
 import VarianceAnalysis from "@pages/VarianceAnalysis";
+import ExcelComparison from "@pages/ExcelComparison";
 import NotFound from "@pages/NotFound";
 
 
@@ -68,6 +69,15 @@ function AnimatedRoutes() {
           element={
             <PageWrapper>
               <VarianceAnalysis />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/excel-comparison"
+          element={
+            <PageWrapper>
+              <ExcelComparison />
             </PageWrapper>
           }
         />

@@ -9,13 +9,10 @@ export default function Project() {
 
   const projectsByDepartment = {
     1: [
-      { id: 1, name: t("budgetPlanningProject"), status: "In Progress", deadline: "2025-01-31", description: t("budgetPlanningDesc") },
-      { id: 2, name: t("financialDashboardProject"), status: "Planning", deadline: "2025-02-28", description: t("financialDashboardDesc") },
-      { id: 3, name: t("varianceAutomationProject"), status: "Completed", deadline: "2024-10-14", description: t("varianceAutomationDesc") },
-      { id: 4, name: t("revenueForecastProject"), status: "In Progress", deadline: "2025-01-15", description: t("revenueForecastDesc") },
+      { id: 1, name: t("ExcelComparision"), status: "Completed", description: t("excelComparisionDesc"), link: "/excel-comparison" },
     ],
     2: [
-      { id: 5, name: t("varianceAnalysisProject"), status: "In Progress", deadline: "2025-01-31", description: t("varianceAnalysisDesc"), link: "/variance-analysis" },
+      { id: 2, name: t("varianceAnalysisProject"), status: "In Progress", description: t("varianceAnalysisDesc"), link: "/variance-analysis" },
     ],
   };
 
