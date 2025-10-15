@@ -1,11 +1,6 @@
-import axios from 'axios';
+import { apiClient, API_BASE_URL } from '../../configs/APIs';
 
-const API_BASE_URL = import.meta.env.VITE_VARIANCE_API_URL || 'http://localhost:8000';
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 300000, // 5 minutes for large file processing
-});
+const api = apiClient;
 
 export const healthCheck = async () => {
   const response = await api.get('/health');

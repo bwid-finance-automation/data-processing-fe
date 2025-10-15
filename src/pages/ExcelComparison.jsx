@@ -1,9 +1,7 @@
 import { useState, useRef } from 'react';
-import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { useDarkMode } from '@configs/DarkModeProvider';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { apiClient, API_BASE_URL } from '@configs/APIs';
 
 function ExcelComparison() {
   const { t } = useTranslation();
@@ -35,11 +33,11 @@ function ExcelComparison() {
     setResult(null);
 
     const formData = new FormData();
-    formData.append('old_file', previousFile);
-    formData.append('new_file', currentFile);
+    formData.append('excel_files', previousFile);
+    formData.append('excel_files', currentFile);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/compare`, formData, {
+      const response = await apiClient.post('/api/compare', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

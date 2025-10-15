@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { startAIAnalysis, streamLogs, downloadResult } from '@services/varianceApi';
+import { startAIAnalysis, streamLogs, downloadResult } from '@services/variance/variance-apis';
 
 const AIAnalysis = () => {
   const { t } = useTranslation();
