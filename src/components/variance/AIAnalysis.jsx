@@ -38,6 +38,15 @@ const AIAnalysis = () => {
     });
 
     try {
+      // Convert files to base64
+      const filesData = await convertFilesToBase64(excelFiles);
+      console.log('Converted files data:', filesData); // Debug log
+
+      const jsonData = {
+        excel_files: filesData,
+      };
+      console.log('JSON data to send:', jsonData); // Debug log
+
       // Start analysis
       const session = await startAIAnalysis(formData, (progressEvent) => {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);

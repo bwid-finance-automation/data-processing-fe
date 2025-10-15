@@ -18,11 +18,17 @@ export const processPythonAnalysis = async (formData, onUploadProgress) => {
   return response.data;
 };
 
+<<<<<<< Updated upstream
 export const startAIAnalysis = async (formData, onUploadProgress) => {
   const response = await api.post('/api/finance/start_analysis', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+=======
+export const startAIAnalysis = async (jsonData, onUploadProgress) => {
+  console.log('Sending data to backend:', jsonData); // Debug log
+  const response = await api.post('/api/finance/start_analysis', jsonData, {
+>>>>>>> Stashed changes
     onUploadProgress,
   });
   return response.data;
