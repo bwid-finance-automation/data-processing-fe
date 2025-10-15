@@ -17,26 +17,6 @@ const AIAnalysis = () => {
     setExcelFiles(Array.from(e.target.files));
   };
 
-  const convertFilesToBase64 = (files) => {
-    return Promise.all(
-      files.map((file) => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = () => {
-            const base64String = reader.result.split(',')[1];
-            resolve({
-              filename: file.name,
-              content: base64String,
-              content_type: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            });
-          };
-          reader.onerror = (error) => reject(error);
-        });
-      })
-    );
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -52,16 +32,14 @@ const AIAnalysis = () => {
     setLogs([]);
     setError(null);
 
+    const formData = new FormData();
+    excelFiles.forEach((file) => {
+      formData.append('excel_files', file);
+    });
+
     try {
-      // Convert files to base64
-      const filesData = await convertFilesToBase64(excelFiles);
-
-      const jsonData = {
-        excel_files: filesData,
-      };
-
       // Start analysis
-      const session = await startAIAnalysis(jsonData, (progressEvent) => {
+      const session = await startAIAnalysis(formData, (progressEvent) => {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
         setProgress(Math.min(percentCompleted, 20));
       });

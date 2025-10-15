@@ -13,6 +13,7 @@ import Project from "@pages/Project";
 import VarianceAnalysis from "@pages/VarianceAnalysis";
 import ExcelComparison from "@pages/ExcelComparison";
 import ContractOCR from "@pages/ContractOCR";
+import UtilityBilling from "@pages/UtilityBilling";
 import NotFound from "@pages/NotFound";
 
 
@@ -88,6 +89,15 @@ function AnimatedRoutes() {
           element={
             <PageWrapper>
               <ContractOCR />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/utility-billing"
+          element={
+            <PageWrapper>
+              <UtilityBilling />
             </PageWrapper>
           }
         />
