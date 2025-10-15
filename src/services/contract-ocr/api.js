@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_CONTRACT_OCR_API_URL || 'http://localhost:8000';
+// Use main backend URL (integrated OCR endpoints)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 export const processContracts = async (files, onProgress) => {
   const formData = new FormData();
@@ -11,7 +12,7 @@ export const processContracts = async (files, onProgress) => {
 
   try {
     const response = await axios.post(
-      `${API_BASE_URL}/api/process-contracts-batch`,
+      `${API_BASE_URL}/contract-ocr/process-contracts-batch`,
       formData,
       {
         headers: {
@@ -42,7 +43,7 @@ export const processContracts = async (files, onProgress) => {
 
 export const checkHealth = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/health`);
+    const response = await axios.get(`${API_BASE_URL}/contract-ocr/health`);
     return response.data;
   } catch (error) {
     console.error('Health check failed:', error);
@@ -52,7 +53,7 @@ export const checkHealth = async () => {
 
 export const getSupportedFormats = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/supported-formats`);
+    const response = await axios.get(`${API_BASE_URL}/contract-ocr/supported-formats`);
     return response.data;
   } catch (error) {
     console.error('Failed to get supported formats:', error);
