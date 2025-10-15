@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { processPythonAnalysis } from '@services/varianceApi';
+import { processPythonAnalysis } from '@services/variance/variance-apis';
 
 const PythonAnalysis = () => {
   const { t } = useTranslation();

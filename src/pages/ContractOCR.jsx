@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import FileUpload from '@components/contract-ocr/FileUpload';
 import ProcessingStatus from '@components/contract-ocr/ProcessingStatus';
 import ResultsTable from '@components/contract-ocr/ResultsTable';
-import { processContracts } from '@services/contract-ocr/api';
+import { processContracts } from '@services/contract-ocr/contract-ocr-apis';
 import { exportToExcel, exportToJSON } from '@utils/contract-ocr/exportUtils';
 
 export default function ContractOCR() {
