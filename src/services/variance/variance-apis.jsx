@@ -18,10 +18,10 @@ export const processPythonAnalysis = async (formData, onUploadProgress) => {
   return response.data;
 };
 
-export const startAIAnalysis = async (jsonData, onUploadProgress) => {
-  const response = await api.post('/api/finance/start_analysis', jsonData, {
+export const startAIAnalysis = async (formData, onUploadProgress) => {
+  const response = await api.post('/api/finance/start_analysis', formData, {
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'multipart/form-data',
     },
     onUploadProgress,
   });
