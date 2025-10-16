@@ -43,7 +43,24 @@ export default function FileUpload({ onFilesSelected, selectedFiles, onProcess, 
       alert('Some files were skipped. Only PDF, PNG, JPG, and JPEG files are supported.');
     }
 
-    onFilesSelected(validFiles);
+    // Merge with existing files and remove duplicates
+    const existingFileNames = selectedFiles.map(f => f.name);
+    const newUniqueFiles = validFiles.filter(file => !existingFileNames.includes(file.name));
+
+    if (newUniqueFiles.length < validFiles.length) {
+      alert(`${validFiles.length - newUniqueFiles.length} duplicate file(s) were skipped.`);
+    }
+
+    onFilesSelected([...selectedFiles, ...newUniqueFiles]);
+  };
+
+  const handleRemoveFile = (indexToRemove) => {
+    const updatedFiles = selectedFiles.filter((_, index) => index !== indexToRemove);
+    onFilesSelected(updatedFiles);
+  };
+
+  const getTotalSize = () => {
+    return selectedFiles.reduce((total, file) => total + file.size, 0);
   };
 
   const handleClick = () => {
@@ -105,21 +122,39 @@ export default function FileUpload({ onFilesSelected, selectedFiles, onProcess, 
       {/* Selected Files List */}
       {selectedFiles.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-3 text-[#222] dark:text-[#f5efe6]">
-            {t('selectedFiles') || 'Selected Files'} ({selectedFiles.length})
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-[#222] dark:text-[#f5efe6]">
+              {t('selectedFiles') || 'Selected Files'} ({selectedFiles.length})
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {t('totalSize') || 'Total'}: {formatFileSize(getTotalSize())}
+            </p>
+          </div>
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {selectedFiles.map((file, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-[#181818] rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-3">
-                  <svg className="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-[#181818] rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500 transition-colors group">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <svg className="w-8 h-8 text-blue-500 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
-                  <div>
-                    <p className="font-medium text-[#222] dark:text-[#f5efe6]">{file.name}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-[#222] dark:text-[#f5efe6] truncate">{file.name}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</p>
                   </div>
                 </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveFile(index);
+                  }}
+                  disabled={processing}
+                  className="ml-3 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                  title="Remove file"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             ))}
           </div>
