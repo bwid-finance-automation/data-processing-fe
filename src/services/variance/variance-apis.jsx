@@ -8,7 +8,7 @@ export const healthCheck = async () => {
 };
 
 export const processPythonAnalysis = async (formData, onUploadProgress) => {
-  const response = await api.post('/api/finance/process', formData, {
+  const response = await api.post('/api/finance/api/process', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -19,7 +19,7 @@ export const processPythonAnalysis = async (formData, onUploadProgress) => {
 };
 
 export const startAIAnalysis = async (formData, onUploadProgress) => {
-  const response = await api.post('/api/finance/start_analysis', formData, {
+  const response = await api.post('/api/finance/api/start-analysis', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -29,23 +29,23 @@ export const startAIAnalysis = async (formData, onUploadProgress) => {
 };
 
 export const streamLogs = (sessionId) => {
-  return new EventSource(`${API_BASE_URL}/api/finance/logs/${sessionId}`);
+  return new EventSource(`${API_BASE_URL}/api/finance/api/logs/${sessionId}`);
 };
 
 export const downloadResult = async (sessionId) => {
-  const response = await api.get(`/api/finance/download/${sessionId}`, {
+  const response = await api.get(`/api/finance/api/download/${sessionId}`, {
     responseType: 'blob',
   });
   return response.data;
 };
 
 export const listDebugFiles = async (sessionId) => {
-  const response = await api.get(`/api/finance/debug/list/${sessionId}`);
+  const response = await api.get(`/api/finance/api/debug/list/${sessionId}`);
   return response.data;
 };
 
 export const downloadDebugFile = async (fileKey) => {
-  const response = await api.get(`/api/finance/debug/${fileKey}`, {
+  const response = await api.get(`/api/finance/api/debug/${fileKey}`, {
     responseType: 'blob',
   });
   return response.data;

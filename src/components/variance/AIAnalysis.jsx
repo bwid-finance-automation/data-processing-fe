@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { startAIAnalysis, streamLogs, downloadResult } from '@services/variance/variance-apis';
 
@@ -12,10 +12,205 @@ const AIAnalysis = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState([]);
   const [error, setError] = useState(null);
+  const [autoDownloaded, setAutoDownloaded] = useState(false);
+  const [logStats, setLogStats] = useState({ total: 0, errors: 0, warnings: 0, success: 0 });
+
+  // Use a ref to maintain a counter for unique log IDs
+  const logIdCounter = useRef(0);
+  // Store polling interval and timeout refs for cleanup
+  const pollIntervalRef = useRef(null);
+  const pollTimeoutRef = useRef(null);
 
   const handleExcelChange = (e) => {
     setExcelFiles(Array.from(e.target.files));
   };
+
+  // Helper function to categorize log messages and add metadata
+  const categorizeLog = (message) => {
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    let level = 'info';
+    let icon = '📝';
+    let color = 'text-gray-300';
+
+    // Detect log level from message content
+    if (message.includes('✅') || message.toLowerCase().includes('complete') || message.toLowerCase().includes('success') || message.toLowerCase().includes('found')) {
+      level = 'success';
+      icon = '✅';
+      color = 'text-green-400';
+    } else if (message.includes('⚠️') || message.toLowerCase().includes('warning') || message.toLowerCase().includes('failed')) {
+      level = 'warning';
+      icon = '⚠️';
+      color = 'text-yellow-400';
+    } else if (message.includes('❌') || message.toLowerCase().includes('error')) {
+      level = 'error';
+      icon = '❌';
+      color = 'text-red-400';
+    } else if (message.includes('📊') || message.toLowerCase().includes('processing') || message.toLowerCase().includes('chunk')) {
+      level = 'processing';
+      icon = '📊';
+      color = 'text-blue-400';
+    } else if (message.includes('🔄') || message.toLowerCase().includes('starting')) {
+      level = 'info';
+      icon = '🔄';
+      color = 'text-cyan-400';
+    } else if (message.includes('📡')) {
+      level = 'system';
+      icon = '📡';
+      color = 'text-purple-400';
+    }
+
+    // Increment counter for unique ID
+    logIdCounter.current += 1;
+
+    return {
+      timestamp,
+      message,
+      level,
+      icon,
+      color,
+      id: `log-${logIdCounter.current}-${Date.now()}` // Unique ID for React keys
+    };
+  };
+
+  const handleDownload = useCallback(async () => {
+    if (!sessionId) return;
+
+    try {
+      const blob = await downloadResult(sessionId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ai_variance_analysis_${sessionId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      alert(`Download failed: ${error.message}`);
+    }
+  }, [sessionId]);
+
+  const startPollingForCompletion = useCallback(async (sid) => {
+    // Clear any existing polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+    }
+
+    const logEntry = categorizeLog('🔄 Polling for analysis completion...');
+    setLogs((prev) => [...prev, logEntry]);
+
+    // Track which logs we've already shown to avoid duplicates
+    const shownLogs = new Set();
+
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/api/finance/api/status/${sid}`);
+
+        if (!response.ok) {
+          throw new Error('Failed to check status');
+        }
+
+        const data = await response.json();
+
+        // Update progress bar if we have progress data
+        if (data.progress !== undefined && data.progress > 0) {
+          setProgress(data.progress);
+          if (data.progress_message) {
+            setStatusText(data.progress_message);
+          }
+        }
+
+        // Add new logs to the display
+        if (data.recent_logs && Array.isArray(data.recent_logs)) {
+          const newLogs = data.recent_logs
+            .filter(log => !shownLogs.has(log))
+            .map(log => {
+              shownLogs.add(log);
+              return categorizeLog(log);
+            });
+
+          if (newLogs.length > 0) {
+            setLogs((prev) => [...prev, ...newLogs]);
+            // Update log stats
+            newLogs.forEach(log => {
+              setLogStats((prev) => ({
+                ...prev,
+                total: prev.total + 1,
+                errors: prev.errors + (log.level === 'error' ? 1 : 0),
+                warnings: prev.warnings + (log.level === 'warning' ? 1 : 0),
+                success: prev.success + (log.level === 'success' ? 1 : 0),
+              }));
+            });
+          }
+        }
+
+        if (data.file_ready && data.status === 'completed') {
+          clearInterval(pollIntervalRef.current);
+          clearTimeout(pollTimeoutRef.current);
+
+          const successLog = categorizeLog('✅ Analysis completed successfully!');
+          setLogs((prev) => [...prev, successLog]);
+          setLogStats((prev) => ({ ...prev, success: prev.success + 1, total: prev.total + 1 }));
+
+          setProgress(100);
+          setStage('complete');
+          setStatusText('Analysis completed successfully!');
+          setIsProcessing(false);
+        } else if (data.status === 'failed') {
+          clearInterval(pollIntervalRef.current);
+          clearTimeout(pollTimeoutRef.current);
+
+          const errorLog = categorizeLog('❌ Analysis failed');
+          setLogs((prev) => [...prev, errorLog]);
+          setLogStats((prev) => ({ ...prev, errors: prev.errors + 1, total: prev.total + 1 }));
+
+          setError('Analysis failed');
+          setIsProcessing(false);
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+        // Don't stop polling on error, just log it
+      }
+    }, 2000); // Poll every 2 seconds
+
+    // Stop polling after 5 minutes max
+    pollTimeoutRef.current = setTimeout(() => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+      if (isProcessing) {
+        const timeoutLog = categorizeLog('⚠️ Polling timeout. Please check manually.');
+        setLogs((prev) => [...prev, timeoutLog]);
+        setLogStats((prev) => ({ ...prev, warnings: prev.warnings + 1, total: prev.total + 1 }));
+      }
+    }, 300000);
+  }, [isProcessing]);
+
+  // Cleanup polling on component unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Auto-download when analysis completes
+  useEffect(() => {
+    if (stage === 'complete' && sessionId && !autoDownloaded) {
+      setAutoDownloaded(true);
+      setTimeout(() => {
+        handleDownload();
+      }, 500);
+    }
+  }, [stage, sessionId, autoDownloaded, handleDownload]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,6 +226,8 @@ const AIAnalysis = () => {
     setStatusText('Uploading files...');
     setLogs([]);
     setError(null);
+    setAutoDownloaded(false);
+    setLogStats({ total: 0, errors: 0, warnings: 0, success: 0 });
 
     const formData = new FormData();
     excelFiles.forEach((file) => {
@@ -55,11 +252,29 @@ const AIAnalysis = () => {
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
+        // Ignore heartbeat messages
+        if (data.type === 'heartbeat') {
+          return;
+        }
+
         if (data.type === 'log') {
-          setLogs((prev) => [...prev, data.message]);
+          const logEntry = categorizeLog(data.message);
+          setLogs((prev) => [...prev, logEntry]);
+
+          // Update log statistics
+          setLogStats((prev) => ({
+            total: prev.total + 1,
+            errors: prev.errors + (logEntry.level === 'error' ? 1 : 0),
+            warnings: prev.warnings + (logEntry.level === 'warning' ? 1 : 0),
+            success: prev.success + (logEntry.level === 'success' ? 1 : 0)
+          }));
         } else if (data.type === 'progress') {
           setProgress(data.percentage);
           setStatusText(data.message);
+
+          // Add progress updates to logs as well
+          const logEntry = categorizeLog(`[${data.percentage}%] ${data.message}`);
+          setLogs((prev) => [...prev, logEntry]);
 
           if (data.percentage >= 25 && data.percentage < 85) {
             setStage('analyze');
@@ -73,38 +288,39 @@ const AIAnalysis = () => {
           setStage('complete');
           setStatusText('Analysis completed successfully!');
           setIsProcessing(false);
+
+          const logEntry = categorizeLog('✅ Analysis completed successfully!');
+          setLogs((prev) => [...prev, logEntry]);
+          setLogStats((prev) => ({ ...prev, success: prev.success + 1, total: prev.total + 1 }));
+
           eventSource.close();
         } else if (data.type === 'error') {
           setError(data.message);
           setIsProcessing(false);
+
+          const logEntry = categorizeLog(`❌ Error: ${data.message}`);
+          setLogs((prev) => [...prev, logEntry]);
+          setLogStats((prev) => ({ ...prev, errors: prev.errors + 1, total: prev.total + 1 }));
+
           eventSource.close();
         }
       };
 
-      eventSource.onerror = () => {
+      eventSource.onerror = (err) => {
+        console.error('SSE Error:', err);
+        const logEntry = categorizeLog('⚠️ Connection interrupted. Switching to polling mode...');
+        setLogs((prev) => [...prev, logEntry]);
+        setLogStats((prev) => ({ ...prev, warnings: prev.warnings + 1, total: prev.total + 1 }));
         eventSource.close();
+
+        // Start polling for completion
+        if (session.session_id) {
+          startPollingForCompletion(session.session_id);
+        }
       };
     } catch (error) {
       setError(error.response?.data?.detail || error.message);
       setIsProcessing(false);
-    }
-  };
-
-  const handleDownload = async () => {
-    if (!sessionId) return;
-
-    try {
-      const blob = await downloadResult(sessionId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ai_variance_analysis_${sessionId}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      alert(`Download failed: ${error.message}`);
     }
   };
 
@@ -308,13 +524,40 @@ const AIAnalysis = () => {
         {/* Logs */}
         {logs.length > 0 && (
           <div className="mt-6">
-            <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-2">Analysis Logs</h3>
-            <div className="bg-gray-900 dark:bg-black text-green-400 p-4 rounded-lg max-h-64 overflow-y-auto font-mono text-xs">
-              {logs.map((log, idx) => (
-                <div key={idx} className="mb-1">
-                  {log}
-                </div>
-              ))}
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-800 dark:text-gray-100">Analysis Logs</h3>
+              <div className="flex items-center space-x-3 text-xs">
+                <span className="flex items-center space-x-1">
+                  <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                  <span className="text-gray-600 dark:text-gray-400">{logStats.success}</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                  <span className="text-gray-600 dark:text-gray-400">{logStats.warnings}</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                  <span className="text-gray-600 dark:text-gray-400">{logStats.errors}</span>
+                </span>
+                <span className="text-gray-500 dark:text-gray-500">|</span>
+                <span className="text-gray-600 dark:text-gray-400">Total: {logStats.total}</span>
+              </div>
+            </div>
+            <div className="bg-gray-900 dark:bg-black border border-gray-700 rounded-lg max-h-96 overflow-y-auto font-mono text-xs">
+              <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center space-x-4 text-gray-400 text-xs">
+                <span className="w-20">Time</span>
+                <span className="w-8">Level</span>
+                <span className="flex-1">Message</span>
+              </div>
+              <div className="p-2">
+                {logs.map((log) => (
+                  <div key={log.id} className={`flex items-start space-x-4 px-2 py-1 hover:bg-gray-800/50 rounded transition-colors ${log.color}`}>
+                    <span className="w-20 text-gray-500 text-xs flex-shrink-0">{log.timestamp}</span>
+                    <span className="w-8 flex-shrink-0">{log.icon}</span>
+                    <span className="flex-1 break-words">{log.message}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

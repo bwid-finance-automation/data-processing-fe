@@ -44,12 +44,6 @@ export default function HeroSection({ content }) {
           >
             {content.exploreDepts}
           </button>
-          <button
-            onClick={() => navigate("/contact")}
-            className="px-8 py-3 bg-transparent border-2 border-white text-white rounded-full font-semibold hover:bg-white hover:text-blue-600 transition-all hover:scale-105"
-          >
-            {content.contactUs}
-          </button>
         </motion.div>
       </div>
     </div>
