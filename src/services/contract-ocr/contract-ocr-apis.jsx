@@ -12,7 +12,7 @@ export const processContracts = async (files, onProgress) => {
 
   try {
     const response = await axios.post(
-      `${API_BASE_URL}/finance/process-contracts-batch`,
+      `${API_BASE_URL}/v1/contract-ocr/process-contracts-batch`,
       formData,
       {
         headers: {
@@ -43,7 +43,7 @@ export const processContracts = async (files, onProgress) => {
 
 export const checkHealth = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/finance/health`);
+    const response = await axios.get(`${API_BASE_URL}/v1/contract-ocr/health`);
     return response.data;
   } catch (error) {
     console.error('Health check failed:', error);
@@ -53,7 +53,7 @@ export const checkHealth = async () => {
 
 export const getSupportedFormats = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/finance/supported-formats`);
+    const response = await axios.get(`${API_BASE_URL}/v1/contract-ocr/supported-formats`);
     return response.data;
   } catch (error) {
     console.error('Failed to get supported formats:', error);
