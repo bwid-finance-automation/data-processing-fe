@@ -15,9 +15,9 @@ export default function ResultsTable({ results, onExportExcel, onExportJSON }) {
     const matchesSearch = searchTerm === '' ||
       result.source_file?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       result.data?.tenant?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      result.data?.contract_title?.toLowerCase().includes(searchTerm.toLowerCase());
+      result.data?.type?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesType = filterType === '' || result.data?.contract_type === filterType;
+    const matchesType = filterType === '' || result.data?.type === filterType;
 
     return matchesSearch && matchesType;
   });
@@ -127,9 +127,10 @@ export default function ResultsTable({ results, onExportExcel, onExportJSON }) {
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#181818] text-[#222] dark:text-[#f5efe6]"
           >
             <option value="">{t('allTypes') || 'All Types'}</option>
-            <option value="Lease">{t('lease') || 'Lease'}</option>
-            <option value="Service Agreement">{t('serviceAgreement') || 'Service Agreement'}</option>
-            <option value="Purchase Agreement">{t('purchaseAgreement') || 'Purchase Agreement'}</option>
+            <option value="Retail Lease">{t('retailLease') || 'Retail Lease'}</option>
+            <option value="Commercial Lease">{t('commercialLease') || 'Commercial Lease'}</option>
+            <option value="Office Lease">{t('officeLease') || 'Office Lease'}</option>
+            <option value="Residential Lease">{t('residentialLease') || 'Residential Lease'}</option>
           </select>
         </div>
 
@@ -142,19 +143,25 @@ export default function ResultsTable({ results, onExportExcel, onExportJSON }) {
                   {t('fileName') || 'File Name'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t('contractType') || 'Contract Type'}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t('tenant') || 'Tenant'}
+                  {t('type') || 'Type'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {t('startDate') || 'Start Date'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t('monthlyRate') || 'Monthly Rate'}
+                  {t('endDate') || 'End Date'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t('status') || 'Status'}
+                  {t('tenant') || 'Tenant'}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {t('monthlyRatePerSqm') || 'Rate/Sqm'}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {t('glaForLease') || 'GLA (Sqm)'}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {t('totalMonthlyRate') || 'Total Monthly'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {t('actions') || 'Actions'}
@@ -162,40 +169,52 @@ export default function ResultsTable({ results, onExportExcel, onExportJSON }) {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-[#222] divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredResults.map((result, index) => (
-                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#222] dark:text-[#f5efe6]">
-                    {result.source_file || 'Unknown'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {result.data?.contract_type || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {result.data?.tenant || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {result.data?.start_date || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {result.data?.total_monthly_rate || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      result.data?.status ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
-                    }`}>
-                      {result.data?.status || 'N/A'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
-                      onClick={() => handleViewDetails(result)}
-                      className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-                    >
-                      {t('viewDetails') || 'View Details'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filteredResults.map((result, index) => {
+                const firstPeriod = result.data?.rate_periods?.[0] || {};
+                const numPeriods = result.data?.rate_periods?.length || 0;
+
+                return (
+                  <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#222] dark:text-[#f5efe6]">
+                      {result.source_file || 'Unknown'}
+                      {numPeriods > 1 && (
+                        <span className="ml-2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded">
+                          {numPeriods} periods
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {result.data?.type || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {firstPeriod.start_date || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {firstPeriod.end_date || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {result.data?.tenant || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {firstPeriod.monthly_rate_per_sqm || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {result.data?.gla_for_lease || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {firstPeriod.total_monthly_rate || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => handleViewDetails(result)}
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                      >
+                        {t('viewDetails') || 'View Details'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
