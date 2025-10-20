@@ -247,5 +247,9 @@
   "downloadSummary": "Tải Tóm tắt",
   "downloadHighlighted": "Tải Bản tô sáng",
   "previous": "Trước",
-  "current": "Hiện tại"
+  "current": "Hiện tại",
+  "dataComparisonFooter": "Công cụ So sánh dữ liệu",
+  "contractOCRSystem": "Công cụ OCR hợp đồng",
+  "utilityBillingSystem": "Công cụ Hóa đơn Tiện ích"
+
 }

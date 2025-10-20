@@ -247,5 +247,8 @@
   "downloadSummary": "Download Summary",
   "downloadHighlighted": "Download Highlighted",
   "previous": "Previous",
-  "current": "Current"
+  "current": "Current",
+  "dataComparisonFooter": "Data Comparison Tool",
+  "contractOCRSystem": "Contract OCR Tool",
+  "utilityBillingSystem": "Utility Billing Tool"
 }

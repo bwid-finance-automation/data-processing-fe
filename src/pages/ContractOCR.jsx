@@ -131,6 +131,16 @@ export default function ContractOCR() {
           </div>
         )}
       </div>
+      
+      {/* Footer */}
+       <motion.footer
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700"
+        >
+          <p>{t('contractOCRSystem')}</p>
+        </motion.footer>
     </div>
   );
 }

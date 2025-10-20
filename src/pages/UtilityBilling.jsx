@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import { ArrowLeftIcon, CloudArrowUpIcon, DocumentIcon, TrashIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import {
@@ -507,6 +508,16 @@ export default function UtilityBilling() {
           <FileList title={t('masterDataFiles')} files={masterDataFiles} fileType="master-data" />
           <FileList title={t('outputFiles')} files={outputFiles} fileType="output" />
         </div>
+
+        {/* Footer */}
+        <motion.footer
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700"
+        >
+          <p>{t('utilityBillingSystem')}</p>
+        </motion.footer>
       </div>
     </div>
   );
