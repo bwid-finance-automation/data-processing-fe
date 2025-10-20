@@ -12,7 +12,8 @@ node_modules
 dist-ssr
 
 # Environment variables
-.env
+# .env and .env.production are committed for production/default config
+# .env.local overrides .env for local development and is NOT committed
 .env.local
 .env.development.local
 .env.test.local
@@ -52,9 +53,10 @@ Desktop.ini
 .cache
 
 # Package manager files
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
+# Uncomment the lock file you're NOT using to avoid conflicts
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
 
 # Optional npm cache directory
 .npm
@@ -122,3 +124,33 @@ storybook-static
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Backend/API related (if running locally)
+*.sqlite
+*.db
+
+# IDE - JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE - VSCode (optional user settings)
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/*.code-workspace
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Debug files
+debug.log
+error.log
+
+# Local development files
+*.local.*
+
+# Backup files
+*.bak
+*.backup
