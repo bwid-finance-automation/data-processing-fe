@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { startAIAnalysis, streamLogs, downloadResult } from '@services/variance/variance-apis';
+import { FINANCE_API_BASE_URL } from '@configs/APIs';
 
 const AIAnalysis = () => {
   const { t } = useTranslation();
@@ -111,7 +112,7 @@ const AIAnalysis = () => {
 
     pollIntervalRef.current = setInterval(async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/finance/api/status/${sid}`);
+        const response = await fetch(`${FINANCE_API_BASE_URL}/status/${sid}`);
 
         if (!response.ok) {
           throw new Error('Failed to check status');

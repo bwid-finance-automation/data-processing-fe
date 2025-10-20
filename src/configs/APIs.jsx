@@ -1,20 +1,17 @@
 import axios from 'axios';
 
-// API Base URLs from environment variable
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/finance').trim();
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').trim();
 
-// Finance API base URL (for variance analysis, contract OCR, billing)
-export const FINANCE_API_BASE_URL = BASE_URL;
+//FA API
+export const FINANCE_API_BASE_URL = `${BASE_URL}/finance`;
 
-// FP&A API base URL (for Excel comparison)
-// Safely construct FPA URL by replacing /finance with /fpa, or appending /fpa if /finance not found
-export const FPA_API_BASE_URL = BASE_URL.includes('/finance')
-  ? BASE_URL.replace('/finance', '/fpa')
-  : BASE_URL.replace(/\/api$/, '/api/fpa');
+// FP&A API 
+export const FPA_API_BASE_URL = `${BASE_URL}/fpa`;
 
 // Debug: Log API URLs in development
 if (import.meta.env.DEV) {
   console.log('🔧 API Configuration:');
+  console.log('  BASE_URL:', BASE_URL);
   console.log('  FINANCE_API_BASE_URL:', FINANCE_API_BASE_URL);
   console.log('  FPA_API_BASE_URL:', FPA_API_BASE_URL);
 }

@@ -1,4 +1,4 @@
-import { apiClient, API_BASE_URL } from '../../configs/APIs';
+import { apiClient, FINANCE_API_BASE_URL } from '../../configs/APIs';
 
 const api = apiClient;
 
@@ -29,7 +29,7 @@ export const startAIAnalysis = async (formData, onUploadProgress) => {
 };
 
 export const streamLogs = (sessionId) => {
-  return new EventSource(`${API_BASE_URL}/logs/${sessionId}`);
+  return new EventSource(`${FINANCE_API_BASE_URL}/logs/${sessionId}`);
 };
 
 export const downloadResult = async (sessionId) => {

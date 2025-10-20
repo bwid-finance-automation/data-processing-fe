@@ -1,14 +1,7 @@
-import axios from 'axios';
+import { apiClient } from '@configs/APIs';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-
-// Create axios instance with default config
-const billingApi = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// Use the finance API client which already points to /api/finance
+const billingApi = apiClient;
 
 // Session Management
 export const createSession = async () => {
