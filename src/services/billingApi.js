@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_BILLING_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/finance';
 
 // Create axios instance with default config
 const billingApi = axios.create({
@@ -13,7 +13,7 @@ const billingApi = axios.create({
 // Session Management
 export const createSession = async () => {
   try {
-    const response = await billingApi.post('/api/v1/billing/session/create');
+    const response = await billingApi.post('/billing/session/create');
     return response.data;
   } catch (error) {
     console.error('Error creating session:', error);
@@ -23,7 +23,7 @@ export const createSession = async () => {
 
 export const cleanupSession = async (sessionId) => {
   try {
-    const response = await billingApi.delete('/api/v1/billing/session/cleanup', {
+    const response = await billingApi.delete('/billing/session/cleanup', {
       headers: {
         'X-Session-ID': sessionId,
       },
@@ -41,7 +41,7 @@ export const uploadInputFile = async (sessionId, file, onProgress) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await billingApi.post('/api/v1/billing/upload/input', formData, {
+    const response = await billingApi.post('/billing/upload/input', formData, {
       headers: {
         'X-Session-ID': sessionId,
         'Content-Type': 'multipart/form-data',
@@ -64,7 +64,7 @@ export const uploadMasterDataFile = async (sessionId, file, onProgress) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await billingApi.post('/api/v1/billing/upload/master-data', formData, {
+    const response = await billingApi.post('/billing/upload/master-data', formData, {
       headers: {
         'X-Session-ID': sessionId,
         'Content-Type': 'multipart/form-data',
@@ -85,7 +85,7 @@ export const uploadMasterDataFile = async (sessionId, file, onProgress) => {
 // File Management
 export const listInputFiles = async (sessionId) => {
   try {
-    const response = await billingApi.get('/api/v1/billing/files/input', {
+    const response = await billingApi.get('/billing/files/input', {
       headers: {
         'X-Session-ID': sessionId,
       },
@@ -99,7 +99,7 @@ export const listInputFiles = async (sessionId) => {
 
 export const listMasterDataFiles = async (sessionId) => {
   try {
-    const response = await billingApi.get('/api/v1/billing/files/master-data', {
+    const response = await billingApi.get('/billing/files/master-data', {
       headers: {
         'X-Session-ID': sessionId,
       },
@@ -113,7 +113,7 @@ export const listMasterDataFiles = async (sessionId) => {
 
 export const listOutputFiles = async (sessionId) => {
   try {
-    const response = await billingApi.get('/api/v1/billing/files/output', {
+    const response = await billingApi.get('/billing/files/output', {
       headers: {
         'X-Session-ID': sessionId,
       },
@@ -127,7 +127,7 @@ export const listOutputFiles = async (sessionId) => {
 
 export const deleteFile = async (sessionId, fileType, filename) => {
   try {
-    const response = await billingApi.delete(`/api/v1/billing/files/${fileType}/${filename}`, {
+    const response = await billingApi.delete(`/billing/files/${fileType}/${filename}`, {
       headers: {
         'X-Session-ID': sessionId,
       },
@@ -141,7 +141,7 @@ export const deleteFile = async (sessionId, fileType, filename) => {
 
 export const downloadFile = async (sessionId, fileType, filename) => {
   try {
-    const response = await billingApi.get(`/api/v1/billing/files/download/${fileType}/${filename}`, {
+    const response = await billingApi.get(`/billing/files/download/${fileType}/${filename}`, {
       headers: {
         'X-Session-ID': sessionId,
       },
@@ -168,7 +168,7 @@ export const downloadFile = async (sessionId, fileType, filename) => {
 export const processBilling = async (sessionId, inputFiles = null) => {
   try {
     const response = await billingApi.post(
-      '/api/v1/billing/process',
+      '/billing/process',
       inputFiles ? { input_files: inputFiles } : {},
       {
         headers: {
@@ -186,7 +186,7 @@ export const processBilling = async (sessionId, inputFiles = null) => {
 // System Status
 export const getSystemStatus = async (sessionId) => {
   try {
-    const response = await billingApi.get('/api/v1/billing/status', {
+    const response = await billingApi.get('/billing/status', {
       headers: {
         'X-Session-ID': sessionId,
       },
@@ -200,7 +200,7 @@ export const getSystemStatus = async (sessionId) => {
 
 export const getMasterDataStatus = async (sessionId) => {
   try {
-    const response = await billingApi.get('/api/v1/billing/master-data/status', {
+    const response = await billingApi.get('/billing/master-data/status', {
       headers: {
         'X-Session-ID': sessionId,
       },
@@ -214,7 +214,7 @@ export const getMasterDataStatus = async (sessionId) => {
 
 export const checkHealth = async () => {
   try {
-    const response = await billingApi.get('/api/v1/billing/health');
+    const response = await billingApi.get('/billing/health');
     return response.data;
   } catch (error) {
     console.error('Health check failed:', error);

@@ -1,25 +1,49 @@
 import axios from 'axios';
 
-// API Base URL from environment variable
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// API Base URLs from environment variable
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/finance').trim();
+
+// Finance API base URL (for variance analysis, contract OCR, billing)
+export const FINANCE_API_BASE_URL = BASE_URL;
+
+// FP&A API base URL (for Excel comparison)
+// Safely construct FPA URL by replacing /finance with /fpa, or appending /fpa if /finance not found
+export const FPA_API_BASE_URL = BASE_URL.includes('/finance')
+  ? BASE_URL.replace('/finance', '/fpa')
+  : BASE_URL.replace(/\/api$/, '/api/fpa');
+
+// Debug: Log API URLs in development
+if (import.meta.env.DEV) {
+  console.log('🔧 API Configuration:');
+  console.log('  FINANCE_API_BASE_URL:', FINANCE_API_BASE_URL);
+  console.log('  FPA_API_BASE_URL:', FPA_API_BASE_URL);
+}
 
 // Common axios configuration
 const commonConfig = {
   timeout: 300000, // 5 minutes for large file processing
 };
 
-// Create unified axios instance
+// Create Finance API axios instance
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: FINANCE_API_BASE_URL,
+  ...commonConfig,
+});
+
+// Create FP&A API axios instance
+export const fpaApiClient = axios.create({
+  baseURL: FPA_API_BASE_URL,
   ...commonConfig,
 });
 
 // Legacy exports for backward compatibility (to be removed)
 export const varianceApiClient = apiClient;
 export const contractOcrApiClient = apiClient;
+export const API_BASE_URL = FINANCE_API_BASE_URL; // For backward compatibility
 export const API_ENDPOINTS = {
-  VARIANCE: API_BASE_URL,
-  CONTRACT_OCR: API_BASE_URL,
+  VARIANCE: FINANCE_API_BASE_URL,
+  CONTRACT_OCR: FINANCE_API_BASE_URL,
+  FPA: FPA_API_BASE_URL,
 };
 
 // Request interceptor (optional - for adding auth tokens, logging, etc.)
@@ -39,9 +63,12 @@ const errorInterceptor = (error) => {
   return Promise.reject(error);
 };
 
-// Apply interceptors to the unified client
+// Apply interceptors to both clients
 apiClient.interceptors.request.use(requestInterceptor);
 apiClient.interceptors.response.use(responseInterceptor, errorInterceptor);
+
+fpaApiClient.interceptors.request.use(requestInterceptor);
+fpaApiClient.interceptors.response.use(responseInterceptor, errorInterceptor);
 
 export default {
   apiClient,
