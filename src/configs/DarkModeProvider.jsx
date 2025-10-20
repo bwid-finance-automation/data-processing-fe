@@ -2,16 +2,32 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 const DarkModeContext = createContext(undefined);
 
+const getInitialTheme = () => {
+  // Check localStorage first
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark" || savedTheme === "light") {
+    return savedTheme === "dark";
+  }
+
+  // Check system preference if no saved theme
+  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    return true;
+  }
+
+  return false; // Default to light mode
+};
+
 const DarkModeProvider = ({ children }) => {
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem("theme");
-    return saved === "dark";
-  });
+  const [isDark, setIsDark] = useState(getInitialTheme);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent flash of incorrect theme
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
-    console.log("Dark mode state:", isDark);
-    console.log("HTML element before:", root.classList.toString());
 
     if (isDark) {
       root.classList.add("dark");
@@ -20,17 +36,39 @@ const DarkModeProvider = ({ children }) => {
       root.classList.remove("dark");
       localStorage.setItem("theme", "light");
     }
-
-    console.log("HTML element after:", root.classList.toString());
   }, [isDark]);
 
+  // Listen for system theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const handleChange = (e) => {
+      // Only update if user hasn't manually set a preference
+      const savedTheme = localStorage.getItem("theme");
+      if (!savedTheme) {
+        setIsDark(e.matches);
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
   const toggleDarkMode = () => {
-    console.log("Toggling from:", isDark);
     setIsDark(prev => !prev);
   };
 
+  const setTheme = (theme) => {
+    setIsDark(theme === "dark");
+  };
+
+  // Prevent flash of unstyled content
+  if (!mounted) {
+    return null;
+  }
+
   return (
-    <DarkModeContext.Provider value={{ isDark, toggleDarkMode }}>
+    <DarkModeContext.Provider value={{ isDark, toggleDarkMode, setTheme }}>
       {children}
     </DarkModeContext.Provider>
   );

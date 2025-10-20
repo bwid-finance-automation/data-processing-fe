@@ -19,7 +19,7 @@ export const processPythonAnalysis = async (formData, onUploadProgress) => {
 };
 
 export const startAIAnalysis = async (formData, onUploadProgress) => {
-  const response = await api.post('/start_analysis', formData, {
+  const response = await api.post('/start-analysis', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },

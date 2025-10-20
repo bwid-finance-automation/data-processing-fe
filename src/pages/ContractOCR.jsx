@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeftIcon } from '@heroicons/react/24/solid';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import FileUpload from '@components/contract-ocr/FileUpload';
 import ProcessingStatus from '@components/contract-ocr/ProcessingStatus';
 import ResultsTable from '@components/contract-ocr/ResultsTable';
@@ -63,13 +63,15 @@ export default function ContractOCR() {
     <div className="min-h-screen bg-white dark:bg-[#181818] py-8 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Back Button */}
-        <button
+        <motion.button
           onClick={() => navigate('/project/2')}
-          className="flex items-center gap-2 mb-6 text-gray-600 dark:text-gray-400 hover:text-[#222] dark:hover:text-[#f5efe6] transition"
+          whileHover={{ x: -5 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center gap-2 mb-6 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-[#222] dark:hover:text-[#f5efe6] bg-white dark:bg-[#222] rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all"
         >
-          <ArrowLeftIcon className="w-5 h-5" />
-          <span>{t('backButton')}</span>
-        </button>
+          <span className="text-lg font-bold">←</span>
+          <span className="font-medium">{t('backButton')}</span>
+        </motion.button>
 
         {/* Header */}
         <div className="mb-8">

@@ -78,7 +78,8 @@ export default function Home() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="bg-[#f7f6f3] dark:bg-[#222] p-8 rounded-2xl shadow-md"
+            whileHover={{ scale: 1.02, y: -5 }}
+            className="bg-[#f7f6f3] dark:bg-[#222] p-8 rounded-2xl shadow-md hover:shadow-xl transition-shadow border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
           >
             <h2 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-4">
               {currentContent.aboutTitle}
@@ -93,7 +94,8 @@ export default function Home() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="bg-[#f7f6f3] dark:bg-[#222] p-8 rounded-2xl shadow-md"
+            whileHover={{ scale: 1.02, y: -5 }}
+            className="bg-[#f7f6f3] dark:bg-[#222] p-8 rounded-2xl shadow-md hover:shadow-xl transition-shadow border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
           >
             <h2 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-4">
               {currentContent.teamTitle}
