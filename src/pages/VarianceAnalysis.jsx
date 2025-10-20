@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,6 +10,10 @@ export default function VarianceAnalysis() {
   const [activeTab, setActiveTab] = useState('python');
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = `${t('varianceAnalysisTitle')} - BW Industrial`;
+  }, [t]);
 
   const breadcrumbItems = [
     { label: t("home") || "Home", href: "/" },

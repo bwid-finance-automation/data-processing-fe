@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Button from "@components/common/Button";
 import { Badge } from "@components/common/Badge";
@@ -22,6 +22,10 @@ import {
 export default function ComponentShowcase() {
   const [progress, setProgress] = useState(65);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    document.title = "Component Showcase - BW Industrial";
+  }, []);
 
   const breadcrumbItems = [
     { label: "Home", href: "/" },

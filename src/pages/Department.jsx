@@ -1,9 +1,14 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 export default function Department() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  useEffect(() => {
+    document.title = `${t("departments")} - BW Industrial`;
+  }, [t]);
 
   const departments = [
     { id: 1, name: t("fpaRDept"), description: t("fpaRDeptDesc") },

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import thumbnail from "@assets/thumnail.png";
+import thumbnail from "@assets/images/thumnail.png";
 
 export default function Footer() {
   const { t } = useTranslation();

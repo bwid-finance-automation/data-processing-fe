@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -15,6 +15,10 @@ export default function ContractOCR() {
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+
+  useEffect(() => {
+    document.title = `${t('contractOCRProject')} - BW Industrial`;
+  }, [t]);
 
   const handleFilesSelected = (selectedFiles) => {
     setFiles(selectedFiles);

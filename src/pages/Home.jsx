@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ChartBarIcon, ClockIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
 import HeroSection from "@components/home/HeroSection";
@@ -5,8 +6,12 @@ import FeaturesSection from "@components/home/FeaturesSection";
 import { motion } from "framer-motion";
 
 export default function Home() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const language = i18n.language;
+
+  useEffect(() => {
+    document.title = `${t("home")} - BW Industrial`;
+  }, [t]);
 
   const content = {
     en: {

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FolderIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
@@ -27,6 +28,10 @@ export default function Project() {
 
   const projects = projectsByDepartment[departmentId] || [];
   const departmentName = departmentNames[departmentId] || "Unknown";
+
+  useEffect(() => {
+    document.title = `${departmentName} - BW Industrial`;
+  }, [departmentName]);
 
   const breadcrumbItems = [
     { label: t("home") || "Home", href: "/" },

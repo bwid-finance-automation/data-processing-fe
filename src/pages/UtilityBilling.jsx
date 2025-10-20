@@ -44,6 +44,11 @@ export default function UtilityBilling() {
     initializeSession();
   }, []);
 
+  // Update document title
+  useEffect(() => {
+    document.title = `${t('utilityBillingTitle')} - BW Industrial`;
+  }, [t]);
+
   const initializeSession = async () => {
     try {
       setLoading(true);

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,6 +14,10 @@ function ExcelComparison() {
 
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = `${t('ExcelComparision')} - BW Industrial`;
+  }, [t]);
 
   const previousInputRef = useRef(null);
   const currentInputRef = useRef(null);

@@ -99,7 +99,7 @@ export default function Header() {
                 key="sun"
                 initial={{ rotate: -90, scale: 0 }}
                 animate={{ rotate: 0, scale: 1 }}
-                exit={{ rotate: 90, scale: 0 }}
+                exit={{ rotate: 90, scale: 0 }}z
                 transition={{ duration: 0.3 }}
               >
                 <SunIcon className="w-5 h-5 text-yellow-500" />
