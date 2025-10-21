@@ -18,7 +18,7 @@ if (import.meta.env.DEV) {
 
 // Common axios configuration
 const commonConfig = {
-  timeout: 300000, // 5 minutes for large file processing
+  timeout: 1800000, // 30 minutes for large file processing and AI OCR
 };
 
 // Create Finance API axios instance
