@@ -7,6 +7,20 @@ export default function DetailModal({ contract, onClose }) {
   const fields = [
     { label: t('fileName') || 'File Name', value: contract.source_file },
     { label: t('processingTime') || 'Processing Time', value: contract.processing_time ? `${contract.processing_time.toFixed(2)}s` : '-' },
+
+    // New Vietnamese Contract Fields
+    { label: t('contractNumber') || 'Contract Number', value: data.contract_number },
+    { label: t('customerName') || 'Customer Name', value: data.customer_name },
+    { label: t('contractDate') || 'Contract Date', value: data.contract_date },
+    { label: t('handoverDate') || 'Handover Date', value: data.handover_date },
+    { label: t('depositAmount') || 'Deposit Amount', value: data.deposit_amount },
+    { label: t('paymentTermsDetails') || 'Payment Terms', value: data.payment_terms_details },
+    { label: 'GFA (Sqm)', value: data.gfa },
+    { label: t('serviceChargeRate') || 'Service Charge Rate', value: data.service_charge_rate },
+    { label: t('serviceChargeAppliesTo') || 'Service Charge Applies To', value: data.service_charge_applies_to },
+    { label: t('serviceChargeTotal') || 'Service Charge Total', value: data.service_charge_total },
+
+    // Original Fields
     { label: t('contractTitle') || 'Contract Title', value: data.contract_title },
     { label: t('contractType') || 'Contract Type', value: data.contract_type },
     { label: t('tenant') || 'Tenant', value: data.tenant },
@@ -74,6 +88,28 @@ export default function DetailModal({ contract, onClose }) {
               );
             })}
           </div>
+
+          {/* Rate Periods */}
+          {data.rate_periods && data.rate_periods.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-3 text-[#222] dark:text-[#f5efe6]">
+                {t('ratePeriods') || 'Rate Periods'}
+              </h3>
+              <div className="space-y-2">
+                {data.rate_periods.map((period, index) => (
+                  <div key={index} className="bg-gray-50 dark:bg-[#181818] p-3 rounded-lg">
+                    <p className="font-medium text-[#222] dark:text-[#f5efe6]">
+                      {t('period') || 'Period'} {index + 1}: {period.start_date} - {period.end_date}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      <p>{t('monthlyRatePerSqm') || 'Rate/Sqm'}: {period.monthly_rate_per_sqm || '-'}</p>
+                      <p>{t('totalMonthlyRate') || 'Total Monthly'}: {period.total_monthly_rate || '-'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Parties */}
           {data.parties_involved && data.parties_involved.length > 0 && (

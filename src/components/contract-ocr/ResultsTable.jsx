@@ -15,6 +15,8 @@ export default function ResultsTable({ results, onExportExcel, onExportJSON }) {
     const matchesSearch = searchTerm === '' ||
       result.source_file?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       result.data?.tenant?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      result.data?.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      result.data?.contract_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       result.data?.type?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesType = filterType === '' || result.data?.type === filterType;
@@ -116,7 +118,7 @@ export default function ResultsTable({ results, onExportExcel, onExportJSON }) {
         <div className="flex gap-4 mb-4">
           <input
             type="text"
-            placeholder={t('searchByFileName') || 'Search by file name or tenant...'}
+            placeholder={t('searchByFileName') || 'Search by file name, customer, contract #, or tenant...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#181818] text-[#222] dark:text-[#f5efe6]"
@@ -143,25 +145,28 @@ export default function ResultsTable({ results, onExportExcel, onExportJSON }) {
                   {t('fileName') || 'File Name'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t('type') || 'Type'}
+                  {t('contractNumber') || 'Contract #'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t('startDate') || 'Start Date'}
+                  {t('customerName') || 'Customer'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t('endDate') || 'End Date'}
+                  {t('contractDate') || 'Contract Date'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t('tenant') || 'Tenant'}
+                  {t('handoverDate') || 'Handover Date'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t('monthlyRatePerSqm') || 'Rate/Sqm'}
+                  {t('depositAmount') || 'Deposit'}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {t('gfa') || 'GFA (Sqm)'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {t('glaForLease') || 'GLA (Sqm)'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t('totalMonthlyRate') || 'Total Monthly'}
+                  {t('serviceChargeTotal') || 'Service Charge'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {t('actions') || 'Actions'}
@@ -184,25 +189,28 @@ export default function ResultsTable({ results, onExportExcel, onExportJSON }) {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {result.data?.type || '-'}
+                      {result.data?.contract_number || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {firstPeriod.start_date || '-'}
+                      {result.data?.customer_name || result.data?.tenant || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {firstPeriod.end_date || '-'}
+                      {result.data?.contract_date || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {result.data?.tenant || '-'}
+                      {result.data?.handover_date || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {firstPeriod.monthly_rate_per_sqm || '-'}
+                      {result.data?.deposit_amount || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {result.data?.gfa || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {result.data?.gla_for_lease || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {firstPeriod.total_monthly_rate || '-'}
+                      {result.data?.service_charge_total || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button

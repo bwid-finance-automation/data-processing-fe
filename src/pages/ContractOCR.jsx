@@ -46,8 +46,16 @@ export default function ContractOCR() {
   };
 
   const handleExportExcel = () => {
-    if (results && results.results) {
+    if (!results || !results.results) {
+      alert('Please process contracts first before exporting');
+      return;
+    }
+
+    try {
       exportToExcel(results.results);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Error exporting to Excel: ' + error.message);
     }
   };
 

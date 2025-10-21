@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 
 export const exportToExcel = (results) => {
-  // Flatten the results data for Excel - with rate periods
+  // Flatten the results data for Excel - with rate periods (normalized format)
   const excelData = [];
 
   results
@@ -10,30 +10,79 @@ export const exportToExcel = (results) => {
       const data = result.data || {};
       const ratePeriods = data.rate_periods || [];
 
+      // Base data that's the same for all rows from this contract
+      const baseData = {
+        'Customer Name': data.customer_name || data.tenant || '',
+        'Contract No': data.contract_number || '',
+        'Contract Date': data.contract_date || '',
+        'Payment term': data.payment_terms_details || '',
+        'Tax rate': '', // Leave blank as requested
+        'Unit': '', // Leave blank as requested
+        'Booking fee': '', // Leave blank as requested
+        'Deposit': data.deposit_amount || '',
+        'Handover Date': data.handover_date || '',
+      };
+
       // If no rate periods, create one row with basic info
       if (ratePeriods.length === 0) {
         excelData.push({
-          'File Name': result.source_file || '',
-          'Type': data.type || '',
-          'Tenant': data.tenant || '',
-          'GLA for Lease': data.gla_for_lease || '',
-          'Start Date': '',
-          'End Date': '',
-          'Monthly Rate per Sqm': '',
-          'Total Monthly Rate': '',
+          ...baseData,
+          'Rent from': '',
+          'Rent to': '',
+          'No. Month of rent': '',
+          'FOC from': '',
+          'FOC to': '',
+          'No month of FOC': '',
+          'GFA': data.gfa || '',
+          'Unit price/month': '',
+          'Monthly Rental fee': '',
         });
       } else {
-        // Create one row per rate period
-        ratePeriods.forEach(period => {
+        // Create one row per rate period (normalized format)
+        ratePeriods.forEach((period) => {
+          // Calculate months between start and end dates
+          let monthsOfRent = '';
+          let focFrom = '';
+          let focTo = '';
+          let monthsOfFOC = '';
+
+          if (period.start_date && period.end_date) {
+            try {
+              const start = new Date(period.start_date);
+              const end = new Date(period.end_date);
+              const months = ((end.getFullYear() - start.getFullYear()) * 12) + (end.getMonth() - start.getMonth()) + 1;
+              monthsOfRent = months.toString();
+            } catch (e) {
+              // If date parsing fails, leave blank
+            }
+          }
+
+          // Check for FOC using foc_from and foc_to fields
+          if (period.foc_from && period.foc_to) {
+            try {
+              const focStart = new Date(period.foc_from);
+              const focEnd = new Date(period.foc_to);
+              const focMonths = ((focEnd.getFullYear() - focStart.getFullYear()) * 12) + (focEnd.getMonth() - focStart.getMonth()) + 1;
+
+              focFrom = period.foc_from;
+              focTo = period.foc_to;
+              monthsOfFOC = focMonths.toString();
+            } catch (e) {
+              // If date parsing fails, leave blank
+            }
+          }
+
           excelData.push({
-            'File Name': result.source_file || '',
-            'Type': data.type || '',
-            'Tenant': data.tenant || '',
-            'GLA for Lease': data.gla_for_lease || '',
-            'Start Date': period.start_date || '',
-            'End Date': period.end_date || '',
-            'Monthly Rate per Sqm': period.monthly_rate_per_sqm || '',
-            'Total Monthly Rate': period.total_monthly_rate || '',
+            ...baseData,
+            'Rent from': period.start_date || '',
+            'Rent to': period.end_date || '',
+            'No. Month of rent': monthsOfRent,
+            'FOC from': focFrom,
+            'FOC to': focTo,
+            'No month of FOC': monthsOfFOC,
+            'GFA': data.gfa || '',
+            'Unit price/month': period.monthly_rate_per_sqm || '',
+            'Monthly Rental fee': period.total_monthly_rate || '',
           });
         });
       }
@@ -68,16 +117,26 @@ export const exportToExcel = (results) => {
 };
 
 export const exportToJSON = (results) => {
-  // Filter successful results - with rate periods
+  // Filter successful results - with all fields including new Vietnamese contract fields
   const jsonData = results
     .filter(result => result.success)
     .map(result => {
       const data = result.data || {};
       return {
         source_file: result.source_file,
+        contract_number: data.contract_number,
+        customer_name: data.customer_name,
+        contract_date: data.contract_date,
+        handover_date: data.handover_date,
+        deposit_amount: data.deposit_amount,
+        payment_terms_details: data.payment_terms_details,
+        gfa: data.gfa,
+        gla_for_lease: data.gla_for_lease,
+        service_charge_rate: data.service_charge_rate,
+        service_charge_applies_to: data.service_charge_applies_to,
+        service_charge_total: data.service_charge_total,
         type: data.type,
         tenant: data.tenant,
-        gla_for_lease: data.gla_for_lease,
         rate_periods: data.rate_periods || []
       };
     });
