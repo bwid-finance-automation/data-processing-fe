@@ -50,7 +50,7 @@ export const exportToExcel = (results) => {
             try {
               const start = new Date(period.start_date);
               const end = new Date(period.end_date);
-              const months = ((end.getFullYear() - start.getFullYear()) * 12) + (end.getMonth() - start.getMonth()) + 1;
+              const months = ((end.getFullYear() - start.getFullYear()) * 12) + (end.getMonth() - start.getMonth());
               monthsOfRent = months.toString();
             } catch (e) {
               // If date parsing fails, leave blank
@@ -62,7 +62,7 @@ export const exportToExcel = (results) => {
             try {
               const focStart = new Date(period.foc_from);
               const focEnd = new Date(period.foc_to);
-              const focMonths = ((focEnd.getFullYear() - focStart.getFullYear()) * 12) + (focEnd.getMonth() - focStart.getMonth()) + 1;
+              const focMonths = ((focEnd.getFullYear() - focStart.getFullYear()) * 12) + (focEnd.getMonth() - focStart.getMonth());
 
               focFrom = period.foc_from;
               focTo = period.foc_to;
