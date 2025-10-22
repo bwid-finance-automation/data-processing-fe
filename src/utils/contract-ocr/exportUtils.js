@@ -50,7 +50,20 @@ export const exportToExcel = (results) => {
             try {
               const start = new Date(period.start_date);
               const end = new Date(period.end_date);
-              const months = ((end.getFullYear() - start.getFullYear()) * 12) + (end.getMonth() - start.getMonth());
+
+              // Calculate month-to-month billing periods
+              const monthDiff = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+
+              // If end day >= start day, it's a complete month, otherwise partial
+              let months;
+              if (end.getDate() >= start.getDate()) {
+                months = monthDiff + 1;
+              } else {
+                months = monthDiff;
+              }
+
+              // Ensure at least 1 month
+              months = Math.max(1, months);
               monthsOfRent = months.toString();
             } catch (e) {
               // If date parsing fails, leave blank
@@ -62,7 +75,19 @@ export const exportToExcel = (results) => {
             try {
               const focStart = new Date(period.foc_from);
               const focEnd = new Date(period.foc_to);
-              const focMonths = ((focEnd.getFullYear() - focStart.getFullYear()) * 12) + (focEnd.getMonth() - focStart.getMonth());
+
+              // Calculate month-to-month billing periods (same logic as rent)
+              const monthDiff = (focEnd.getFullYear() - focStart.getFullYear()) * 12 + (focEnd.getMonth() - focStart.getMonth());
+
+              let focMonths;
+              if (focEnd.getDate() >= focStart.getDate()) {
+                focMonths = monthDiff + 1;
+              } else {
+                focMonths = monthDiff;
+              }
+
+              // Ensure at least 1 month
+              focMonths = Math.max(1, focMonths);
 
               focFrom = period.foc_from;
               focTo = period.foc_to;
