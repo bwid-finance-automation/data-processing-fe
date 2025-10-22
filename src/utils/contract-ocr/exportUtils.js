@@ -99,6 +99,21 @@ export const exportToExcel = (results) => {
             }
           }
 
+          // Calculate total monthly rental fee: monthly_rate_per_sqm × gfa
+          const monthlyRatePerSqm = period.monthly_rate_per_sqm || '';
+          let totalMonthlyRentalFee = '';
+          if (monthlyRatePerSqm && data.gfa) {
+            try {
+              const rate = parseFloat(monthlyRatePerSqm);
+              const gfa = parseFloat(data.gfa);
+              if (!isNaN(rate) && !isNaN(gfa) && gfa > 0) {
+                totalMonthlyRentalFee = (rate * gfa).toString();
+              }
+            } catch (e) {
+              // If calculation fails, leave blank
+            }
+          }
+
           // Service charge - get raw rate and calculate total
           const serviceChargeRate = period.service_charge_rate_per_sqm || '';
           let totalServiceCharge = '';
@@ -123,8 +138,8 @@ export const exportToExcel = (results) => {
             'FOC to': focTo,
             'No month of FOC': monthsOfFOC,
             'GFA': data.gfa || '',
-            'Unit price/month': period.monthly_rate_per_sqm || '',
-            'Monthly Rental fee': period.total_monthly_rate || '',
+            'Unit price/month': monthlyRatePerSqm,
+            'Monthly Rental fee': totalMonthlyRentalFee,
             'Service charge per m²/month': serviceChargeRate,
             'Total service charge per month': totalServiceCharge,
           });
