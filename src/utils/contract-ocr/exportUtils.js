@@ -36,7 +36,8 @@ export const exportToExcel = (results) => {
           'GFA': data.gfa || '',
           'Unit price/month': '',
           'Monthly Rental fee': '',
-          'Service charge per month': '',
+          'Service charge per m²/month': '',
+          'Total service charge per month': '',
         });
       } else {
         // Create one row per rate period (normalized format)
@@ -98,6 +99,21 @@ export const exportToExcel = (results) => {
             }
           }
 
+          // Service charge - get raw rate and calculate total
+          const serviceChargeRate = period.service_charge_rate_per_sqm || '';
+          let totalServiceCharge = '';
+          if (serviceChargeRate && data.gfa) {
+            try {
+              const rate = parseFloat(serviceChargeRate);
+              const gfa = parseFloat(data.gfa);
+              if (!isNaN(rate) && !isNaN(gfa) && gfa > 0) {
+                totalServiceCharge = (rate * gfa).toString();
+              }
+            } catch (e) {
+              // If calculation fails, leave blank
+            }
+          }
+
           excelData.push({
             ...baseData,
             'Rent from': period.start_date || '',
@@ -109,7 +125,8 @@ export const exportToExcel = (results) => {
             'GFA': data.gfa || '',
             'Unit price/month': period.monthly_rate_per_sqm || '',
             'Monthly Rental fee': period.total_monthly_rate || '',
-            'Service charge per month': period.service_charge_per_month || '',
+            'Service charge per m²/month': serviceChargeRate,
+            'Total service charge per month': totalServiceCharge,
           });
         });
       }
