@@ -36,6 +36,7 @@ export const exportToExcel = (results) => {
           'GFA': data.gfa || '',
           'Unit price/month': '',
           'Monthly Rental fee': '',
+          'Service charge per month': '',
         });
       } else {
         // Create one row per rate period (normalized format)
@@ -108,6 +109,7 @@ export const exportToExcel = (results) => {
             'GFA': data.gfa || '',
             'Unit price/month': period.monthly_rate_per_sqm || '',
             'Monthly Rental fee': period.total_monthly_rate || '',
+            'Service charge per month': period.service_charge_per_month || '',
           });
         });
       }
