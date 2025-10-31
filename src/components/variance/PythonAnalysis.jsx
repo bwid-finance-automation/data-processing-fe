@@ -8,6 +8,7 @@ const PythonAnalysis = () => {
   const [status, setStatus] = useState('idle'); // idle, uploading, processing, done, failed
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
 
   const handleExcelChange = (e) => {
     setExcelFiles(Array.from(e.target.files));
@@ -24,6 +25,7 @@ const PythonAnalysis = () => {
     setStatus('uploading');
     setProgress(0);
     setMessage('Uploading files...');
+    setSuggestions([]);
 
     const formData = new FormData();
 
@@ -56,7 +58,27 @@ const PythonAnalysis = () => {
       setProgress(100);
     } catch (error) {
       setStatus('failed');
-      setMessage(`Error: ${error.response?.data?.detail || error.message}`);
+
+      // Extract user-friendly error information from backend
+      const errorData = error.response?.data;
+      let errorMessage = 'An error occurred while processing your files.';
+      let errorSuggestions = [];
+
+      if (errorData) {
+        // Backend sends structured error responses
+        errorMessage = errorData.message || errorData.detail || errorMessage;
+        errorSuggestions = errorData.suggestions || [];
+
+        // Log technical details for debugging
+        if (errorData.technical_details) {
+          console.error('Technical details:', errorData.technical_details);
+        }
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+
+      setMessage(errorMessage);
+      setSuggestions(errorSuggestions);
       console.error('Analysis error:', error);
     }
   };
@@ -204,6 +226,34 @@ const PythonAnalysis = () => {
               }`}
             >
               {message}
+            </div>
+          )}
+
+          {/* Error Suggestions */}
+          {status === 'failed' && suggestions.length > 0 && (
+            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-orange-900 dark:text-orange-300 mb-2">
+                    Suggestions to fix this issue:
+                  </h4>
+                  <ul className="space-y-1.5">
+                    {suggestions.map((suggestion, idx) => (
+                      <li key={idx} className="flex items-start text-sm text-orange-800 dark:text-orange-300">
+                        <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-orange-200 dark:bg-orange-800 text-orange-700 dark:text-orange-200 rounded-full text-xs font-semibold mr-2 mt-0.5">
+                          {idx + 1}
+                        </span>
+                        <span className="flex-1">{suggestion}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
           )}
         </form>
