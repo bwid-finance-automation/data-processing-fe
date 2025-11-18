@@ -14,6 +14,7 @@ import VarianceAnalysis from "@pages/VarianceAnalysis";
 import ExcelComparison from "@pages/ExcelComparison";
 import ContractOCR from "@pages/ContractOCR";
 import UtilityBilling from "@pages/UtilityBilling";
+import BankStatementParser from "@pages/BankStatementParser";
 import NotFound from "@pages/NotFound";
 
 
@@ -98,6 +99,15 @@ function AnimatedRoutes() {
           element={
             <PageWrapper>
               <UtilityBilling />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/bank-statement-parser"
+          element={
+            <PageWrapper>
+              <BankStatementParser />
             </PageWrapper>
           }
         />

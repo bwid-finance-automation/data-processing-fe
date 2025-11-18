@@ -18,6 +18,7 @@ export default function Project() {
       { id: 2, name: t("varianceAnalysisProject"), description: t("varianceAnalysisDesc"), link: "/variance-analysis" },
       { id: 3, name: t("contractOCRProject"), description: t("contractOCRDesc"), link: "/contract-ocr" },
       { id: 4, name: t("utilityBillingProject"), description: t("utilityBillingDesc"), link: "/utility-billing" },
+      { id: 5, name: t("bankStatementParserProject"), description: t("bankStatementParserDesc"), link: "/bank-statement-parser" },
     ],
   };
 

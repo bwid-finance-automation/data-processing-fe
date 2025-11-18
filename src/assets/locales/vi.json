@@ -226,6 +226,8 @@
   "current": "Hiện tại",
   "dataComparisonFooter": "Công cụ So sánh dữ liệu",
   "contractOCRSystem": "Công cụ OCR hợp đồng",
-  "utilityBillingSystem": "Công cụ Hóa đơn Tiện ích"
+  "utilityBillingSystem": "Công cụ Hóa đơn Tiện ích",
+  "bankStatementParserProject": "Trích xuất Sao kê Ngân hàng",
+  "bankStatementParserDesc": "Tự động trích xuất giao dịch và số dư từ sao kê ngân hàng (hỗ trợ 10 ngân hàng)"
 
 }
