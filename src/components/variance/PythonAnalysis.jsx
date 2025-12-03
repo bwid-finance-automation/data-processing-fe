@@ -5,6 +5,7 @@ import { processPythonAnalysis } from '@services/variance/variance-apis';
 const PythonAnalysis = () => {
   const { t } = useTranslation();
   const [excelFiles, setExcelFiles] = useState([]);
+  const [loanInterestFile, setLoanInterestFile] = useState(null);
   const [status, setStatus] = useState('idle'); // idle, uploading, processing, done, failed
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState('');
@@ -12,6 +13,11 @@ const PythonAnalysis = () => {
 
   const handleExcelChange = (e) => {
     setExcelFiles(Array.from(e.target.files));
+  };
+
+  const handleLoanInterestChange = (e) => {
+    const file = e.target.files[0];
+    setLoanInterestFile(file || null);
   };
 
   const handleSubmit = async (e) => {
@@ -32,6 +38,11 @@ const PythonAnalysis = () => {
     excelFiles.forEach((file) => {
       formData.append('excel_files', file);
     });
+
+    // Add optional loan interest file for enhanced A2 analysis
+    if (loanInterestFile) {
+      formData.append('loan_interest_file', loanInterestFile);
+    }
 
     try {
       const blob = await processPythonAnalysis(formData, (progressEvent) => {
@@ -165,6 +176,63 @@ const PythonAnalysis = () => {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Loan Interest File (Optional) - for Enhanced A2 Analysis */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              ERP Loan Interest Rate File
+              <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">(Optional - for Enhanced Rule A2)</span>
+            </label>
+
+            {/* Custom File Upload Button */}
+            <div className="relative">
+              <input
+                type="file"
+                id="loan-interest-upload"
+                accept=".xlsx,.xls"
+                onChange={handleLoanInterestChange}
+                className="hidden"
+              />
+              <label
+                htmlFor="loan-interest-upload"
+                className={`flex items-center justify-center gap-3 w-full px-6 py-3 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                  loanInterestFile
+                    ? 'border-green-400 dark:border-green-600 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30'
+                    : 'border-gray-300 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 hover:border-green-400 dark:hover:border-green-500 hover:shadow-md'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    loanInterestFile
+                      ? 'bg-green-500 dark:bg-green-600'
+                      : 'bg-gradient-to-br from-green-500 to-green-600'
+                  }`}>
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {loanInterestFile ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      )}
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                      {loanInterestFile ? loanInterestFile.name : 'Add Loan Interest Rate File'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {loanInterestFile
+                        ? `${(loanInterestFile.size / 1024).toFixed(2)} KB - Click to change`
+                        : 'ERP Save Search export (.xlsx)'}
+                    </p>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Upload the ERP Loan Interest Rate Save Search file to enable enhanced Rule A2 analysis with interest rate lookups.
+            </p>
           </div>
 
           {/* Submit Button */}
