@@ -18,6 +18,17 @@ import BankStatementParser from "@pages/BankStatementParser";
 import NotFound from "@pages/NotFound";
 
 
+// Scroll to top on route change
+function ScrollToTop() {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [location.pathname]);
+
+  return null;
+}
+
 // animation wrapper
 function PageWrapper({ children }) {
   return (
@@ -135,6 +146,7 @@ function App() {
     <DarkModeProvider>
       <TooltipProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <MainLayout>
             <Toaster richColors position="top-center" />
             <AnimatedRoutes />
