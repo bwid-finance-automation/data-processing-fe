@@ -10,7 +10,8 @@ import {
   LockClosedIcon,
   KeyIcon,
   EyeIcon,
-  EyeSlashIcon
+  EyeSlashIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -57,6 +58,11 @@ const BankStatementParser = () => {
   const isValidFile = (file) => {
     const fileName = file.name.toLowerCase();
     return acceptedExtensions.some(ext => fileName.endsWith(ext));
+  };
+
+  // Check if file is legacy Excel format (.xls)
+  const isLegacyExcel = (file) => {
+    return file.name.toLowerCase().endsWith('.xls') && !file.name.toLowerCase().endsWith('.xlsx');
   };
 
   // Check if a PDF file is password-protected
@@ -485,6 +491,7 @@ const BankStatementParser = () => {
                     {files.map((file, index) => {
                       const isEncrypted = encryptedFiles[file.name];
                       const hasPassword = !!filePasswords[file.name];
+                      const isLegacy = fileMode === 'excel' && isLegacyExcel(file);
 
                       return (
                         <div
@@ -492,6 +499,8 @@ const BankStatementParser = () => {
                           className={`flex items-center justify-between p-3 rounded-lg border ${
                             isEncrypted && !hasPassword
                               ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700'
+                              : isLegacy
+                              ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700'
                               : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
                           }`}
                         >
@@ -500,6 +509,8 @@ const BankStatementParser = () => {
                               <LockClosedIcon className={`h-5 w-5 flex-shrink-0 ${
                                 hasPassword ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
                               }`} />
+                            ) : isLegacy ? (
+                              <ExclamationTriangleIcon className="h-5 w-5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
                             ) : (
                               <DocumentTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                             )}
@@ -512,6 +523,11 @@ const BankStatementParser = () => {
                                 {isEncrypted && (
                                   <span className={`ml-2 ${hasPassword ? 'text-green-600' : 'text-amber-600'}`}>
                                     {hasPassword ? `• ${t('Password set')}` : `• ${t('Encrypted - needs password')}`}
+                                  </span>
+                                )}
+                                {isLegacy && (
+                                  <span className="ml-2 text-orange-600 dark:text-orange-400">
+                                    • {t('Legacy Excel format')}
                                   </span>
                                 )}
                               </p>
@@ -539,6 +555,23 @@ const BankStatementParser = () => {
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* Legacy Excel Warning */}
+              {fileMode === 'excel' && files.some(f => isLegacyExcel(f)) && (
+                <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-300 dark:border-orange-700">
+                  <div className="flex items-start gap-3">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+                        {t('Legacy Excel Format Detected')}
+                      </h4>
+                      <p className="text-sm text-orange-700 dark:text-orange-400 mt-1">
+                        {t('legacyExcelWarning')}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

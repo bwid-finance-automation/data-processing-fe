@@ -276,6 +276,9 @@
   "Please select at least one bank statement file": "Please select at least one bank statement file",
   "Please enter password for encrypted file": "Please enter password for encrypted file",
   "Failed to download results file": "Failed to download results file",
+  "Legacy Excel format": "Legacy Excel format (.xls)",
+  "Legacy Excel Format Detected": "Legacy Excel Format Detected",
+  "legacyExcelWarning": "Some files are in the old Excel 97-2003 format (.xls). This format may cause parsing issues with some banks. For best results, please convert to the newer .xlsx format using 'Save As' in Excel.",
   "Home": "Home",
   "Department": "Department",
   "Finance & Accounting Department": "Finance & Accounting Department"
