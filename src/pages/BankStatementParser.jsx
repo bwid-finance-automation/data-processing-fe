@@ -457,12 +457,12 @@ const BankStatementParser = () => {
               {/* Supported Banks */}
               <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
-                  {t('Supported Banks')} ({fileMode === 'pdf' ? 2 : (results?.supported_banks?.length || 10)} {t('banks')})
+                  {t('Supported Banks')} ({fileMode === 'pdf' ? 2 : (results?.supported_banks?.length || 11)} {t('banks')})
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {(fileMode === 'pdf'
                     ? ['KBANK', 'VIB']
-                    : (results?.supported_banks || ['ACB', 'VIB', 'CTBC', 'KBANK', 'SINOPAC', 'MBB', 'OCB', 'BIDV', 'VTB', 'VCB'])
+                    : (results?.supported_banks || ['ACB', 'VIB', 'CTBC', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'VCB'])
                   ).map(bank => (
                     <span
                       key={bank}

@@ -228,7 +228,7 @@
   "contractOCRSystem": "Công cụ OCR hợp đồng",
   "utilityBillingSystem": "Công cụ Hóa đơn Tiện ích",
   "bankStatementParserProject": "Trích xuất Sao kê Ngân hàng",
-  "bankStatementParserDesc": "Tự động trích xuất giao dịch và số dư từ sao kê ngân hàng (hỗ trợ 10 ngân hàng)",
+  "bankStatementParserDesc": "Tự động trích xuất giao dịch và số dư từ sao kê ngân hàng (hỗ trợ 11 ngân hàng)",
 
   "Bank Statement Parser": "Trích xuất Sao kê Ngân hàng",
   "Upload bank statements to automatically extract transactions and balances": "Tải lên sao kê ngân hàng để tự động trích xuất giao dịch và số dư",

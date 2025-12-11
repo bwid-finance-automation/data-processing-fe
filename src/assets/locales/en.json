@@ -228,7 +228,7 @@
   "contractOCRSystem": "Contract OCR Tool",
   "utilityBillingSystem": "Utility Billing Tool",
   "bankStatementParserProject": "Bank Statement Parser",
-  "bankStatementParserDesc": "Automatically extract transactions and balances from bank statements (10 banks supported)",
+  "bankStatementParserDesc": "Automatically extract transactions and balances from bank statements (11 banks supported)",
 
   "Bank Statement Parser": "Bank Statement Parser",
   "Upload bank statements to automatically extract transactions and balances": "Upload bank statements to automatically extract transactions and balances",
