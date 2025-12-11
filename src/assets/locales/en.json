@@ -281,5 +281,8 @@
   "legacyExcelWarning": "Some files are in the old Excel 97-2003 format (.xls). This format may cause parsing issues with some banks. For best results, please convert to the newer .xlsx format using 'Save As' in Excel.",
   "Home": "Home",
   "Department": "Department",
-  "Finance & Accounting Department": "Finance & Accounting Department"
+  "Finance & Accounting Department": "Finance & Accounting Department",
+  "Coming Soon": "Coming Soon",
+  "PDF OCR Feature": "PDF OCR Feature",
+  "pdfComingSoonDesc": "We're working hard to bring you PDF bank statement parsing with OCR technology. This feature will be available soon!"
 }

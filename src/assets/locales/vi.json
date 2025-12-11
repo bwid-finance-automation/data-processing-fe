@@ -281,5 +281,8 @@
   "legacyExcelWarning": "Một số tệp đang ở định dạng Excel 97-2003 cũ (.xls). Định dạng này có thể gây lỗi khi phân tích với một số ngân hàng. Để có kết quả tốt nhất, vui lòng chuyển đổi sang định dạng .xlsx mới hơn bằng cách sử dụng 'Save As' trong Excel.",
   "Home": "Trang chủ",
   "Department": "Phòng ban",
-  "Finance & Accounting Department": "Phòng Kế toán Tài chính"
+  "Finance & Accounting Department": "Phòng Kế toán Tài chính",
+  "Coming Soon": "Sắp ra mắt",
+  "PDF OCR Feature": "Tính năng OCR PDF",
+  "pdfComingSoonDesc": "Chúng tôi đang nỗ lực để mang đến cho bạn tính năng phân tích sao kê ngân hàng PDF với công nghệ OCR. Tính năng này sẽ sớm được ra mắt!"
 }

@@ -426,62 +426,82 @@ const BankStatementParser = () => {
                 </div>
               </div>
 
-              {/* Drag & Drop Zone */}
-              <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
-                  dragActive
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600'
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                <CloudArrowUpIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
-                <p className="text-gray-600 dark:text-gray-400 mb-2">
-                  {t('Drag and drop')} {fileMode === 'excel' ? 'Excel' : 'PDF'} {t('files here, or')}
-                </p>
-                <label className="inline-block">
-                  <input
-                    type="file"
-                    multiple
-                    accept={acceptString}
-                    onChange={handleFileInput}
-                    className="hidden"
-                    disabled={processing}
-                  />
-                  <span className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer inline-block transition-colors">
-                    {t('Browse Files')}
-                  </span>
-                </label>
-                <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                  {t('Supported formats')}: {fileMode === 'excel' ? '.xlsx, .xls' : '.pdf'}
-                </p>
-              </div>
-
-              {/* Supported Banks */}
-              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
-                  {t('Supported Banks')} ({fileMode === 'pdf' ? 2 : (results?.supported_banks?.length || 11)} {t('banks')})
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {(fileMode === 'pdf'
-                    ? ['KBANK', 'VIB']
-                    : (results?.supported_banks || ['ACB', 'VIB', 'CTBC', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'VCB'])
-                  ).map(bank => (
-                    <span
-                      key={bank}
-                      className="px-2 py-1 bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 rounded text-xs font-medium border border-blue-200 dark:border-blue-700"
-                    >
-                      {bank}
+              {/* Drag & Drop Zone or Coming Soon */}
+              {fileMode === 'pdf' ? (
+                <div className="border-2 border-dashed rounded-lg p-8 text-center border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                  <div className="relative">
+                    <DocumentTextIcon className="h-16 w-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                    <span className="absolute top-0 right-1/2 translate-x-8 -translate-y-1 px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full">
+                      {t('Coming Soon')}
                     </span>
-                  ))}
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    {t('PDF OCR Feature')}
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                    {t('pdfComingSoonDesc')}
+                  </p>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed">
+                    <CloudArrowUpIcon className="h-5 w-5" />
+                    {t('Browse Files')}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
+                    dragActive
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <CloudArrowUpIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
+                  <p className="text-gray-600 dark:text-gray-400 mb-2">
+                    {t('Drag and drop')} Excel {t('files here, or')}
+                  </p>
+                  <label className="inline-block">
+                    <input
+                      type="file"
+                      multiple
+                      accept={acceptString}
+                      onChange={handleFileInput}
+                      className="hidden"
+                      disabled={processing}
+                    />
+                    <span className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer inline-block transition-colors">
+                      {t('Browse Files')}
+                    </span>
+                  </label>
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                    {t('Supported formats')}: .xlsx, .xls
+                  </p>
+                </div>
+              )}
 
-              {/* File List */}
-              {files.length > 0 && (
+              {/* Supported Banks - Only show for Excel mode */}
+              {fileMode === 'excel' && (
+                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
+                    {t('Supported Banks')} ({results?.supported_banks?.length || 11} {t('banks')})
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {(results?.supported_banks || ['ACB', 'VIB', 'CTBC', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'VCB']).map(bank => (
+                      <span
+                        key={bank}
+                        className="px-2 py-1 bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 rounded text-xs font-medium border border-blue-200 dark:border-blue-700"
+                      >
+                        {bank}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* File List - Only show for Excel mode */}
+              {fileMode === 'excel' && files.length > 0 && (
                 <div className="mt-4">
                   <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     {t('Selected Files')} ({files.length})
@@ -559,8 +579,8 @@ const BankStatementParser = () => {
                 </div>
               )}
 
-              {/* Legacy Excel Warning */}
-              {fileMode === 'excel' && files.some(f => isLegacyExcel(f)) && (
+              {/* Legacy Excel Warning - Only show for Excel mode */}
+              {fileMode === 'excel' && files.length > 0 && files.some(f => isLegacyExcel(f)) && (
                 <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-300 dark:border-orange-700">
                   <div className="flex items-start gap-3">
                     <ExclamationTriangleIcon className="h-5 w-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
@@ -576,23 +596,25 @@ const BankStatementParser = () => {
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="mt-6 flex gap-3">
-                <button
-                  onClick={handleProcess}
-                  disabled={processing || files.length === 0}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  {processing ? t('Processing...') : t('Process Files')}
-                </button>
-                <button
-                  onClick={handleClear}
-                  disabled={processing}
-                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  {t('Clear')}
-                </button>
-              </div>
+              {/* Action Buttons - Only show for Excel mode */}
+              {fileMode === 'excel' && (
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={handleProcess}
+                    disabled={processing || files.length === 0}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {processing ? t('Processing...') : t('Process Files')}
+                  </button>
+                  <button
+                    onClick={handleClear}
+                    disabled={processing}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {t('Clear')}
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
 
