@@ -40,7 +40,7 @@ const BankStatementParser = () => {
   const [verifyingPassword, setVerifyingPassword] = useState(false);
 
   const supportedBanksFallback = ['ACB', 'VIB', 'CTBC', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'VCB'];
-  const struckBanks = new Set(['KBANK', 'SINOPAC', 'SNP']);
+  const struckBanks = new Set(['KBANK']);
   const supportedBanks = results?.supported_banks || supportedBanksFallback;
 
   const breadcrumbItems = [
