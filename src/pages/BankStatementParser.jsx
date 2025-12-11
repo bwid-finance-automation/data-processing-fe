@@ -39,6 +39,10 @@ const BankStatementParser = () => {
   const [passwordError, setPasswordError] = useState('');
   const [verifyingPassword, setVerifyingPassword] = useState(false);
 
+  const supportedBanksFallback = ['ACB', 'VIB', 'CTBC', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'VCB'];
+  const struckBanks = new Set(['KBANK', 'SINOPAC', 'SNP']);
+  const supportedBanks = results?.supported_banks || supportedBanksFallback;
+
   const breadcrumbItems = [
     { label: t('Home'), href: '/' },
     { label: t('Department'), href: '/department' },
@@ -479,17 +483,25 @@ const BankStatementParser = () => {
               {fileMode === 'excel' && (
                 <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
-                    {t('Supported Banks')} ({results?.supported_banks?.length || 11} {t('banks')})
+                    {t('Supported Banks')} ({supportedBanks.length} {t('banks')})
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {(results?.supported_banks || ['ACB', 'VIB', 'CTBC', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'VCB']).map(bank => (
-                      <span
-                        key={bank}
-                        className="px-2 py-1 bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 rounded text-xs font-medium border border-blue-200 dark:border-blue-700"
-                      >
-                        {bank}
-                      </span>
-                    ))}
+                    {supportedBanks.map(bank => {
+                      const normalizedBank = bank?.toString() || '';
+                      const isStruck = struckBanks.has(normalizedBank.toUpperCase());
+
+                      return (
+                        <span
+                          key={normalizedBank}
+                          className={`px-2 py-1 bg-white dark:bg-gray-800 rounded text-xs font-medium border border-blue-200 dark:border-blue-700 ${isStruck
+                            ? 'line-through text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600'
+                            : 'text-blue-700 dark:text-blue-300'
+                          }`}
+                        >
+                          {normalizedBank}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}
