@@ -13,6 +13,7 @@ export default function Project() {
   const projectsByDepartment = {
     1: [
       { id: 1, name: t("ExcelComparision"), description: t("excelComparisionDesc"), link: "/excel-comparison" },
+      { id: 6, name: t("glaVarianceAnalysis") || "GLA Variance Analysis", description: t("glaVarianceAnalysisDesc") || "Compare Gross Leasable Area between periods to track Handover and Committed GLA changes", link: "/gla-variance-analysis" },
     ],
     2: [
       { id: 2, name: t("varianceAnalysisProject"), description: t("varianceAnalysisDesc"), link: "/variance-analysis" },

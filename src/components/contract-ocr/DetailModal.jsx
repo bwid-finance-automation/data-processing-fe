@@ -11,10 +11,6 @@ export default function DetailModal({ contract, onClose }) {
       label: t('tokenUsage') || 'Token Usage',
       value: contract.token_usage ? `${contract.token_usage.total_tokens.toLocaleString()} (${contract.token_usage.prompt_tokens.toLocaleString()} prompt + ${contract.token_usage.completion_tokens.toLocaleString()} completion)` : '-'
     },
-    {
-      label: t('estimatedCost') || 'Estimated Cost',
-      value: contract.cost_estimate ? `$${contract.cost_estimate.total_cost.toFixed(6)} USD (Input: $${contract.cost_estimate.input_cost.toFixed(6)}, Output: $${contract.cost_estimate.output_cost.toFixed(6)}, Model: ${contract.cost_estimate.model})` : '-'
-    },
 
     // New Vietnamese Contract Fields
     { label: t('contractNumber') || 'Contract Number', value: data.contract_number },

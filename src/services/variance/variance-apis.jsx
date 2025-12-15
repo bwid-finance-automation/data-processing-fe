@@ -7,6 +7,11 @@ export const healthCheck = async () => {
   return response.data;
 };
 
+export const getAIConfig = async () => {
+  const response = await api.get('/ai-config');
+  return response.data;
+};
+
 export const processPythonAnalysis = async (formData, onUploadProgress) => {
   const response = await api.post('/process', formData, {
     headers: {
