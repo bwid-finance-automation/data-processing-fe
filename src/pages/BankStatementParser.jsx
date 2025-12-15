@@ -41,7 +41,7 @@ const BankStatementParser = () => {
 
   const supportedBanksFallback = ['ACB', 'VIB', 'CTBC', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'VCB'];
   const supportedBanksPDF = ['KBANK', 'SCB', 'TCB', 'VIB'];
-  const struckBanks = new Set(['KBANK']);
+  const struckBanks = new Set([]);
   const struckBanksPDF = new Set([]); 
   const supportedBanks = results?.supported_banks || supportedBanksFallback;
 
