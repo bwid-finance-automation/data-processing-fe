@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { processPythonAnalysis } from '@services/variance/variance-apis';
+import { processPythonAnalysis, getAIConfig } from '@services/variance/variance-apis';
 
 const PythonAnalysis = () => {
   const { t } = useTranslation();
@@ -10,6 +10,20 @@ const PythonAnalysis = () => {
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState('');
   const [suggestions, setSuggestions] = useState([]);
+  const [aiConfig, setAiConfig] = useState(null);
+
+  // Fetch AI config on mount
+  useEffect(() => {
+    const fetchAIConfig = async () => {
+      try {
+        const config = await getAIConfig();
+        setAiConfig(config);
+      } catch (error) {
+        console.error('Failed to fetch AI config:', error);
+      }
+    };
+    fetchAIConfig();
+  }, []);
 
   const handleExcelChange = (e) => {
     setExcelFiles(Array.from(e.target.files));
@@ -335,6 +349,42 @@ const PythonAnalysis = () => {
         </div>
 
         <div className="space-y-4 text-gray-700 dark:text-gray-300">
+          {/* AI Model Configuration */}
+          {aiConfig && (
+            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-800/10 p-5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+              <h3 className="font-semibold text-emerald-900 dark:text-emerald-300 mb-3 flex items-center">
+                <span className="w-1 h-5 bg-emerald-500 rounded-full mr-2"></span>
+                AI Model Configuration
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex flex-col">
+                  <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium uppercase tracking-wide">Model</span>
+                  <span className="font-semibold text-emerald-900 dark:text-emerald-200">{aiConfig.model}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium uppercase tracking-wide">Family</span>
+                  <span className="font-semibold text-emerald-900 dark:text-emerald-200">{aiConfig.model_family}</span>
+                </div>
+                {aiConfig.is_gpt5 && aiConfig.reasoning_effort && (
+                  <div className="flex flex-col">
+                    <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium uppercase tracking-wide">Reasoning</span>
+                    <span className="font-semibold text-emerald-900 dark:text-emerald-200 capitalize">{aiConfig.reasoning_effort}</span>
+                  </div>
+                )}
+                <div className="flex flex-col">
+                  <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium uppercase tracking-wide">Service Tier</span>
+                  <span className="font-semibold text-emerald-900 dark:text-emerald-200 capitalize">{aiConfig.service_tier}</span>
+                </div>
+                <div className="flex flex-col col-span-2">
+                  <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium uppercase tracking-wide">Pricing (per 1M tokens)</span>
+                  <span className="font-semibold text-emerald-900 dark:text-emerald-200">
+                    Input: ${aiConfig.pricing?.input_per_million} | Output: ${aiConfig.pricing?.output_per_million}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10 p-5 rounded-xl border border-blue-200 dark:border-blue-800">
             <p className="text-sm leading-relaxed">
               {t('pythonAnalysisInfoDesc')}

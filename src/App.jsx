@@ -12,6 +12,7 @@ import Department from "@pages/Department";
 import Project from "@pages/Project";
 import VarianceAnalysis from "@pages/VarianceAnalysis";
 import ExcelComparison from "@pages/ExcelComparison";
+import GLAVarianceAnalysis from "@pages/GLAVarianceAnalysis";
 import ContractOCR from "@pages/ContractOCR";
 import UtilityBilling from "@pages/UtilityBilling";
 import BankStatementParser from "@pages/BankStatementParser";
@@ -92,6 +93,15 @@ function AnimatedRoutes() {
           element={
             <PageWrapper>
               <ExcelComparison />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/gla-variance-analysis"
+          element={
+            <PageWrapper>
+              <GLAVarianceAnalysis />
             </PageWrapper>
           }
         />
