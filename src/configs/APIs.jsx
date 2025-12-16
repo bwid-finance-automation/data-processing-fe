@@ -3,26 +3,13 @@ import axios from 'axios';
 // Resolve base URL while preventing mixed-content issues in production
 const resolveBaseUrl = () => {
   const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').trim();
-  const isBrowser = typeof window !== 'undefined';
-  const currentProtocol = isBrowser ? window.location.protocol : 'https:';
 
-  // Support protocol-relative URLs (e.g. //api.example.com)
-  const normalizedBase = rawBaseUrl.startsWith('//') ? `${currentProtocol}${rawBaseUrl}` : rawBaseUrl;
-
-  try {
-    const url = new URL(normalizedBase);
-
-    // If the site is served over HTTPS but the API URL is HTTP, upgrade to HTTPS to avoid mixed content
-    if (currentProtocol === 'https:' && url.protocol === 'http:') {
-      url.protocol = 'https:';
-    }
-
-    // Strip trailing slash to keep axios baseURL clean
-    return url.toString().replace(/\/$/, '');
-  } catch (error) {
-    console.error('Failed to parse API base URL. Falling back to raw value.', error);
-    return normalizedBase;
+  // If the site is served over HTTPS but the API URL is HTTP, upgrade to HTTPS to avoid mixed content
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && rawBaseUrl.startsWith('http://')) {
+    return rawBaseUrl.replace(/^http:\/\//, 'https://');
   }
+
+  return rawBaseUrl;
 };
 
 const BASE_URL = resolveBaseUrl();
