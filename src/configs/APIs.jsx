@@ -5,8 +5,11 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/ap
 //FA API
 export const FINANCE_API_BASE_URL = `${BASE_URL}/finance`;
 
-// FP&A API 
+// FP&A API
 export const FPA_API_BASE_URL = `${BASE_URL}/fpa`;
+
+// Project API
+export const PROJECT_API_BASE_URL = `${BASE_URL}/projects`;
 
 // Debug: Log API URLs in development
 if (import.meta.env.DEV) {
@@ -14,6 +17,7 @@ if (import.meta.env.DEV) {
   console.log('  BASE_URL:', BASE_URL);
   console.log('  FINANCE_API_BASE_URL:', FINANCE_API_BASE_URL);
   console.log('  FPA_API_BASE_URL:', FPA_API_BASE_URL);
+  console.log('  PROJECT_API_BASE_URL:', PROJECT_API_BASE_URL);
 }
 
 // Common axios configuration
@@ -30,6 +34,12 @@ export const apiClient = axios.create({
 // Create FP&A API axios instance
 export const fpaApiClient = axios.create({
   baseURL: FPA_API_BASE_URL,
+  ...commonConfig,
+});
+
+// Create Project API axios instance
+export const projectApiClient = axios.create({
+  baseURL: PROJECT_API_BASE_URL,
   ...commonConfig,
 });
 
@@ -60,15 +70,20 @@ const errorInterceptor = (error) => {
   return Promise.reject(error);
 };
 
-// Apply interceptors to both clients
+// Apply interceptors to all clients
 apiClient.interceptors.request.use(requestInterceptor);
 apiClient.interceptors.response.use(responseInterceptor, errorInterceptor);
 
 fpaApiClient.interceptors.request.use(requestInterceptor);
 fpaApiClient.interceptors.response.use(responseInterceptor, errorInterceptor);
 
+projectApiClient.interceptors.request.use(requestInterceptor);
+projectApiClient.interceptors.response.use(responseInterceptor, errorInterceptor);
+
 export default {
   apiClient,
+  fpaApiClient,
+  projectApiClient,
   varianceApiClient, // Legacy export
   contractOcrApiClient, // Legacy export
   API_ENDPOINTS, // Legacy export

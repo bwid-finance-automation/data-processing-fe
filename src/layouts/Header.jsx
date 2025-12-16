@@ -37,6 +37,7 @@ export default function Header() {
 
   const navItems = [
     { label: t("departments"), path: "/department" },
+    { label: t("Projects"), path: "/projects" },
   ];
 
   return (
@@ -99,7 +100,7 @@ export default function Header() {
                 key="sun"
                 initial={{ rotate: -90, scale: 0 }}
                 animate={{ rotate: 0, scale: 1 }}
-                exit={{ rotate: 90, scale: 0 }}z
+                exit={{ rotate: 90, scale: 0 }}
                 transition={{ duration: 0.3 }}
               >
                 <SunIcon className="w-5 h-5 text-yellow-500" />

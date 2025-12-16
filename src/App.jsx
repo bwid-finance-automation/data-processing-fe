@@ -10,6 +10,8 @@ import MainLayout from "@layouts/MainLayout";
 import Home from "@pages/Home";
 import Department from "@pages/Department";
 import Project from "@pages/Project";
+import ProjectManagement from "@pages/ProjectManagement";
+import ProjectWorkspace from "@pages/ProjectWorkspace";
 import VarianceAnalysis from "@pages/VarianceAnalysis";
 import ExcelComparison from "@pages/ExcelComparison";
 import GLAVarianceAnalysis from "@pages/GLAVarianceAnalysis";
@@ -75,6 +77,24 @@ function AnimatedRoutes() {
           element={
             <PageWrapper>
               <Project />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/projects"
+          element={
+            <PageWrapper>
+              <ProjectManagement />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/projects/:uuid"
+          element={
+            <PageWrapper>
+              <ProjectWorkspace />
             </PageWrapper>
           }
         />

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   DocumentTextIcon,
@@ -10,25 +11,43 @@ import {
   LockClosedIcon,
   KeyIcon,
   EyeIcon,
-  EyeSlashIcon
+  EyeSlashIcon,
+  FolderOpenIcon,
+  FolderIcon,
+  LinkIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import Breadcrumb from '../components/common/Breadcrumb';
-import { parseBankStatements, parseBankStatementsPDF, downloadBankStatementResults } from '../services/bank-statement/bank-statement-apis';
+import { getProject } from '../services/project/project-apis';
+import {
+  parseBankStatements,
+  parseBankStatementsPDF,
+  downloadBankStatementResults,
+  getUploadedFiles,
+  downloadUploadedFile
+} from '../services/bank-statement/bank-statement-apis';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const BankStatementParser = () => {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const projectUuid = searchParams.get('project');
+
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [fileMode, setFileMode] = useState('excel'); // 'excel' or 'pdf'
+
+  // Project context
+  const [project, setProject] = useState(null);
+  const [loadingProject, setLoadingProject] = useState(false);
 
   // PDF password management
   const [encryptedFiles, setEncryptedFiles] = useState({}); // {fileName: true/false}
@@ -38,6 +57,36 @@ const BankStatementParser = () => {
   const [checkingPdf, setCheckingPdf] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [verifyingPassword, setVerifyingPassword] = useState(false);
+
+  // Uploaded files history
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [loadingUploadedFiles, setLoadingUploadedFiles] = useState(false);
+
+  // Parse history
+  const [parseHistory, setParseHistory] = useState([]);
+
+  // Fetch project info if projectUuid is provided
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!projectUuid) {
+        setProject(null);
+        return;
+      }
+
+      setLoadingProject(true);
+      try {
+        const projectData = await getProject(projectUuid);
+        setProject(projectData);
+      } catch (err) {
+        console.error('Error fetching project:', err);
+        setProject(null);
+      } finally {
+        setLoadingProject(false);
+      }
+    };
+
+    fetchProject();
+  }, [projectUuid]);
 
   const supportedBanksFallback = ['ACB', 'VIB', 'CTBC', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'VCB'];
   const supportedBanksPDF = ['KBANK', 'SCB', 'TCB', 'VIB'];
@@ -308,8 +357,8 @@ const BankStatementParser = () => {
 
     try {
       const response = fileMode === 'excel'
-        ? await parseBankStatements(files)
-        : await parseBankStatementsPDF(files, filePasswords);
+        ? await parseBankStatements(files, projectUuid)
+        : await parseBankStatementsPDF(files, filePasswords, projectUuid);
       setResults(response);
     } catch (err) {
       console.error('Error processing bank statements:', err);
@@ -364,6 +413,141 @@ const BankStatementParser = () => {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
+  const formatDate = (isoString) => {
+    const date = new Date(isoString);
+    return date.toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const handleDownloadFromHistory = async (historyEntry) => {
+    if (!historyEntry?.download_url) return;
+
+    try {
+      const sessionId = historyEntry.download_url.split('/').pop();
+      const blob = await downloadBankStatementResults(sessionId);
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `bank_statements_${sessionId}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading from history:', err);
+      setError(t('Failed to download results file. The session may have expired.'));
+    }
+  };
+
+  const handleClearHistory = () => {
+    setParseHistory([]);
+    localStorage.removeItem('bankStatementParseHistory');
+  };
+
+  const handleRemoveHistoryItem = (sessionId) => {
+    setParseHistory(prev => {
+      const newHistory = prev.filter(h => h.id !== sessionId);
+      try {
+        localStorage.setItem('bankStatementParseHistory', JSON.stringify(newHistory));
+      } catch (err) {
+        console.error('Error saving parse history:', err);
+      }
+      return newHistory;
+    });
+  };
+
+  // Load parse history from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedHistory = localStorage.getItem('bankStatementParseHistory');
+      if (savedHistory) {
+        setParseHistory(JSON.parse(savedHistory));
+      }
+    } catch (err) {
+      console.error('Error loading parse history:', err);
+    }
+  }, []);
+
+  // Save results to history when parsing completes
+  useEffect(() => {
+    if (results?.session_id) {
+      const historyEntry = {
+        id: results.session_id,
+        timestamp: new Date().toISOString(),
+        mode: fileMode,
+        summary: results.summary,
+        download_url: results.download_url,
+        fileNames: files.map(f => f.name)
+      };
+
+      setParseHistory(prev => {
+        // Prevent duplicates
+        const exists = prev.some(h => h.id === results.session_id);
+        if (exists) return prev;
+
+        // Keep last 20 entries
+        const newHistory = [historyEntry, ...prev].slice(0, 20);
+
+        // Save to localStorage
+        try {
+          localStorage.setItem('bankStatementParseHistory', JSON.stringify(newHistory));
+        } catch (err) {
+          console.error('Error saving parse history:', err);
+        }
+
+        return newHistory;
+      });
+    }
+  }, [results?.session_id]);
+
+  // Fetch uploaded files when processing completes
+  useEffect(() => {
+    const fetchUploadedFiles = async () => {
+      if (results?.session_id) {
+        setLoadingUploadedFiles(true);
+        try {
+          const filesData = await getUploadedFiles(results.session_id);
+          setUploadedFiles(filesData.files || []);
+        } catch (err) {
+          console.error('Error fetching uploaded files:', err);
+          setUploadedFiles([]);
+        } finally {
+          setLoadingUploadedFiles(false);
+        }
+      } else {
+        setUploadedFiles([]);
+      }
+    };
+    fetchUploadedFiles();
+  }, [results?.session_id]);
+
+  // Handle downloading original uploaded file
+  const handleDownloadOriginalFile = async (fileId, filename) => {
+    try {
+      const response = await downloadUploadedFile(fileId);
+      const blob = response.data;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading file:', err);
+      setError(t('Failed to download original file'));
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
       {/* Header */}
@@ -379,6 +563,55 @@ const BankStatementParser = () => {
           <p className="mt-2 text-gray-600 dark:text-gray-400">
             {t('Upload bank statements to automatically extract transactions and balances')}
           </p>
+
+          {/* Project Context Banner */}
+          {projectUuid && (
+            <div className="mt-4">
+              {loadingProject ? (
+                <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm text-blue-700 dark:text-blue-300">{t('Loading project...')}</span>
+                </div>
+              ) : project ? (
+                <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <FolderIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <LinkIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                          {t('Linked to Project')}:
+                        </span>
+                        <span className="font-semibold text-blue-700 dark:text-blue-300">
+                          {project.name}
+                        </span>
+                      </div>
+                      {project.description && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                          {project.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/projects/${projectUuid}`)}
+                    className="px-3 py-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                  >
+                    {t('View Project')}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <ExclamationCircleIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  <span className="text-sm text-amber-700 dark:text-amber-300">
+                    {t('Project not found. Results will not be linked to any project.')}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -688,6 +921,53 @@ const BankStatementParser = () => {
                     {t('Download Results (Excel)')}
                   </button>
 
+                  {/* Uploaded Files Section */}
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FolderOpenIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          {t('Original Files')} ({uploadedFiles.length})
+                        </h4>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        {t('Files are stored for 30 days. Download them before they expire.')}
+                      </p>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {uploadedFiles.map((file) => (
+                          <div
+                            key={file.id}
+                            className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700"
+                          >
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <DocumentTextIcon className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                              <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                                {file.original_filename}
+                              </span>
+                              <span className="text-xs text-gray-400 dark:text-gray-500">
+                                ({formatFileSize(file.file_size)})
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleDownloadOriginalFile(file.id, file.original_filename)}
+                              className="p-1.5 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                              title={t('Download original file')}
+                            >
+                              <ArrowDownTrayIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {loadingUploadedFiles && (
+                    <div className="mt-4 text-center py-4">
+                      <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 dark:border-blue-400"></div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{t('Loading uploaded files...')}</p>
+                    </div>
+                  )}
+
+
                   {/* File Info */}
                   {results.session_id && (
                     <p className="text-xs text-gray-500 dark:text-gray-500 text-center">
@@ -736,6 +1016,99 @@ const BankStatementParser = () => {
             </li>
           </ol>
         </motion.div>
+
+        {/* Parse History Section */}
+        {parseHistory.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="mt-6 bg-white dark:bg-[#222] rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-800"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <DocumentTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                {t('Parse History')}
+                <span className="text-sm font-normal text-gray-500">({parseHistory.length})</span>
+              </h3>
+              <button
+                onClick={handleClearHistory}
+                className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+              >
+                {t('Clear All')}
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {parseHistory.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                          entry.mode === 'excel'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                            : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                        }`}>
+                          {entry.mode === 'excel' ? 'Excel' : 'PDF'}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatDate(entry.timestamp)}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {entry.summary?.banks_detected?.map(bank => (
+                          <span
+                            key={bank}
+                            className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium"
+                          >
+                            {bank}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                        <span>{entry.summary?.total_transactions || 0} {t('transactions')}</span>
+                        <span>{entry.summary?.unique_accounts || 0} {t('accounts')}</span>
+                      </div>
+
+                      {entry.fileNames?.length > 0 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 truncate">
+                          {t('Files')}: {entry.fileNames.join(', ')}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDownloadFromHistory(entry)}
+                        className="p-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        title={t('Download Results')}
+                      >
+                        <ArrowDownTrayIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleRemoveHistoryItem(entry.id)}
+                        className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        title={t('Remove')}
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-4 text-center">
+              {t('History is stored locally. Download links may expire after 30 days.')}
+            </p>
+          </motion.div>
+        )}
       </div>
 
       {/* Password Dialog Modal */}
