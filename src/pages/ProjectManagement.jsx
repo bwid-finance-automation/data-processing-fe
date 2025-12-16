@@ -61,7 +61,7 @@ const ProjectManagement = () => {
     setError(null);
     try {
       const data = await getProjects();
-      setProjects(data);
+      setProjects(data.projects || []);
     } catch (err) {
       console.error('Error fetching projects:', err);
       setError(err.response?.data?.detail || t('Failed to load projects'));
