@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   DocumentTextIcon,
   CloudArrowUpIcon,
@@ -14,7 +14,9 @@ import {
   EyeSlashIcon,
   FolderOpenIcon,
   FolderIcon,
-  LinkIcon
+  LinkIcon,
+  ChevronDownIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -97,6 +99,11 @@ const BankStatementParser = () => {
   // Track expanded/collapsed state for history sessions (first one expanded by default)
   const [expandedHistorySessions, setExpandedHistorySessions] = useState({});
 
+  // History filter states
+  const [historyTimeFilter, setHistoryTimeFilter] = useState('all'); // 'all', '24h', 'week'
+  const [historyBankFilter, setHistoryBankFilter] = useState('all'); // 'all' or bank name
+  const [historyFileTypeFilter, setHistoryFileTypeFilter] = useState('all'); // 'all', 'pdf', 'excel'
+
   // Fetch project info if projectUuid is provided
   useEffect(() => {
     const fetchProject = async () => {
@@ -112,15 +119,22 @@ const BankStatementParser = () => {
 
         // Check if project is protected and password dialog is not already open
         if (projectData.is_protected && !projectPasswordDialog.open) {
-          // Show password dialog for protected project
-          setProjectPasswordDialog({
-            open: true,
-            project: projectData,
-            password: '',
-          });
-          setProjectPasswordError('');
-          setShowProjectPassword(false);
-          setProject(null); // Don't set project until password verified
+          // Check if already verified in sessionStorage
+          const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+          if (verifiedProjects[projectUuid]) {
+            // Already verified, set project directly
+            setProject(projectData);
+          } else {
+            // Show password dialog for protected project
+            setProjectPasswordDialog({
+              open: true,
+              project: projectData,
+              password: '',
+            });
+            setProjectPasswordError('');
+            setShowProjectPassword(false);
+            setProject(null); // Don't set project until password verified
+          }
         } else if (!projectData.is_protected) {
           setProject(projectData);
         }
@@ -189,15 +203,23 @@ const BankStatementParser = () => {
     if (selectedProject) {
       // Check if project is protected
       if (selectedProject.is_protected) {
-        // Show password dialog
-        setProjectPasswordDialog({
-          open: true,
-          project: selectedProject,
-          password: '',
-        });
-        setProjectPasswordError('');
-        setShowProjectPassword(false);
-        setShowProjectDropdown(false);
+        // Check if already verified in sessionStorage
+        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+        if (verifiedProjects[selectedProject.uuid]) {
+          // Already verified, navigate directly
+          navigate(`/bank-statement-parser?project=${selectedProject.uuid}`);
+          setShowProjectDropdown(false);
+        } else {
+          // Show password dialog
+          setProjectPasswordDialog({
+            open: true,
+            project: selectedProject,
+            password: '',
+          });
+          setProjectPasswordError('');
+          setShowProjectPassword(false);
+          setShowProjectDropdown(false);
+        }
       } else {
         // No password, select directly
         navigate(`/bank-statement-parser?project=${selectedProject.uuid}`);
@@ -223,7 +245,12 @@ const BankStatementParser = () => {
       );
 
       if (result.verified) {
-        // Password correct, set the project and close dialog
+        // Password correct, save to sessionStorage
+        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+        verifiedProjects[projectPasswordDialog.project.uuid] = true;
+        sessionStorage.setItem('verifiedProjects', JSON.stringify(verifiedProjects));
+
+        // Set the project and close dialog
         setProject(projectPasswordDialog.project);
         // Navigate if not already on this project URL
         if (projectUuid !== projectPasswordDialog.project.uuid) {
@@ -679,6 +706,41 @@ const BankStatementParser = () => {
     });
   };
 
+  // Get unique banks from history for filter dropdown
+  const uniqueBanksInHistory = [...new Set(
+    projectBankStatements.flatMap(session => session.banks || [])
+  )].sort();
+
+  // Filter history based on selected filters
+  const filteredProjectBankStatements = projectBankStatements.filter(session => {
+    // Time filter
+    if (historyTimeFilter !== 'all') {
+      const sessionDate = new Date(session.processed_at);
+      const now = new Date();
+      if (historyTimeFilter === '24h') {
+        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        if (sessionDate < twentyFourHoursAgo) return false;
+      } else if (historyTimeFilter === 'week') {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (sessionDate < oneWeekAgo) return false;
+      }
+    }
+
+    // Bank filter
+    if (historyBankFilter !== 'all') {
+      if (!session.banks || !session.banks.includes(historyBankFilter)) return false;
+    }
+
+    // File type filter
+    if (historyFileTypeFilter !== 'all') {
+      const hasPdf = session.files?.some(f => f.file_name?.toLowerCase().endsWith('.pdf'));
+      if (historyFileTypeFilter === 'pdf' && !hasPdf) return false;
+      if (historyFileTypeFilter === 'excel' && hasPdf) return false;
+    }
+
+    return true;
+  });
+
   // Load parse history from localStorage on mount
   useEffect(() => {
     try {
@@ -783,43 +845,43 @@ const BankStatementParser = () => {
           {/* Project Selector */}
           <div className="mt-4">
             <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center gap-3 flex-1">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <FolderIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <LinkIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                      {t('Save to Project')}:
-                    </span>
-                  </div>
-
-                  {/* Project Dropdown */}
-                  <div className="relative mt-1" ref={projectDropdownRef}>
-                    <button
-                      onClick={() => setShowProjectDropdown(!showProjectDropdown)}
-                      disabled={loadingProjects}
-                      className="w-full max-w-md flex items-center justify-between px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-left hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
-                    >
-                      {loadingProject ? (
-                        <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                          {t('Loading...')}
+              <div className="flex items-center gap-3">
+                <FolderIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {t('Project')}:
+                </span>
+                <div className="relative" ref={projectDropdownRef}>
+                  <button
+                    onClick={() => setShowProjectDropdown(!showProjectDropdown)}
+                    disabled={loadingProject}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#222] border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 transition-colors min-w-[200px]"
+                  >
+                    {loadingProject ? (
+                      <span className="text-gray-400">{t('Loading...')}</span>
+                    ) : project ? (
+                      <>
+                        <span className="text-gray-900 dark:text-gray-100 truncate max-w-[150px]">
+                          {project.project_name}
                         </span>
-                      ) : project ? (
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{project.project_name}</span>
-                      ) : (
-                        <span className="text-gray-500 dark:text-gray-400">{t('Select a project...')}</span>
-                      )}
-                      <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
+                        {project.is_protected && (
+                          <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-gray-500">{t('Standalone Mode')}</span>
+                    )}
+                    <ChevronDownIcon className="h-4 w-4 text-gray-400 ml-auto" />
+                  </button>
 
-                    {/* Dropdown Menu */}
+                  {/* Dropdown */}
+                  <AnimatePresence>
                     {showProjectDropdown && (
-                      <div className="absolute z-50 mt-1 w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto">
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute top-full left-0 mt-1 w-72 bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-80 overflow-auto"
+                      >
                         {/* Create New Project Option */}
                         <button
                           onClick={() => {
@@ -828,27 +890,29 @@ const BankStatementParser = () => {
                           }}
                           className="w-full px-4 py-2 text-left text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors border-b border-gray-200 dark:border-gray-700 flex items-center gap-2"
                         >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
+                          <PlusIcon className="h-4 w-4" />
                           <span className="font-medium">{t('Create New Project')}</span>
                         </button>
 
-                        {/* No Project Option */}
+                        {/* Standalone option */}
                         <button
                           onClick={() => handleSelectProject(null)}
-                          className="w-full px-4 py-2 text-left text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-200 dark:border-gray-700"
+                          className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                            !project ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                          }`}
                         >
-                          {t('No project (standalone)')}
+                          <span className="text-gray-600 dark:text-gray-400">{t('Standalone Mode')}</span>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">{t('Process without saving to project')}</p>
                         </button>
+                        <div className="border-t border-gray-200 dark:border-gray-700" />
 
                         {loadingProjects ? (
-                          <div className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
-                            <div className="w-5 h-5 mx-auto border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-2" />
-                            {t('Loading projects...')}
+                          <div className="px-4 py-3 text-center text-gray-500">
+                            <div className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2" />
+                            {t('Loading...')}
                           </div>
                         ) : projectsList.length === 0 ? (
-                          <div className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
+                          <div className="px-4 py-3 text-center text-gray-500">
                             {t('No projects found')}
                           </div>
                         ) : (
@@ -857,39 +921,35 @@ const BankStatementParser = () => {
                               key={p.uuid}
                               onClick={() => handleSelectProject(p)}
                               className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                                p.uuid === projectUuid
-                                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                                  : 'text-gray-900 dark:text-gray-100'
+                                project?.uuid === p.uuid ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                               }`}
                             >
                               <div className="flex items-center gap-2">
-                                <FolderIcon className="h-4 w-4 text-gray-400" />
-                                <span className="font-medium">{p.project_name}</span>
+                                <span className="text-gray-900 dark:text-gray-100 truncate">
+                                  {p.project_name}
+                                </span>
                                 {p.is_protected && (
-                                  <LockClosedIcon className="h-3.5 w-3.5 text-amber-500" title={t('Password protected')} />
+                                  <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" />
                                 )}
                               </div>
                               {p.description && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 ml-6 truncate">
+                                <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
                                   {p.description}
                                 </p>
                               )}
                             </button>
                           ))
                         )}
-                      </div>
+                      </motion.div>
                     )}
-                  </div>
+                  </AnimatePresence>
                 </div>
               </div>
 
               {project && (
-                <button
-                  onClick={() => navigate(`/projects/${projectUuid}`)}
-                  className="ml-4 px-3 py-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                >
-                  {t('View Project')}
-                </button>
+                <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                  {t('Results will be saved to project')}
+                </span>
               )}
             </div>
           </div>
@@ -1311,10 +1371,94 @@ const BankStatementParser = () => {
                 <DocumentTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 {t('Project Parse History')}
                 <span className="text-sm font-normal text-gray-500">
-                  ({projectBankStatements.length})
+                  ({filteredProjectBankStatements.length}{filteredProjectBankStatements.length !== projectBankStatements.length ? ` / ${projectBankStatements.length}` : ''})
                 </span>
               </h3>
             </div>
+
+            {/* History Filters */}
+            {projectBankStatements.length > 0 && !loadingProjectHistory && (
+              <div className="mb-4 flex flex-wrap items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                {/* Time Filter */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('Time')}:</span>
+                  <div className="flex rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden">
+                    {[
+                      { value: 'all', label: t('All') },
+                      { value: '24h', label: '24h' },
+                      { value: 'week', label: t('Week') }
+                    ].map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => setHistoryTimeFilter(option.value)}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                          historyTimeFilter === option.value
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bank Filter */}
+                {uniqueBanksInHistory.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('Bank')}:</span>
+                    <select
+                      value={historyBankFilter}
+                      onChange={(e) => setHistoryBankFilter(e.target.value)}
+                      className="px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="all">{t('All Banks')}</option>
+                      {uniqueBanksInHistory.map(bank => (
+                        <option key={bank} value={bank}>{bank}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* File Type Filter */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('Type')}:</span>
+                  <div className="flex rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden">
+                    {[
+                      { value: 'all', label: t('All') },
+                      { value: 'excel', label: 'Excel' },
+                      { value: 'pdf', label: 'PDF' }
+                    ].map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => setHistoryFileTypeFilter(option.value)}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                          historyFileTypeFilter === option.value
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Clear Filters Button */}
+                {(historyTimeFilter !== 'all' || historyBankFilter !== 'all' || historyFileTypeFilter !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setHistoryTimeFilter('all');
+                      setHistoryBankFilter('all');
+                      setHistoryFileTypeFilter('all');
+                    }}
+                    className="px-2 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  >
+                    {t('Clear Filters')}
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Loading state for project history */}
             {loadingProjectHistory && (
@@ -1325,9 +1469,9 @@ const BankStatementParser = () => {
             )}
 
             {/* Project Bank Statements - Grouped by Session */}
-            {projectUuid && !loadingProjectHistory && projectBankStatements.length > 0 && (
+            {projectUuid && !loadingProjectHistory && filteredProjectBankStatements.length > 0 && (
               <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
-                {projectBankStatements.map((session, sessionIdx) => {
+                {filteredProjectBankStatements.map((session, sessionIdx) => {
                   // API returns: session_id, processed_at, file_count, total_transactions, banks[], files[]
                   const hasPdf = session.files?.some(f => f.file_name?.toLowerCase().endsWith('.pdf'));
                   const isExpanded = expandedHistorySessions[session.session_id] ?? (sessionIdx === 0);
@@ -1501,6 +1645,29 @@ const BankStatementParser = () => {
                 </div>
                 <p className="text-gray-700 dark:text-gray-300 font-medium mb-1">{t('No parse history yet')}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{t('Process files to see history here')}</p>
+              </div>
+            )}
+
+            {/* Empty state when filters result in no matches */}
+            {!loadingProjectHistory && projectBankStatements.length > 0 && filteredProjectBankStatements.length === 0 && (
+              <div className="text-center py-12">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+                  <svg className="h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                </div>
+                <p className="text-gray-700 dark:text-gray-300 font-medium mb-1">{t('No matching results')}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('Try adjusting your filters')}</p>
+                <button
+                  onClick={() => {
+                    setHistoryTimeFilter('all');
+                    setHistoryBankFilter('all');
+                    setHistoryFileTypeFilter('all');
+                  }}
+                  className="mt-3 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                >
+                  {t('Clear all filters')}
+                </button>
               </div>
             )}
           </motion.div>

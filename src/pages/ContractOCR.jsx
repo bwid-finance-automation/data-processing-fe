@@ -1,17 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import FileUpload from '@components/contract-ocr/FileUpload';
 import ProcessingStatus from '@components/contract-ocr/ProcessingStatus';
 import ResultsTable from '@components/contract-ocr/ResultsTable';
 import { processContracts, processContractWithUnits, exportContractWithUnitsToExcel } from '@services/contract-ocr/contract-ocr-apis';
 import { exportToExcel, exportToJSON } from '@utils/contract-ocr/exportUtils';
+import {
+  getProject,
+  getProjects,
+  verifyProjectPassword,
+  getProjectContracts
+} from '@services/project/project-apis';
+import {
+  FolderIcon,
+  ChevronDownIcon,
+  LockClosedIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  ClockIcon,
+  DocumentTextIcon,
+  ChevronRightIcon
+} from '@heroicons/react/24/outline';
 
 export default function ContractOCR() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const projectUuid = searchParams.get('project');
   const excelFileRef = useRef(null);
+  const projectDropdownRef = useRef(null);
 
   const [files, setFiles] = useState([]);
   const [unitBreakdownFile, setUnitBreakdownFile] = useState(null);
@@ -19,9 +38,221 @@ export default function ContractOCR() {
   const [results, setResults] = useState(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
+  // Project states
+  const [project, setProject] = useState(null);
+  const [loadingProject, setLoadingProject] = useState(false);
+  const [projectsList, setProjectsList] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+
+  // Project password dialog
+  const [projectPasswordDialog, setProjectPasswordDialog] = useState({
+    open: false,
+    project: null,
+    password: '',
+  });
+  const [projectPasswordError, setProjectPasswordError] = useState('');
+  const [showProjectPassword, setShowProjectPassword] = useState(false);
+  const [verifyingProjectPassword, setVerifyingProjectPassword] = useState(false);
+
+  // Project history
+  const [projectContractHistory, setProjectContractHistory] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [expandedHistorySessions, setExpandedHistorySessions] = useState({});
+
+  // History filter states
+  const [historyTimeFilter, setHistoryTimeFilter] = useState('all'); // 'all', '24h', 'week'
+  const [historyTenantFilter, setHistoryTenantFilter] = useState('all'); // 'all' or tenant name
+
   useEffect(() => {
     document.title = `${t('contractOCRProject')} - BW Industrial`;
   }, [t]);
+
+  // Fetch project info if projectUuid is provided
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!projectUuid) {
+        setProject(null);
+        setProjectContractHistory(null);
+        return;
+      }
+
+      setLoadingProject(true);
+      try {
+        const projectData = await getProject(projectUuid);
+
+        // Check if project is protected
+        if (projectData.is_protected && !projectPasswordDialog.open) {
+          // Check if already verified in sessionStorage
+          const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+          if (verifiedProjects[projectUuid]) {
+            setProject(projectData);
+          } else {
+            setProjectPasswordDialog({
+              open: true,
+              project: projectData,
+              password: '',
+            });
+            setProjectPasswordError('');
+            setShowProjectPassword(false);
+            setProject(null);
+          }
+        } else if (!projectData.is_protected) {
+          setProject(projectData);
+        }
+      } catch (err) {
+        console.error('Error fetching project:', err);
+        setProject(null);
+      } finally {
+        setLoadingProject(false);
+      }
+    };
+
+    fetchProject();
+  }, [projectUuid]);
+
+  // Fetch contract history when project changes
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (!project) {
+        setProjectContractHistory(null);
+        return;
+      }
+
+      setLoadingHistory(true);
+      try {
+        const history = await getProjectContracts(project.uuid);
+        setProjectContractHistory(history);
+      } catch (err) {
+        // 404 means no contract case yet - that's fine
+        if (err.response?.status !== 404) {
+          console.error('Error fetching contract history:', err);
+        }
+        setProjectContractHistory(null);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+
+    fetchHistory();
+  }, [project]);
+
+  // Fetch projects list when dropdown opens
+  useEffect(() => {
+    const fetchProjectsList = async () => {
+      if (showProjectDropdown && projectsList.length === 0) {
+        setLoadingProjects(true);
+        try {
+          const response = await getProjects(0, 100);
+          setProjectsList(response.projects || []);
+        } catch (err) {
+          console.error('Error fetching projects:', err);
+        } finally {
+          setLoadingProjects(false);
+        }
+      }
+    };
+
+    fetchProjectsList();
+  }, [showProjectDropdown, projectsList.length]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target)) {
+        setShowProjectDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle project selection
+  const handleSelectProject = (selectedProject) => {
+    setResults(null);
+    setFiles([]);
+
+    if (selectedProject) {
+      if (selectedProject.is_protected) {
+        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+        if (verifiedProjects[selectedProject.uuid]) {
+          navigate(`/contract-ocr?project=${selectedProject.uuid}`);
+          setShowProjectDropdown(false);
+        } else {
+          setProjectPasswordDialog({
+            open: true,
+            project: selectedProject,
+            password: '',
+          });
+          setProjectPasswordError('');
+          setShowProjectPassword(false);
+          setShowProjectDropdown(false);
+        }
+      } else {
+        navigate(`/contract-ocr?project=${selectedProject.uuid}`);
+        setShowProjectDropdown(false);
+      }
+    } else {
+      navigate('/contract-ocr');
+      setShowProjectDropdown(false);
+    }
+  };
+
+  // Handle project password verification
+  const handleProjectPasswordSubmit = async () => {
+    if (!projectPasswordDialog.password || !projectPasswordDialog.project) return;
+
+    setVerifyingProjectPassword(true);
+    setProjectPasswordError('');
+
+    try {
+      const result = await verifyProjectPassword(
+        projectPasswordDialog.project.uuid,
+        projectPasswordDialog.password
+      );
+
+      if (result.verified) {
+        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+        verifiedProjects[projectPasswordDialog.project.uuid] = true;
+        sessionStorage.setItem('verifiedProjects', JSON.stringify(verifiedProjects));
+
+        setProject(projectPasswordDialog.project);
+        if (projectUuid !== projectPasswordDialog.project.uuid) {
+          navigate(`/contract-ocr?project=${projectPasswordDialog.project.uuid}`);
+        }
+        setProjectPasswordDialog({ open: false, project: null, password: '' });
+      } else {
+        setProjectPasswordError(t('Incorrect password'));
+      }
+    } catch (err) {
+      console.error('Error verifying project password:', err);
+      setProjectPasswordError(t('Failed to verify password'));
+    } finally {
+      setVerifyingProjectPassword(false);
+    }
+  };
+
+  // Toggle history session expansion
+  const toggleHistorySession = (sessionId) => {
+    setExpandedHistorySessions(prev => ({
+      ...prev,
+      [sessionId]: !prev[sessionId]
+    }));
+  };
+
+  // Format date helper
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   const handleFilesSelected = (selectedFiles) => {
     setFiles(selectedFiles);
@@ -49,6 +280,7 @@ export default function ContractOCR() {
         const data = await processContractWithUnits(
           files[0],
           unitBreakdownFile,
+          project?.uuid || null,
           (uploadProgress) => {
             console.log(`Upload progress: ${uploadProgress}%`);
           }
@@ -74,11 +306,21 @@ export default function ContractOCR() {
         console.log('Processing batch contracts...');
         setProgress({ current: 0, total: files.length });
 
-        const data = await processContracts(files, (current, total) => {
+        const data = await processContracts(files, project?.uuid || null, (current, total) => {
           setProgress({ current, total });
         });
 
         setResults(data);
+      }
+
+      // Refresh contract history after processing
+      if (project) {
+        try {
+          const history = await getProjectContracts(project.uuid);
+          setProjectContractHistory(history);
+        } catch (err) {
+          console.error('Error refreshing contract history:', err);
+        }
       }
     } catch (error) {
       console.error('Error processing contracts:', error);
@@ -138,6 +380,34 @@ export default function ContractOCR() {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
+  // Get unique tenants from history for filter dropdown
+  const uniqueTenantsInHistory = [...new Set(
+    (projectContractHistory?.sessions || []).flatMap(session => session.tenants || [])
+  )].filter(Boolean).sort();
+
+  // Filter history based on selected filters
+  const filteredContractSessions = (projectContractHistory?.sessions || []).filter(session => {
+    // Time filter
+    if (historyTimeFilter !== 'all') {
+      const sessionDate = new Date(session.processed_at);
+      const now = new Date();
+      if (historyTimeFilter === '24h') {
+        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        if (sessionDate < twentyFourHoursAgo) return false;
+      } else if (historyTimeFilter === 'week') {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (sessionDate < oneWeekAgo) return false;
+      }
+    }
+
+    // Tenant filter
+    if (historyTenantFilter !== 'all') {
+      if (!session.tenants || !session.tenants.includes(historyTenantFilter)) return false;
+    }
+
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-white dark:bg-[#181818] py-8 px-6">
       <div className="max-w-7xl mx-auto">
@@ -160,6 +430,106 @@ export default function ContractOCR() {
           <p className="text-gray-600 dark:text-gray-400">
             {t('contractOCRDesc')}
           </p>
+        </div>
+
+        {/* Project Selector */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-3">
+              <FolderIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {t('Project')}:
+              </span>
+              <div className="relative" ref={projectDropdownRef}>
+                <button
+                  onClick={() => setShowProjectDropdown(!showProjectDropdown)}
+                  disabled={loadingProject}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#222] border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 transition-colors min-w-[200px]"
+                >
+                  {loadingProject ? (
+                    <span className="text-gray-400">{t('Loading...')}</span>
+                  ) : project ? (
+                    <>
+                      <span className="text-gray-900 dark:text-gray-100 truncate max-w-[150px]">
+                        {project.project_name}
+                      </span>
+                      {project.is_protected && (
+                        <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-gray-500">{t('Standalone Mode')}</span>
+                  )}
+                  <ChevronDownIcon className="h-4 w-4 text-gray-400 ml-auto" />
+                </button>
+
+                {/* Dropdown */}
+                <AnimatePresence>
+                  {showProjectDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute top-full left-0 mt-1 w-72 bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-80 overflow-auto"
+                    >
+                      {/* Standalone option */}
+                      <button
+                        onClick={() => handleSelectProject(null)}
+                        className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                          !project ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                        }`}
+                      >
+                        <span className="text-gray-600 dark:text-gray-400">{t('Standalone Mode')}</span>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">{t('Process without saving to project')}</p>
+                      </button>
+                      <div className="border-t border-gray-200 dark:border-gray-700" />
+
+                      {loadingProjects ? (
+                        <div className="px-4 py-3 text-center text-gray-500">
+                          <div className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2" />
+                          {t('Loading...')}
+                        </div>
+                      ) : projectsList.length === 0 ? (
+                        <div className="px-4 py-3 text-center text-gray-500">
+                          {t('No projects found')}
+                        </div>
+                      ) : (
+                        projectsList.map((p) => (
+                          <button
+                            key={p.uuid}
+                            onClick={() => handleSelectProject(p)}
+                            className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                              project?.uuid === p.uuid ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-900 dark:text-gray-100 truncate">
+                                {p.project_name}
+                              </span>
+                              {p.is_protected && (
+                                <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                              )}
+                            </div>
+                            {p.description && (
+                              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                                {p.description}
+                              </p>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {project && (
+              <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                {t('Results will be saved to project')}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* File Upload Section */}
@@ -341,7 +711,286 @@ export default function ContractOCR() {
             </p>
           </div>
         )}
+
+        {/* Project Contract History */}
+        {project && (
+          <div className="mt-8 bg-white dark:bg-[#222] rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              <div className="flex items-center gap-3">
+                <ClockIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {t('Contract History')}
+                </h3>
+                {projectContractHistory && (
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    ({filteredContractSessions.length}{filteredContractSessions.length !== (projectContractHistory.total_sessions || 0) ? ` / ${projectContractHistory.total_sessions || 0}` : ''} {t('sessions')})
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* History Filters */}
+            {projectContractHistory && projectContractHistory.sessions && projectContractHistory.sessions.length > 0 && !loadingHistory && (
+              <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Time Filter */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('Time')}:</span>
+                    <div className="flex rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden">
+                      {[
+                        { value: 'all', label: t('All') },
+                        { value: '24h', label: '24h' },
+                        { value: 'week', label: t('Week') }
+                      ].map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => setHistoryTimeFilter(option.value)}
+                          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                            historyTimeFilter === option.value
+                              ? 'bg-purple-600 text-white'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tenant Filter */}
+                  {uniqueTenantsInHistory.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('Tenant')}:</span>
+                      <select
+                        value={historyTenantFilter}
+                        onChange={(e) => setHistoryTenantFilter(e.target.value)}
+                        className="px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 max-w-[200px]"
+                      >
+                        <option value="all">{t('All Tenants')}</option>
+                        {uniqueTenantsInHistory.map(tenant => (
+                          <option key={tenant} value={tenant}>{tenant}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Clear Filters Button */}
+                  {(historyTimeFilter !== 'all' || historyTenantFilter !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setHistoryTimeFilter('all');
+                        setHistoryTenantFilter('all');
+                      }}
+                      className="px-2 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                      {t('Clear Filters')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="p-4">
+              {loadingHistory ? (
+                <div className="text-center py-8">
+                  <div className="inline-block w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-2" />
+                  <p className="text-gray-500 dark:text-gray-400">{t('Loading history...')}</p>
+                </div>
+              ) : !projectContractHistory || !projectContractHistory.sessions || projectContractHistory.sessions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <DocumentTextIcon className="mx-auto h-12 w-12 mb-2 opacity-50" />
+                  <p>{t('No contract history yet')}</p>
+                  <p className="text-sm">{t('Process contracts to see history')}</p>
+                </div>
+              ) : filteredContractSessions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <svg className="mx-auto h-12 w-12 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  <p>{t('No matching results')}</p>
+                  <p className="text-sm">{t('Try adjusting your filters')}</p>
+                  <button
+                    onClick={() => {
+                      setHistoryTimeFilter('all');
+                      setHistoryTenantFilter('all');
+                    }}
+                    className="mt-3 px-4 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                  >
+                    {t('Clear all filters')}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredContractSessions.map((session) => (
+                    <div
+                      key={session.session_id}
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+                    >
+                      {/* Session header */}
+                      <button
+                        onClick={() => toggleHistorySession(session.session_id)}
+                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <ChevronRightIcon
+                            className={`h-4 w-4 text-gray-400 transition-transform ${
+                              expandedHistorySessions[session.session_id] ? 'rotate-90' : ''
+                            }`}
+                          />
+                          <div className="text-left">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-900 dark:text-gray-100">
+                                {formatDate(session.processed_at)}
+                              </span>
+                              <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">
+                                {session.file_count} {t('contracts')}
+                              </span>
+                            </div>
+                            {session.tenants && session.tenants.length > 0 && (
+                              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                                {session.tenants.slice(0, 3).join(', ')}
+                                {session.tenants.length > 3 && ` +${session.tenants.length - 3}`}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Session files */}
+                      <AnimatePresence>
+                        {expandedHistorySessions[session.session_id] && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-4 py-2 bg-white dark:bg-[#181818] divide-y divide-gray-100 dark:divide-gray-800">
+                              {session.files.map((file, idx) => (
+                                <div key={idx} className="py-2 flex items-center gap-3">
+                                  <DocumentTextIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                                      {file.file_name || 'Unknown file'}
+                                    </p>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                      {file.contract_number && (
+                                        <span>#{file.contract_number}</span>
+                                      )}
+                                      {file.tenant && (
+                                        <span>• {file.tenant}</span>
+                                      )}
+                                      {file.unit_for_lease && (
+                                        <span>• Unit: {file.unit_for_lease}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Project Password Dialog */}
+      <AnimatePresence>
+        {projectPasswordDialog.open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-[#222] rounded-lg shadow-xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-full">
+                  <LockClosedIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {t('Project Password Required')}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {t('This project is password protected')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 truncate">
+                  {t('Project')}: <span className="font-medium">{projectPasswordDialog.project?.project_name}</span>
+                </p>
+                <div className="relative">
+                  <input
+                    type={showProjectPassword ? 'text' : 'password'}
+                    value={projectPasswordDialog.password}
+                    onChange={(e) => {
+                      setProjectPasswordDialog(prev => ({ ...prev, password: e.target.value }));
+                      setProjectPasswordError('');
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && !verifyingProjectPassword && handleProjectPasswordSubmit()}
+                    placeholder={t('Enter project password')}
+                    className={`w-full px-4 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      projectPasswordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    autoFocus
+                    disabled={verifyingProjectPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowProjectPassword(!showProjectPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    {showProjectPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+                {projectPasswordError && (
+                  <p className="mt-1 text-sm text-red-500">{projectPasswordError}</p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setProjectPasswordDialog({ open: false, project: null, password: '' });
+                    setProjectPasswordError('');
+                  }}
+                  disabled={verifyingProjectPassword}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
+                >
+                  {t('Cancel')}
+                </button>
+                <button
+                  onClick={handleProjectPasswordSubmit}
+                  disabled={!projectPasswordDialog.password || verifyingProjectPassword}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {verifyingProjectPassword ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      {t('Verifying...')}
+                    </>
+                  ) : (
+                    t('Unlock')
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Footer */}
        <motion.footer

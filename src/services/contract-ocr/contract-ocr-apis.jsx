@@ -1,11 +1,16 @@
 import { apiClient } from '@configs/APIs';
 
-export const processContracts = async (files, onProgress) => {
+export const processContracts = async (files, projectUuid = null, onProgress) => {
   const formData = new FormData();
 
   files.forEach(file => {
     formData.append('files', file);
   });
+
+  // Add project_uuid if provided
+  if (projectUuid) {
+    formData.append('project_uuid', projectUuid);
+  }
 
   try {
     const response = await apiClient.post(
@@ -25,10 +30,12 @@ export const processContracts = async (files, onProgress) => {
     );
 
     // Simulate progress for individual file processing
-    for (let i = 1; i <= files.length; i++) {
-      onProgress(i, files.length);
-      // Small delay to show progress
-      await new Promise(resolve => setTimeout(resolve, 100));
+    if (onProgress) {
+      for (let i = 1; i <= files.length; i++) {
+        onProgress(i, files.length);
+        // Small delay to show progress
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
 
     return response.data;
@@ -113,10 +120,15 @@ export const getSupportedFormats = async () => {
  * Process a contract with unit breakdown Excel file
  * Creates individual contracts for each unit
  */
-export const processContractWithUnits = async (contractFile, unitBreakdownFile, onProgress) => {
+export const processContractWithUnits = async (contractFile, unitBreakdownFile, projectUuid = null, onProgress) => {
   const formData = new FormData();
   formData.append('contract_file', contractFile);
   formData.append('unit_breakdown_file', unitBreakdownFile);
+
+  // Add project_uuid if provided
+  if (projectUuid) {
+    formData.append('project_uuid', projectUuid);
+  }
 
   try {
     const response = await apiClient.post(

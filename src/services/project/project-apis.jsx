@@ -189,3 +189,18 @@ export const getProjectBankStatements = async (uuid) => {
     throw error;
   }
 };
+
+/**
+ * Get contract OCR history for a project
+ * @param {string} uuid - Project UUID
+ * @returns {Promise} List of contract OCR records linked to project
+ */
+export const getProjectContracts = async (uuid) => {
+  try {
+    const response = await projectApiClient.get(`/${uuid}/cases/contract`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching project contracts:', error);
+    throw error;
+  }
+};

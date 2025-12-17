@@ -363,47 +363,50 @@ const ProjectManagement = () => {
 
         {/* Projects Grid */}
         {!loading && projects.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {projects.map((project, index) => (
               <motion.div
                 key={project.uuid}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-white dark:bg-[#222] rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden group hover:shadow-xl transition-all"
+                transition={{ delay: index * 0.03 }}
+                onClick={() => handleOpenProject(project)}
+                className="bg-white dark:bg-[#222] rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden group hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
               >
-                <div
-                  onClick={() => handleOpenProject(project)}
-                  className="p-6 cursor-pointer"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <FolderIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {project.project_name}
-                      </h3>
-                    </div>
+                <div className="p-4">
+                  {/* Header row */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <FolderIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate flex-1">
+                      {project.project_name}
+                    </h3>
                     {project.is_protected && (
-                      <LockClosedIcon className="h-5 w-5 text-amber-500" title={t('Password protected')} />
+                      <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" title={t('Password protected')} />
                     )}
                   </div>
 
+                  {/* Description */}
                   {project.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 line-clamp-1">
                       {project.description}
                     </p>
                   )}
 
-                  <div className="text-xs text-gray-500 dark:text-gray-500">
-                    <p>{t('Created')}: {formatDate(project.created_at)}</p>
+                  {/* Footer row */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
+                      {formatDate(project.created_at).split(' ')[0]}
+                    </span>
                     {project.case_count > 0 && (
-                      <p className="mt-1">{project.case_count} {t('cases')}</p>
+                      <span className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded">
+                        {project.case_count} {t('cases')}
+                      </span>
                     )}
                   </div>
                 </div>
 
-                {/* Action buttons */}
-                <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
+                {/* Action buttons - compact */}
+                <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -416,13 +419,13 @@ const ProjectManagement = () => {
                       });
                       setActionError('');
                     }}
-                    className="p-2 text-gray-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors"
                     title={project.is_protected ? t('Change password') : t('Set password')}
                   >
                     {project.is_protected ? (
-                      <LockClosedIcon className="h-5 w-5" />
+                      <LockClosedIcon className="h-4 w-4" />
                     ) : (
-                      <LockOpenIcon className="h-5 w-5" />
+                      <LockOpenIcon className="h-4 w-4" />
                     )}
                   </button>
                   <button
@@ -436,10 +439,10 @@ const ProjectManagement = () => {
                       });
                       setActionError('');
                     }}
-                    className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
                     title={t('Edit')}
                   >
-                    <PencilIcon className="h-5 w-5" />
+                    <PencilIcon className="h-4 w-4" />
                   </button>
                   <button
                     onClick={(e) => {
@@ -447,10 +450,10 @@ const ProjectManagement = () => {
                       setDeleteModal({ open: true, project });
                       setActionError('');
                     }}
-                    className="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                     title={t('Delete')}
                   >
-                    <TrashIcon className="h-5 w-5" />
+                    <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
               </motion.div>

@@ -10,14 +10,19 @@ import {
   BanknotesIcon,
   ChevronRightIcon,
   ExclamationCircleIcon,
-  PlusIcon
+  PlusIcon,
+  LockClosedIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import Breadcrumb from '../components/common/Breadcrumb';
 import {
   getProject,
   getProjectCases,
-  getProjectBankStatements
+  getProjectBankStatements,
+  verifyProjectPassword
 } from '../services/project/project-apis';
 import { downloadBankStatementResults } from '../services/bank-statement/bank-statement-apis';
 
@@ -34,16 +39,52 @@ const ProjectWorkspace = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Password protection state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [pendingProjectData, setPendingProjectData] = useState(null);
+
   // Fetch project data
   const fetchProjectData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch project and cases first (required)
-      const [projectData, casesData] = await Promise.all([
-        getProject(uuid),
-        getProjectCases(uuid),
-      ]);
+      // Fetch project info first to check if protected
+      const projectData = await getProject(uuid);
+
+      // Check if project is protected
+      if (projectData.is_protected) {
+        // Check if already verified in sessionStorage
+        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+        if (!verifiedProjects[uuid]) {
+          // Need password verification
+          setPendingProjectData(projectData);
+          setShowPasswordDialog(true);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Project is not protected or already verified, continue loading
+      await loadProjectDetails(projectData);
+    } catch (err) {
+      console.error('Error fetching project data:', err);
+      if (err.response?.status === 404) {
+        setError(t('Project not found'));
+      } else {
+        setError(err.response?.data?.detail || t('Failed to load project'));
+      }
+      setLoading(false);
+    }
+  }, [uuid, t]);
+
+  // Load project details after verification
+  const loadProjectDetails = async (projectData) => {
+    try {
+      const casesData = await getProjectCases(uuid);
       setProject(projectData);
       setCases(casesData);
 
@@ -61,16 +102,54 @@ const ProjectWorkspace = () => {
         }
       }
     } catch (err) {
-      console.error('Error fetching project data:', err);
-      if (err.response?.status === 404) {
-        setError(t('Project not found'));
-      } else {
-        setError(err.response?.data?.detail || t('Failed to load project'));
-      }
+      console.error('Error fetching project details:', err);
+      setError(err.response?.data?.detail || t('Failed to load project'));
     } finally {
       setLoading(false);
     }
-  }, [uuid, t]);
+  };
+
+  // Handle password verification
+  const handlePasswordSubmit = async () => {
+    if (!password || !pendingProjectData) return;
+
+    setVerifyingPassword(true);
+    setPasswordError('');
+
+    try {
+      const result = await verifyProjectPassword(uuid, password);
+
+      if (result.verified) {
+        // Save to sessionStorage
+        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+        verifiedProjects[uuid] = true;
+        sessionStorage.setItem('verifiedProjects', JSON.stringify(verifiedProjects));
+
+        // Close dialog and load project details
+        setShowPasswordDialog(false);
+        setPassword('');
+        setLoading(true);
+        await loadProjectDetails(pendingProjectData);
+        setPendingProjectData(null);
+      } else {
+        setPasswordError(t('Incorrect password'));
+      }
+    } catch (err) {
+      console.error('Error verifying password:', err);
+      setPasswordError(t('Failed to verify password'));
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
+  // Handle password cancel
+  const handlePasswordCancel = () => {
+    setShowPasswordDialog(false);
+    setPassword('');
+    setPasswordError('');
+    setPendingProjectData(null);
+    navigate('/projects');
+  };
 
   useEffect(() => {
     fetchProjectData();
@@ -123,6 +202,10 @@ const ProjectWorkspace = () => {
 
   const handleNavigateToBankParser = () => {
     navigate(`/bank-statement-parser?project=${uuid}`);
+  };
+
+  const handleNavigateToContractOCR = () => {
+    navigate(`/contract-ocr?project=${uuid}`);
   };
 
   // Loading state
@@ -286,6 +369,7 @@ const ProjectWorkspace = () => {
                   {t('Quick Actions')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Bank Statement Parser */}
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -301,6 +385,27 @@ const ProjectWorkspace = () => {
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         {t('Upload and process bank statements')}
+                      </p>
+                    </div>
+                    <ChevronRightIcon className="h-5 w-5 text-gray-400 ml-auto" />
+                  </motion.button>
+
+                  {/* Contract OCR */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToContractOCR}
+                    className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-600 transition-all group"
+                  >
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:bg-purple-200 dark:group-hover:bg-purple-800/30 transition-colors">
+                      <DocumentDuplicateIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        {t('Contract OCR')}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {t('Extract data from contracts')}
                       </p>
                     </div>
                     <ChevronRightIcon className="h-5 w-5 text-gray-400 ml-auto" />
@@ -469,6 +574,92 @@ const ProjectWorkspace = () => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Password Dialog Modal */}
+      {showPasswordDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-[#222] rounded-lg shadow-xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-full">
+                <LockClosedIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {t('Project Password Required')}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {t('This project is password protected')}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 truncate">
+                {t('Project')}: <span className="font-medium">{pendingProjectData?.project_name}</span>
+              </p>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setPasswordError('');
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && !verifyingPassword && handlePasswordSubmit()}
+                  placeholder={t('Enter project password')}
+                  className={`w-full px-4 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    passwordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                  autoFocus
+                  disabled={verifyingPassword}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+              {passwordError && (
+                <p className="mt-1 text-sm text-red-500">{passwordError}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handlePasswordCancel}
+                disabled={verifyingPassword}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                {t('Cancel')}
+              </button>
+              <button
+                onClick={handlePasswordSubmit}
+                disabled={!password || verifyingPassword}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {verifyingPassword ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {t('Verifying...')}
+                  </>
+                ) : (
+                  t('Unlock')
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
