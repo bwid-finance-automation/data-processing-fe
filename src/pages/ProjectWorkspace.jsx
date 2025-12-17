@@ -39,14 +39,27 @@ const ProjectWorkspace = () => {
     setLoading(true);
     setError(null);
     try {
-      const [projectData, casesData, bankStatementsData] = await Promise.all([
+      // Fetch project and cases first (required)
+      const [projectData, casesData] = await Promise.all([
         getProject(uuid),
         getProjectCases(uuid),
-        getProjectBankStatements(uuid)
       ]);
       setProject(projectData);
       setCases(casesData);
-      setBankStatements(bankStatementsData);
+
+      // Fetch bank statements separately (optional - 404 is normal for new projects)
+      try {
+        const bankStatementsData = await getProjectBankStatements(uuid);
+        setBankStatements(bankStatementsData.files || []);
+      } catch (bankErr) {
+        // 404 means no bank statement case yet - that's fine
+        if (bankErr.response?.status === 404) {
+          setBankStatements([]);
+        } else {
+          console.error('Error fetching bank statements:', bankErr);
+          setBankStatements([]);
+        }
+      }
     } catch (err) {
       console.error('Error fetching project data:', err);
       if (err.response?.status === 404) {
@@ -65,19 +78,24 @@ const ProjectWorkspace = () => {
 
   useEffect(() => {
     if (project) {
-      document.title = `${project.name} - BW Industrial`;
+      document.title = `${project.project_name} - BW Industrial`;
     }
   }, [project]);
 
   const breadcrumbItems = [
     { label: t('Home'), href: '/' },
     { label: t('Projects'), href: '/projects' },
-    { label: project?.name || '...', icon: FolderIcon }
+    { label: project?.project_name || '...', icon: FolderIcon }
   ];
 
   const formatDate = (isoString) => {
     if (!isoString) return '-';
-    const date = new Date(isoString);
+    // Append 'Z' if not present to indicate UTC time
+    let dateString = isoString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      dateString += 'Z';
+    }
+    const date = new Date(dateString);
     return date.toLocaleDateString('vi-VN', {
       day: '2-digit',
       month: '2-digit',
@@ -163,7 +181,7 @@ const ProjectWorkspace = () => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-[#f5efe6]">
-                  {project?.name}
+                  {project?.project_name}
                 </h1>
                 {project?.description && (
                   <p className="text-gray-600 dark:text-gray-400 mt-1">

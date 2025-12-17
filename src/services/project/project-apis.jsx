@@ -88,8 +88,9 @@ export const getProject = async (uuid) => {
  * Update project details
  * @param {string} uuid - Project UUID
  * @param {Object} updateData - Data to update
- * @param {string} updateData.name - New project name (optional)
+ * @param {string} updateData.project_name - New project name (optional)
  * @param {string} updateData.description - New description (optional)
+ * @param {string} updateData.current_password - Current password (required if project is protected)
  * @returns {Promise} Updated project data
  */
 export const updateProject = async (uuid, updateData) => {
@@ -105,11 +106,16 @@ export const updateProject = async (uuid, updateData) => {
 /**
  * Delete a project
  * @param {string} uuid - Project UUID
+ * @param {string} currentPassword - Current password (required if project is protected)
  * @returns {Promise} Deletion confirmation
  */
-export const deleteProject = async (uuid) => {
+export const deleteProject = async (uuid, currentPassword = null) => {
   try {
-    const response = await projectApiClient.delete(`/${uuid}`);
+    const payload = {};
+    if (currentPassword) {
+      payload.current_password = currentPassword;
+    }
+    const response = await projectApiClient.post(`/${uuid}/delete`, payload);
     return response.data;
   } catch (error) {
     console.error('Error deleting project:', error);
@@ -120,13 +126,13 @@ export const deleteProject = async (uuid) => {
 /**
  * Set or change project password
  * @param {string} uuid - Project UUID
- * @param {string} newPassword - New password
- * @param {string} currentPassword - Current password (required if project already has password)
+ * @param {string} newPassword - New password (null to remove password)
+ * @param {string} currentPassword - Current password (required if project is already protected)
  * @returns {Promise} Success response
  */
 export const setProjectPassword = async (uuid, newPassword, currentPassword = null) => {
   try {
-    const payload = { new_password: newPassword };
+    const payload = { password: newPassword };
     if (currentPassword) {
       payload.current_password = currentPassword;
     }

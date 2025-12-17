@@ -40,8 +40,8 @@ const ProjectManagement = () => {
 
   // Modal states
   const [createModal, setCreateModal] = useState({ open: false, name: '', description: '', password: '' });
-  const [editModal, setEditModal] = useState({ open: false, project: null, name: '', description: '' });
-  const [deleteModal, setDeleteModal] = useState({ open: false, project: null });
+  const [editModal, setEditModal] = useState({ open: false, project: null, name: '', description: '', currentPassword: '' });
+  const [deleteModal, setDeleteModal] = useState({ open: false, project: null, currentPassword: '' });
   const [passwordModal, setPasswordModal] = useState({ open: false, project: null, currentPassword: '', newPassword: '', confirmPassword: '' });
   const [verifyModal, setVerifyModal] = useState({ open: false, project: null, password: '', targetPath: '' });
 
@@ -133,15 +133,25 @@ const ProjectManagement = () => {
       return;
     }
 
+    // Check password for protected projects
+    if (editModal.project?.is_protected && !editModal.currentPassword) {
+      setActionError(t('Current password is required for protected project'));
+      return;
+    }
+
     setSubmitting(true);
     setActionError('');
     try {
-      const updated = await updateProject(editModal.project.uuid, {
-        name: editModal.name.trim(),
+      const updateData = {
+        project_name: editModal.name.trim(),
         description: editModal.description.trim() || null
-      });
+      };
+      if (editModal.project?.is_protected) {
+        updateData.current_password = editModal.currentPassword;
+      }
+      const updated = await updateProject(editModal.project.uuid, updateData);
       setProjects(prev => prev.map(p => p.uuid === updated.uuid ? updated : p));
-      setEditModal({ open: false, project: null, name: '', description: '' });
+      setEditModal({ open: false, project: null, name: '', description: '', currentPassword: '' });
     } catch (err) {
       console.error('Error updating project:', err);
       setActionError(err.response?.data?.detail || t('Failed to update project'));
@@ -152,12 +162,19 @@ const ProjectManagement = () => {
 
   // Delete project handler
   const handleDeleteProject = async () => {
+    // Check password for protected projects
+    if (deleteModal.project?.is_protected && !deleteModal.currentPassword) {
+      setActionError(t('Current password is required for protected project'));
+      return;
+    }
+
     setSubmitting(true);
     setActionError('');
     try {
-      await deleteProject(deleteModal.project.uuid);
+      const currentPassword = deleteModal.project?.is_protected ? deleteModal.currentPassword : null;
+      await deleteProject(deleteModal.project.uuid, currentPassword);
       setProjects(prev => prev.filter(p => p.uuid !== deleteModal.project.uuid));
-      setDeleteModal({ open: false, project: null });
+      setDeleteModal({ open: false, project: null, currentPassword: '' });
     } catch (err) {
       console.error('Error deleting project:', err);
       setActionError(err.response?.data?.detail || t('Failed to delete project'));
@@ -180,7 +197,7 @@ const ProjectManagement = () => {
       setActionError(t('Passwords do not match'));
       return;
     }
-    if (passwordModal.project.has_password && !passwordModal.currentPassword) {
+    if (passwordModal.project.is_protected && !passwordModal.currentPassword) {
       setActionError(t('Current password is required'));
       return;
     }
@@ -191,10 +208,10 @@ const ProjectManagement = () => {
       await setProjectPassword(
         passwordModal.project.uuid,
         passwordModal.newPassword,
-        passwordModal.project.has_password ? passwordModal.currentPassword : null
+        passwordModal.project.is_protected ? passwordModal.currentPassword : null
       );
       setProjects(prev => prev.map(p =>
-        p.uuid === passwordModal.project.uuid ? { ...p, has_password: true } : p
+        p.uuid === passwordModal.project.uuid ? { ...p, is_protected: true } : p
       ));
       setPasswordModal({ open: false, project: null, currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
@@ -216,7 +233,7 @@ const ProjectManagement = () => {
     setActionError('');
     try {
       const result = await verifyProjectPassword(verifyModal.project.uuid, verifyModal.password);
-      if (result.valid) {
+      if (result.verified) {
         // Store verified project in sessionStorage
         const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
         verifiedProjects[verifyModal.project.uuid] = true;
@@ -239,7 +256,7 @@ const ProjectManagement = () => {
   const handleOpenProject = (project) => {
     const targetPath = `/projects/${project.uuid}`;
 
-    if (project.has_password) {
+    if (project.is_protected) {
       // Check if already verified in this session
       const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
       if (verifiedProjects[project.uuid]) {
@@ -255,7 +272,12 @@ const ProjectManagement = () => {
 
   const formatDate = (isoString) => {
     if (!isoString) return '-';
-    const date = new Date(isoString);
+    // Append 'Z' if not present to indicate UTC time
+    let dateString = isoString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      dateString += 'Z';
+    }
+    const date = new Date(dateString);
     return date.toLocaleDateString('vi-VN', {
       day: '2-digit',
       month: '2-digit',
@@ -358,10 +380,10 @@ const ProjectManagement = () => {
                     <div className="flex items-center gap-2">
                       <FolderIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {project.name}
+                        {project.project_name}
                       </h3>
                     </div>
-                    {project.has_password && (
+                    {project.is_protected && (
                       <LockClosedIcon className="h-5 w-5 text-amber-500" title={t('Password protected')} />
                     )}
                   </div>
@@ -395,9 +417,9 @@ const ProjectManagement = () => {
                       setActionError('');
                     }}
                     className="p-2 text-gray-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
-                    title={project.has_password ? t('Change password') : t('Set password')}
+                    title={project.is_protected ? t('Change password') : t('Set password')}
                   >
-                    {project.has_password ? (
+                    {project.is_protected ? (
                       <LockClosedIcon className="h-5 w-5" />
                     ) : (
                       <LockOpenIcon className="h-5 w-5" />
@@ -409,7 +431,7 @@ const ProjectManagement = () => {
                       setEditModal({
                         open: true,
                         project,
-                        name: project.name,
+                        name: project.project_name,
                         description: project.description || ''
                       });
                       setActionError('');
@@ -589,7 +611,7 @@ const ProjectManagement = () => {
                   {t('Edit Project')}
                 </h3>
                 <button
-                  onClick={() => setEditModal({ open: false, project: null, name: '', description: '' })}
+                  onClick={() => setEditModal({ open: false, project: null, name: '', description: '', currentPassword: '' })}
                   className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <XMarkIcon className="h-6 w-6" />
@@ -597,6 +619,32 @@ const ProjectManagement = () => {
               </div>
 
               <div className="space-y-4">
+                {editModal.project?.is_protected && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 mb-2">
+                      <LockClosedIcon className="h-5 w-5" />
+                      <span className="font-medium">{t('Protected Project')}</span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showPassword.editCurrent ? 'text' : 'password'}
+                        value={editModal.currentPassword}
+                        onChange={(e) => setEditModal(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        placeholder={t('Enter current password')}
+                        className="w-full px-4 py-2 pr-10 border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => toggleShowPassword('editCurrent')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      >
+                        {showPassword.editCurrent ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     {t('Project Name')} *
@@ -606,7 +654,7 @@ const ProjectManagement = () => {
                     value={editModal.name}
                     onChange={(e) => setEditModal(prev => ({ ...prev, name: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    autoFocus
+                    autoFocus={!editModal.project?.is_protected}
                   />
                 </div>
 
@@ -629,7 +677,7 @@ const ProjectManagement = () => {
 
               <div className="flex gap-3 mt-6">
                 <button
-                  onClick={() => setEditModal({ open: false, project: null, name: '', description: '' })}
+                  onClick={() => setEditModal({ open: false, project: null, name: '', description: '', currentPassword: '' })}
                   disabled={submitting}
                   className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
@@ -678,9 +726,35 @@ const ProjectManagement = () => {
               </div>
 
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                {t('Are you sure you want to delete')} <strong>{deleteModal.project?.name}</strong>?
+                {t('Are you sure you want to delete')} <strong>{deleteModal.project?.project_name}</strong>?
                 {t('This action cannot be undone.')}
               </p>
+
+              {deleteModal.project?.is_protected && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 mb-2">
+                    <LockClosedIcon className="h-5 w-5" />
+                    <span className="font-medium">{t('Protected Project')}</span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword.deleteCurrent ? 'text' : 'password'}
+                      value={deleteModal.currentPassword}
+                      onChange={(e) => setDeleteModal(prev => ({ ...prev, currentPassword: e.target.value }))}
+                      placeholder={t('Enter current password to confirm')}
+                      className="w-full px-4 py-2 pr-10 border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleShowPassword('deleteCurrent')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      {showPassword.deleteCurrent ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {actionError && (
                 <p className="text-sm text-red-600 dark:text-red-400 mb-4">{actionError}</p>
@@ -688,7 +762,7 @@ const ProjectManagement = () => {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => setDeleteModal({ open: false, project: null })}
+                  onClick={() => setDeleteModal({ open: false, project: null, currentPassword: '' })}
                   disabled={submitting}
                   className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
@@ -732,12 +806,12 @@ const ProjectManagement = () => {
                   <LockClosedIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  {passwordModal.project?.has_password ? t('Change Password') : t('Set Password')}
+                  {passwordModal.project?.is_protected ? t('Change Password') : t('Set Password')}
                 </h3>
               </div>
 
               <div className="space-y-4">
-                {passwordModal.project?.has_password && (
+                {passwordModal.project?.is_protected && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       {t('Current Password')} *

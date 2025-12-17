@@ -118,6 +118,26 @@ export const downloadBankStatementResults = async (sessionId) => {
 };
 
 /**
+ * Download bank statement Excel file from history (regenerated from database)
+ * @param {string} sessionId - Session ID from parse history
+ * @returns {Promise} Blob for download
+ */
+export const downloadBankStatementFromHistory = async (sessionId) => {
+  try {
+    const response = await apiClient.get(
+      `${FINANCE_API_BASE_URL}/bank-statements/download-history/${sessionId}`,
+      {
+        responseType: 'blob',
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error downloading bank statement from history:', error);
+    throw error;
+  }
+};
+
+/**
  * Health check for bank statement parser service
  * @returns {Promise} Service health status
  */
