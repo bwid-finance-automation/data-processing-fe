@@ -154,3 +154,6 @@ error.log
 # Backup files
 *.bak
 *.backup
+
+# Claude
+.claude/
