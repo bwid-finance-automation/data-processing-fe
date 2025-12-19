@@ -18,6 +18,7 @@ import GLAVarianceAnalysis from "@pages/GLAVarianceAnalysis";
 import ContractOCR from "@pages/ContractOCR";
 import UtilityBilling from "@pages/UtilityBilling";
 import BankStatementParser from "@pages/BankStatementParser";
+import AIUsageDashboard from "@pages/AIUsageDashboard";
 import NotFound from "@pages/NotFound";
 
 
@@ -149,6 +150,15 @@ function AnimatedRoutes() {
           element={
             <PageWrapper>
               <BankStatementParser />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/ai-usage"
+          element={
+            <PageWrapper>
+              <AIUsageDashboard />
             </PageWrapper>
           }
         />

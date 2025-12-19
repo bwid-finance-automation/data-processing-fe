@@ -1310,9 +1310,57 @@ const BankStatementParser = () => {
                   )}
 
 
+                  {/* AI Usage Metrics (PDF mode only) */}
+                  {results.ai_usage && (
+                    <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                      <div className="flex items-center gap-2 mb-3">
+                        <svg className="h-5 w-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+                        </svg>
+                        <h4 className="text-sm font-semibold text-indigo-900 dark:text-indigo-300">
+                          {t('AI Processing Details')}
+                        </h4>
+                        <span className="ml-auto text-xs px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full">
+                          {results.ai_usage.model_name || 'Gemini'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                        <div className="p-2 bg-white/50 dark:bg-gray-800/50 rounded">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('Input Tokens')}</p>
+                          <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
+                            {results.ai_usage.total_input_tokens?.toLocaleString() || 0}
+                          </p>
+                        </div>
+                        <div className="p-2 bg-white/50 dark:bg-gray-800/50 rounded">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('Output Tokens')}</p>
+                          <p className="text-sm font-semibold text-purple-700 dark:text-purple-300">
+                            {results.ai_usage.total_output_tokens?.toLocaleString() || 0}
+                          </p>
+                        </div>
+                        <div className="p-2 bg-white/50 dark:bg-gray-800/50 rounded">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('Total Tokens')}</p>
+                          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            {results.ai_usage.total_tokens?.toLocaleString() || 0}
+                          </p>
+                        </div>
+                        <div className="p-2 bg-white/50 dark:bg-gray-800/50 rounded">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('Processing Time')}</p>
+                          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                            {results.ai_usage.total_processing_time_seconds?.toFixed(1) || 0}s
+                          </p>
+                        </div>
+                      </div>
+                      {results.ai_usage.files_processed > 1 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+                          {t('Files processed')}: {results.ai_usage.files_successful}/{results.ai_usage.files_processed}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* File Info */}
                   {results.session_id && (
-                    <p className="text-xs text-gray-500 dark:text-gray-500 text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-500 text-center mt-2">
                       {t('Session ID')}: {results.session_id}
                     </p>
                   )}

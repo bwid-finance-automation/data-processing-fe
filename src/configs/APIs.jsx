@@ -23,6 +23,9 @@ export const FPA_API_BASE_URL = `${BASE_URL}/fpa`;
 // Project API
 export const PROJECT_API_BASE_URL = `${BASE_URL}/projects`;
 
+// AI Usage API
+export const AI_USAGE_API_BASE_URL = `${BASE_URL}/ai-usage`;
+
 // Debug: Log API URLs in development
 if (import.meta.env.DEV) {
   console.log('🔧 API Configuration:');
@@ -52,6 +55,12 @@ export const fpaApiClient = axios.create({
 // Create Project API axios instance
 export const projectApiClient = axios.create({
   baseURL: PROJECT_API_BASE_URL,
+  ...commonConfig,
+});
+
+// Create AI Usage API axios instance
+export const aiUsageApiClient = axios.create({
+  baseURL: AI_USAGE_API_BASE_URL,
   ...commonConfig,
 });
 
@@ -91,6 +100,9 @@ fpaApiClient.interceptors.response.use(responseInterceptor, errorInterceptor);
 
 projectApiClient.interceptors.request.use(requestInterceptor);
 projectApiClient.interceptors.response.use(responseInterceptor, errorInterceptor);
+
+aiUsageApiClient.interceptors.request.use(requestInterceptor);
+aiUsageApiClient.interceptors.response.use(responseInterceptor, errorInterceptor);
 
 export default {
   apiClient,

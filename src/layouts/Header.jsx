@@ -38,6 +38,7 @@ export default function Header() {
   const navItems = [
     { label: t("departments"), path: "/department" },
     { label: t("Projects"), path: "/projects" },
+    { label: "AI Usage", path: "/ai-usage" },
   ];
 
   return (
@@ -162,7 +163,7 @@ export default function Header() {
                         setOpen(false);
                       }}
                       whileHover={{ x: 5 }}
-                      className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 transition-all border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                      className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 transition-all border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center gap-2"
                     >
                       <span className="font-medium">{item.label}</span>
                     </motion.button>
