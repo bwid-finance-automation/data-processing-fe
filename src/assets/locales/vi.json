@@ -355,6 +355,7 @@
   "Bank Statement History": "Lịch sử Sao kê Ngân hàng",
   "Parse New": "Trích xuất Mới",
   "No bank statements": "Chưa có sao kê ngân hàng",
+  "No bank statements yet. Start by parsing bank statements.": "Chưa có sao kê ngân hàng. Hãy bắt đầu trích xuất sao kê.",
   "Upload and parse bank statements to see them here": "Tải lên và trích xuất sao kê ngân hàng để xem tại đây",
   "transactions": "giao dịch",
   "accounts": "tài khoản",

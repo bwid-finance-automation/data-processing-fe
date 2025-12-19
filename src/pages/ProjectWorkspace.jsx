@@ -91,7 +91,11 @@ const ProjectWorkspace = () => {
       // Fetch bank statements separately (optional - 404 is normal for new projects)
       try {
         const bankStatementsData = await getProjectBankStatements(uuid);
-        setBankStatements(bankStatementsData.files || []);
+        console.log('Bank statements API response:', bankStatementsData);
+        // Handle different response structures - ensure always an array
+        const statements = bankStatementsData?.sessions || bankStatementsData?.bank_statements || bankStatementsData?.cases || bankStatementsData;
+        console.log('Extracted statements:', statements);
+        setBankStatements(Array.isArray(statements) ? statements : []);
       } catch (bankErr) {
         // 404 means no bank statement case yet - that's fine
         if (bankErr.response?.status === 404) {
@@ -413,45 +417,111 @@ const ProjectWorkspace = () => {
                 </div>
               </div>
 
-              {/* Recent Cases */}
+              {/* Bank Statement History */}
               <div className="bg-white dark:bg-[#222] rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-800">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    {t('Recent Cases')}
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <BanknotesIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    {t('Bank Statement History')}
+                    <span className="text-sm font-normal text-gray-500">({bankStatements.length})</span>
                   </h2>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToBankParser}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                    {t('Parse New')}
+                  </motion.button>
                 </div>
 
-                {cases.length === 0 ? (
+                {bankStatements.length === 0 ? (
                   <div className="text-center py-8">
-                    <DocumentTextIcon className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-700 mb-3" />
+                    <BanknotesIcon className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-700 mb-3" />
                     <p className="text-gray-500 dark:text-gray-400">
-                      {t('No cases yet. Start by parsing bank statements.')}
+                      {t('No bank statements yet. Start by parsing bank statements.')}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {cases.slice(0, 5).map((caseItem, index) => (
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {bankStatements.slice(0, 10).map((entry, index) => (
                       <motion.div
-                        key={caseItem.uuid}
+                        key={entry.id || entry.session_id || index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
+                        className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
                       >
-                        <div className="flex items-center gap-3">
-                          <DocumentTextIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-gray-100">
-                              {caseItem.case_type}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {formatDate(caseItem.created_at)}
-                            </p>
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                              entry.file_type === 'pdf'
+                                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                            }`}>
+                              {entry.file_type === 'pdf' ? 'PDF' : 'Excel'}
+                            </span>
+                            {entry.bank_name && (
+                              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
+                                {entry.bank_name}
+                              </span>
+                            )}
                           </div>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatDate(entry.created_at || entry.timestamp)}
+                          </span>
                         </div>
-                        <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm">
-                          {caseItem.record_count || 0} {t('records')}
-                        </span>
+
+                        {/* Stats */}
+                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
+                          <span>{entry.transaction_count || entry.total_transactions || 0} {t('transactions')}</span>
+                          {entry.account_number && (
+                            <span>{t('Account')}: {entry.account_number}</span>
+                          )}
+                          {entry.processing_time && (
+                            <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">
+                              ⏱ {entry.processing_time}s
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Files */}
+                        <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                          {/* Original file */}
+                          {entry.original_filename && (
+                            <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-600">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <DocumentTextIcon className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{t('Original File')}</p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{entry.original_filename}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Combined result */}
+                          {(entry.download_url || entry.session_id) && (
+                            <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-700">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <ArrowDownTrayIcon className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium text-green-700 dark:text-green-300">{t('Combined Result')}</p>
+                                  <p className="text-xs text-green-600 dark:text-green-400">bank_statements_{entry.session_id || entry.id}.xlsx</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleDownloadBankStatement(entry.session_id || entry.download_url?.split('/').pop())}
+                                className="p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 rounded transition-colors"
+                                title={t('Download Results')}
+                              >
+                                <ArrowDownTrayIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </motion.div>
                     ))}
                   </div>

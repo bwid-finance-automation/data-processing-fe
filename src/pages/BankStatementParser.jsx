@@ -162,8 +162,9 @@ const BankStatementParser = () => {
       setLoadingProjectHistory(true);
       try {
         const data = await getProjectBankStatements(projectUuid);
-        // API returns { sessions: [...], case_type, total_sessions, ... }
-        setProjectBankStatements(data.sessions || []);
+        // Handle different response structures - ensure always an array
+        const statements = data?.sessions || data?.bank_statements || data?.cases || data;
+        setProjectBankStatements(Array.isArray(statements) ? statements : []);
       } catch (err) {
         console.error('Error fetching project bank statements:', err);
         setProjectBankStatements([]);
