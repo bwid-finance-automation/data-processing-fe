@@ -446,31 +446,50 @@ function ExcelComparison() {
                     </motion.div>
                   </div>
 
-                  {/* Download Section */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {/* Download Section - Single unified file */}
+                  <div className="mb-6">
                     <motion.button
                       onClick={() => handleDownload(result.output_file)}
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      className="group relative overflow-hidden flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-base font-bold py-4 px-6 rounded-xl shadow-xl transition-all duration-300"
+                      className="w-full group relative overflow-hidden flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-lg font-bold py-5 px-6 rounded-xl shadow-xl transition-all duration-300"
                     >
-                      <svg className="w-6 h-6 group-hover:animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-7 h-7 group-hover:animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <span>{t("downloadSummary") || "Download Summary"}</span>
+                      <span>{t("downloadUnifiedReport") || "Download Comparison Report"}</span>
                     </motion.button>
+                    <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">
+                      {t("unifiedFileDescription") || "Single file with highlighted data, new rows, updated rows, and summary statistics"}
+                    </p>
+                  </div>
 
-                    <motion.button
-                      onClick={() => handleDownload(result.highlighted_file)}
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="group relative overflow-hidden flex items-center justify-center gap-3 bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 text-white text-base font-bold py-4 px-6 rounded-xl shadow-xl transition-all duration-300"
-                    >
-                      <svg className="w-6 h-6 group-hover:animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                  {/* What's Included Info */}
+                  <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl p-5 border border-emerald-200 dark:border-emerald-700 mb-6">
+                    <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-3 uppercase tracking-wide flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span>{t("downloadHighlighted") || "Download Highlighted"}</span>
-                    </motion.button>
+                      {t("includedInReport") || "Included in Report"}
+                    </h3>
+                    <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                      <li className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-yellow-400"></span>
+                        <span>{t("highlightedDataSheet") || "Highlighted Data - Yellow for new rows, light yellow + orange for updates"}</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                        <span>{t("newRowsSheet") || "New Rows sheet with Document Number, Type, Item columns"}</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-orange-500"></span>
+                        <span>{t("updateRowsSheet") || "Update Rows sheet with changed cells highlighted"}</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-purple-500"></span>
+                        <span>{t("summarySheet") || "Summary with Project/Phase statistics"}</span>
+                      </li>
+                    </ul>
                   </div>
 
                   {/* File Info */}
