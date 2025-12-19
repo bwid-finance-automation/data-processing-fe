@@ -24,7 +24,7 @@ import {
 } from '../services/ai-usage/ai-usage-apis';
 
 const AIUsageDashboard = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Dashboard data
   const [dashboardData, setDashboardData] = useState(null);
@@ -105,9 +105,10 @@ const AIUsageDashboard = () => {
     fetchLogs(0);
   }, [filters.days, filters.provider, filters.task_type, filters.success]);
 
-  // Format date for display
+  // Format date for display - use dynamic locale based on language
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString('vi-VN', {
+    const locale = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
+    return new Date(dateString).toLocaleString(locale, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -118,7 +119,7 @@ const AIUsageDashboard = () => {
 
   const breadcrumbItems = [
     { label: t('home'), href: '/' },
-    { label: 'AI Usage Dashboard' },
+    { label: t('AI Usage Dashboard') },
   ];
 
   return (
@@ -131,10 +132,10 @@ const AIUsageDashboard = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <CpuChipIcon className="h-7 w-7 text-indigo-500" />
-              AI Usage Dashboard
+              {t('AI Usage Dashboard')}
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1">
-              Monitor AI API usage, tokens, and costs
+              {t('Monitor AI API usage, tokens, and costs')}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -143,14 +144,14 @@ const AIUsageDashboard = () => {
               className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]"
             >
               <FunnelIcon className="h-5 w-5" />
-              Filters
+              {t('Filters')}
             </button>
             <button
               onClick={() => { fetchDashboard(); fetchLogs(0); }}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
               <ArrowPathIcon className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              {t('Refresh')}
             </button>
           </div>
         </div>
@@ -166,29 +167,29 @@ const AIUsageDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Time Range
+                  {t('Time Range')}
                 </label>
                 <select
                   value={filters.days}
                   onChange={(e) => setFilters(prev => ({ ...prev, days: parseInt(e.target.value) }))}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
                 >
-                  <option value={7}>Last 7 days</option>
-                  <option value={30}>Last 30 days</option>
-                  <option value={90}>Last 90 days</option>
-                  <option value={365}>Last year</option>
+                  <option value={7}>{t('Last 7 days')}</option>
+                  <option value={30}>{t('Last 30 days')}</option>
+                  <option value={90}>{t('Last 90 days')}</option>
+                  <option value={365}>{t('Last year')}</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Provider
+                  {t('Provider')}
                 </label>
                 <select
                   value={filters.provider}
                   onChange={(e) => setFilters(prev => ({ ...prev, provider: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
                 >
-                  <option value="">All Providers</option>
+                  <option value="">{t('All Providers')}</option>
                   <option value="gemini">Gemini</option>
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
@@ -196,32 +197,32 @@ const AIUsageDashboard = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Case
+                  {t('Case')}
                 </label>
                 <select
                   value={filters.task_type}
                   onChange={(e) => setFilters(prev => ({ ...prev, task_type: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
                 >
-                  <option value="">All Cases</option>
-                  <option value="ocr">Bank Statement</option>
-                  <option value="contract_ocr">Contract OCR</option>
-                  <option value="analysis">Variance Analysis</option>
-                  <option value="gla">GLA Variance</option>
+                  <option value="">{t('All Cases')}</option>
+                  <option value="ocr">{t('Bank Statement')}</option>
+                  <option value="contract_ocr">{t('Contract OCR')}</option>
+                  <option value="analysis">{t('Variance Analysis')}</option>
+                  <option value="gla">{t('GLA Variance')}</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Status
+                  {t('status')}
                 </label>
                 <select
                   value={filters.success}
                   onChange={(e) => setFilters(prev => ({ ...prev, success: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
                 >
-                  <option value="">All Status</option>
-                  <option value="true">Success</option>
-                  <option value="false">Failed</option>
+                  <option value="">{t('All Status')}</option>
+                  <option value="true">{t('Success')}</option>
+                  <option value="false">{t('Failed')}</option>
                 </select>
               </div>
             </div>
@@ -255,7 +256,7 @@ const AIUsageDashboard = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Total Tokens</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t('Total Tokens')}</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                       {formatTokens(dashboardData.stats.total_tokens)}
                     </p>
@@ -278,12 +279,12 @@ const AIUsageDashboard = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Estimated Cost</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t('Estimated Cost')}</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                       {formatCost(dashboardData.stats.total_cost_usd)}
                     </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      Last {filters.days} days
+                      {t('Last')} {filters.days} {t('days')}
                     </p>
                   </div>
                   <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
@@ -301,12 +302,12 @@ const AIUsageDashboard = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Total Requests</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t('Total Requests')}</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                       {dashboardData.stats.total_requests.toLocaleString()}
                     </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      {dashboardData.stats.total_files_processed} files processed
+                      {dashboardData.stats.total_files_processed} {t('files processed')}
                     </p>
                   </div>
                   <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -324,12 +325,12 @@ const AIUsageDashboard = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Success Rate</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t('Success Rate')}</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                       {dashboardData.stats.success_rate.toFixed(1)}%
                     </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      {dashboardData.stats.successful_requests} success / {dashboardData.stats.failed_requests} failed
+                      {dashboardData.stats.successful_requests} {t('success')} / {dashboardData.stats.failed_requests} {t('failed')}
                     </p>
                   </div>
                   <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
@@ -350,10 +351,10 @@ const AIUsageDashboard = () => {
               >
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <ChartBarIcon className="h-5 w-5 text-indigo-500" />
-                  Usage by Provider
+                  {t('Usage by Provider')}
                 </h3>
                 {dashboardData.by_provider.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">No data available</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">{t('No data available')}</p>
                 ) : (
                   <div className="space-y-3">
                     {dashboardData.by_provider.map((provider) => (
@@ -368,7 +369,7 @@ const AIUsageDashboard = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-gray-900 dark:text-white font-medium">{formatTokens(provider.total_tokens)}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{provider.request_count} requests</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{provider.request_count} {t('requests')}</p>
                         </div>
                       </div>
                     ))}
@@ -385,10 +386,10 @@ const AIUsageDashboard = () => {
               >
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <ChartBarIcon className="h-5 w-5 text-purple-500" />
-                  Usage by Case
+                  {t('Usage by Case')}
                 </h3>
                 {dashboardData.by_task_type.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">No data available</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">{t('No data available')}</p>
                 ) : (
                   <div className="space-y-3">
                     {dashboardData.by_task_type.map((taskType) => (
@@ -404,7 +405,7 @@ const AIUsageDashboard = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-gray-900 dark:text-white font-medium">{formatTokens(taskType.total_tokens)}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{taskType.request_count} requests</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{taskType.request_count} {t('requests')}</p>
                         </div>
                       </div>
                     ))}
@@ -423,20 +424,20 @@ const AIUsageDashboard = () => {
               <div className="p-5 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <DocumentTextIcon className="h-5 w-5 text-gray-500" />
-                  Recent Usage Logs
+                  {t('Recent Usage Logs')}
                 </h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-[#2a2a2a]">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Provider</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Case</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t('Time')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t('Provider')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t('Case')}</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Tokens</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Duration</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Cost</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t('Duration')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t('Cost')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t('status')}</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase"></th>
                     </tr>
                   </thead>
@@ -450,7 +451,7 @@ const AIUsageDashboard = () => {
                     ) : logs.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                          No usage logs found
+                          {t('No usage logs found')}
                         </td>
                       </tr>
                     ) : (
@@ -506,7 +507,7 @@ const AIUsageDashboard = () => {
                               <td colSpan={8} className="px-4 py-4 bg-gray-50 dark:bg-[#1a1a1a]">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                   <div>
-                                    <span className="text-gray-500 dark:text-gray-400">Model:</span>
+                                    <span className="text-gray-500 dark:text-gray-400">{t('Model')}:</span>
                                     <p className="text-gray-900 dark:text-white">{log.model_name}</p>
                                   </div>
                                   <div>
@@ -514,24 +515,24 @@ const AIUsageDashboard = () => {
                                     <p className="text-gray-900 dark:text-white font-mono text-xs">{log.session_id || '-'}</p>
                                   </div>
                                   <div>
-                                    <span className="text-gray-500 dark:text-gray-400">Files:</span>
-                                    <p className="text-gray-900 dark:text-white">{log.file_count} file(s)</p>
+                                    <span className="text-gray-500 dark:text-gray-400">{t('Files')}:</span>
+                                    <p className="text-gray-900 dark:text-white">{log.file_count} {t('file(s)')}</p>
                                   </div>
                                   <div>
-                                    <span className="text-gray-500 dark:text-gray-400">Input/Output:</span>
+                                    <span className="text-gray-500 dark:text-gray-400">{t('Input/Output')}:</span>
                                     <p className="text-gray-900 dark:text-white">
                                       {formatTokens(log.input_tokens)} / {formatTokens(log.output_tokens)}
                                     </p>
                                   </div>
                                   {log.file_name && (
                                     <div className="col-span-2 md:col-span-4">
-                                      <span className="text-gray-500 dark:text-gray-400">Files:</span>
+                                      <span className="text-gray-500 dark:text-gray-400">{t('Files')}:</span>
                                       <p className="text-gray-900 dark:text-white truncate">{log.file_name}</p>
                                     </div>
                                   )}
                                   {log.error_message && (
                                     <div className="col-span-2 md:col-span-4">
-                                      <span className="text-red-500">Error:</span>
+                                      <span className="text-red-500">{t('Error')}:</span>
                                       <p className="text-red-600 dark:text-red-400">{log.error_message}</p>
                                     </div>
                                   )}
@@ -550,7 +551,7 @@ const AIUsageDashboard = () => {
               {logsPagination.total > logsPagination.limit && (
                 <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Showing {logsPagination.skip + 1} - {Math.min(logsPagination.skip + logsPagination.limit, logsPagination.total)} of {logsPagination.total}
+                    {t('Showing')} {logsPagination.skip + 1} - {Math.min(logsPagination.skip + logsPagination.limit, logsPagination.total)} {t('of')} {logsPagination.total}
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -558,14 +559,14 @@ const AIUsageDashboard = () => {
                       disabled={logsPagination.skip === 0}
                       className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded disabled:opacity-50"
                     >
-                      Previous
+                      {t('Previous')}
                     </button>
                     <button
                       onClick={() => fetchLogs(logsPagination.skip + logsPagination.limit)}
                       disabled={logsPagination.skip + logsPagination.limit >= logsPagination.total}
                       className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded disabled:opacity-50"
                     >
-                      Next
+                      {t('Next')}
                     </button>
                   </div>
                 </div>

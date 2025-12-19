@@ -38,7 +38,7 @@ export default function Header() {
   const navItems = [
     { label: t("departments"), path: "/department" },
     { label: t("Projects"), path: "/projects" },
-    { label: "AI Usage", path: "/ai-usage" },
+    { label: t("AI Usage"), path: "/ai-usage" },
   ];
 
   return (
