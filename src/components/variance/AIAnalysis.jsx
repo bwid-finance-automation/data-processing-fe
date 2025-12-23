@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { startAIAnalysis, streamLogs, downloadResult } from '@services/variance/variance-apis';
 import { FINANCE_API_BASE_URL } from '@configs/APIs';
 
-const AIAnalysis = () => {
+const AIAnalysis = ({ projectUuid }) => {
   const { t } = useTranslation();
   const [excelFiles, setExcelFiles] = useState([]);
   const [sessionId, setSessionId] = useState(null);
@@ -237,6 +237,11 @@ const AIAnalysis = () => {
     excelFiles.forEach((file) => {
       formData.append('excel_files', file);
     });
+
+    // Add project_uuid if provided (for project integration)
+    if (projectUuid) {
+      formData.append('project_uuid', projectUuid);
+    }
 
     try {
       // Start analysis

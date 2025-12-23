@@ -14,7 +14,11 @@ import {
   LockClosedIcon,
   EyeIcon,
   EyeSlashIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  ChartBarIcon,
+  TableCellsIcon,
+  BoltIcon,
+  DocumentChartBarIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import Breadcrumb from '../components/common/Breadcrumb';
@@ -22,6 +26,11 @@ import {
   getProject,
   getProjectCases,
   getProjectBankStatements,
+  getProjectContracts,
+  getProjectGla,
+  getProjectVariance,
+  getProjectUtilityBilling,
+  getProjectExcelComparison,
   verifyProjectPassword
 } from '../services/project/project-apis';
 import { downloadBankStatementResults } from '../services/bank-statement/bank-statement-apis';
@@ -35,6 +44,11 @@ const ProjectWorkspace = () => {
   const [project, setProject] = useState(null);
   const [cases, setCases] = useState([]);
   const [bankStatements, setBankStatements] = useState([]);
+  const [contracts, setContracts] = useState([]);
+  const [glaAnalysis, setGlaAnalysis] = useState([]);
+  const [varianceAnalysis, setVarianceAnalysis] = useState([]);
+  const [utilityBilling, setUtilityBilling] = useState([]);
+  const [excelComparison, setExcelComparison] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -81,6 +95,20 @@ const ProjectWorkspace = () => {
     }
   }, [uuid, t]);
 
+  // Helper to safely fetch case data
+  const fetchCaseData = async (fetchFn, setFn, caseName) => {
+    try {
+      const data = await fetchFn(uuid);
+      const sessions = data?.sessions || data?.cases || data || [];
+      setFn(Array.isArray(sessions) ? sessions : []);
+    } catch (err) {
+      if (err.response?.status !== 404) {
+        console.error(`Error fetching ${caseName}:`, err);
+      }
+      setFn([]);
+    }
+  };
+
   // Load project details after verification
   const loadProjectDetails = async (projectData) => {
     try {
@@ -88,23 +116,15 @@ const ProjectWorkspace = () => {
       setProject(projectData);
       setCases(casesData);
 
-      // Fetch bank statements separately (optional - 404 is normal for new projects)
-      try {
-        const bankStatementsData = await getProjectBankStatements(uuid);
-        console.log('Bank statements API response:', bankStatementsData);
-        // Handle different response structures - ensure always an array
-        const statements = bankStatementsData?.sessions || bankStatementsData?.bank_statements || bankStatementsData?.cases || bankStatementsData;
-        console.log('Extracted statements:', statements);
-        setBankStatements(Array.isArray(statements) ? statements : []);
-      } catch (bankErr) {
-        // 404 means no bank statement case yet - that's fine
-        if (bankErr.response?.status === 404) {
-          setBankStatements([]);
-        } else {
-          console.error('Error fetching bank statements:', bankErr);
-          setBankStatements([]);
-        }
-      }
+      // Fetch all case types in parallel
+      await Promise.all([
+        fetchCaseData(getProjectBankStatements, setBankStatements, 'bank statements'),
+        fetchCaseData(getProjectContracts, setContracts, 'contracts'),
+        fetchCaseData(getProjectGla, setGlaAnalysis, 'GLA analysis'),
+        fetchCaseData(getProjectVariance, setVarianceAnalysis, 'variance analysis'),
+        fetchCaseData(getProjectUtilityBilling, setUtilityBilling, 'utility billing'),
+        fetchCaseData(getProjectExcelComparison, setExcelComparison, 'excel comparison'),
+      ]);
     } catch (err) {
       console.error('Error fetching project details:', err);
       setError(err.response?.data?.detail || t('Failed to load project'));
@@ -212,6 +232,22 @@ const ProjectWorkspace = () => {
     navigate(`/contract-ocr?project=${uuid}`);
   };
 
+  const handleNavigateToGlaVariance = () => {
+    navigate(`/gla-variance-analysis?project=${uuid}`);
+  };
+
+  const handleNavigateToVarianceAnalysis = () => {
+    navigate(`/variance-analysis?project=${uuid}`);
+  };
+
+  const handleNavigateToUtilityBilling = () => {
+    navigate(`/utility-billing?project=${uuid}`);
+  };
+
+  const handleNavigateToExcelComparison = () => {
+    navigate(`/excel-comparison?project=${uuid}`);
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -286,10 +322,10 @@ const ProjectWorkspace = () => {
           </div>
 
           {/* Tabs */}
-          <div className="mt-6 flex gap-1 border-b border-gray-200 dark:border-gray-700">
+          <div className="mt-6 flex gap-1 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'overview'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
@@ -299,13 +335,63 @@ const ProjectWorkspace = () => {
             </button>
             <button
               onClick={() => setActiveTab('bank-statements')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'bank-statements'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
               {t('Bank Statements')} ({bankStatements.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('contracts')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'contracts'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              {t('Contracts')} ({contracts.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('gla')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'gla'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              {t('GLA Variance')} ({glaAnalysis.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('variance')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'variance'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              {t('Variance Analysis')} ({varianceAnalysis.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('utility-billing')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'utility-billing'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              {t('Utility Billing')} ({utilityBilling.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('excel-comparison')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'excel-comparison'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              {t('Excel Comparison')} ({excelComparison.length})
             </button>
           </div>
         </div>
@@ -410,6 +496,90 @@ const ProjectWorkspace = () => {
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         {t('Extract data from contracts')}
+                      </p>
+                    </div>
+                    <ChevronRightIcon className="h-5 w-5 text-gray-400 ml-auto" />
+                  </motion.button>
+
+                  {/* GLA Variance Analysis */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToGlaVariance}
+                    className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 rounded-lg border border-green-200 dark:border-green-800 hover:border-green-400 dark:hover:border-green-600 transition-all group"
+                  >
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:bg-green-200 dark:group-hover:bg-green-800/30 transition-colors">
+                      <ChartBarIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        {t('GLA Variance')}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {t('Analyze GLA period variance')}
+                      </p>
+                    </div>
+                    <ChevronRightIcon className="h-5 w-5 text-gray-400 ml-auto" />
+                  </motion.button>
+
+                  {/* Variance Analysis */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToVarianceAnalysis}
+                    className="flex items-center gap-3 p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-lg border border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600 transition-all group"
+                  >
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg group-hover:bg-orange-200 dark:group-hover:bg-orange-800/30 transition-colors">
+                      <DocumentChartBarIcon className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        {t('Variance Analysis')}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {t('Python/AI variance analysis')}
+                      </p>
+                    </div>
+                    <ChevronRightIcon className="h-5 w-5 text-gray-400 ml-auto" />
+                  </motion.button>
+
+                  {/* Utility Billing */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToUtilityBilling}
+                    className="flex items-center gap-3 p-4 bg-gradient-to-r from-cyan-50 to-sky-50 dark:from-cyan-900/20 dark:to-sky-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800 hover:border-cyan-400 dark:hover:border-cyan-600 transition-all group"
+                  >
+                    <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg group-hover:bg-cyan-200 dark:group-hover:bg-cyan-800/30 transition-colors">
+                      <BoltIcon className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        {t('Utility Billing')}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {t('Process utility bills')}
+                      </p>
+                    </div>
+                    <ChevronRightIcon className="h-5 w-5 text-gray-400 ml-auto" />
+                  </motion.button>
+
+                  {/* Excel Comparison */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToExcelComparison}
+                    className="flex items-center gap-3 p-4 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800 hover:border-indigo-400 dark:hover:border-indigo-600 transition-all group"
+                  >
+                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/30 transition-colors">
+                      <TableCellsIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        {t('Excel Comparison')}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {t('Compare Excel files')}
                       </p>
                     </div>
                     <ChevronRightIcon className="h-5 w-5 text-gray-400 ml-auto" />
@@ -632,6 +802,562 @@ const ProjectWorkspace = () => {
                               >
                                 <ArrowDownTrayIcon className="h-5 w-5" />
                               </button>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Contracts Tab */}
+          {activeTab === 'contracts' && (
+            <motion.div
+              key="contracts"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="bg-white dark:bg-[#222] rounded-lg shadow-lg border border-gray-200 dark:border-gray-800">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {t('Contract OCR History')}
+                  </h2>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToContractOCR}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                    {t('Process New')}
+                  </motion.button>
+                </div>
+
+                {contracts.length === 0 ? (
+                  <div className="text-center py-16">
+                    <DocumentDuplicateIcon className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      {t('No contracts')}
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">
+                      {t('Upload and process contracts to see them here')}
+                    </p>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleNavigateToContractOCR}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-semibold transition-all"
+                    >
+                      <DocumentDuplicateIcon className="h-5 w-5" />
+                      {t('Process Contracts')}
+                    </motion.button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {contracts.map((contract, index) => (
+                      <motion.div
+                        key={contract.uuid || index}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            {/* Header with badges */}
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                                CONTRACT
+                              </span>
+                              {contract.contract_type && (
+                                <span className="px-2 py-0.5 text-xs font-medium rounded bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300">
+                                  {contract.contract_type}
+                                </span>
+                              )}
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
+                                {formatDate(contract.processed_at)}
+                              </span>
+                            </div>
+
+                            {/* Contract info */}
+                            <p className="font-medium text-gray-900 dark:text-gray-100">
+                              {contract.contract_number || contract.file_name || `Contract ${index + 1}`}
+                            </p>
+
+                            {/* Tenant/Customer */}
+                            {(contract.tenant || contract.customer_name) && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {t('Tenant')}: {contract.tenant || contract.customer_name}
+                              </p>
+                            )}
+
+                            {/* Additional info */}
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
+                              {contract.lease_start && (
+                                <span className="flex items-center gap-1">
+                                  <ClockIcon className="h-4 w-4" />
+                                  {contract.lease_start} - {contract.lease_end || '...'}
+                                </span>
+                              )}
+                              {contract.monthly_rent && (
+                                <span className="font-medium text-purple-600 dark:text-purple-400">
+                                  {contract.monthly_rent.toLocaleString()} VND/month
+                                </span>
+                              )}
+                            </div>
+
+                            {/* File name */}
+                            {contract.file_name && contract.contract_number && (
+                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">
+                                {t('File')}: {contract.file_name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* GLA Variance Tab */}
+          {activeTab === 'gla' && (
+            <motion.div
+              key="gla"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="bg-white dark:bg-[#222] rounded-lg shadow-lg border border-gray-200 dark:border-gray-800">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {t('GLA Variance Analysis History')}
+                  </h2>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToGlaVariance}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                    {t('Analyze New')}
+                  </motion.button>
+                </div>
+
+                {glaAnalysis.length === 0 ? (
+                  <div className="text-center py-16">
+                    <ChartBarIcon className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      {t('No GLA analysis')}
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">
+                      {t('Run GLA variance analysis to see results here')}
+                    </p>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleNavigateToGlaVariance}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white rounded-lg font-semibold transition-all"
+                    >
+                      <ChartBarIcon className="h-5 w-5" />
+                      {t('GLA Variance Analysis')}
+                    </motion.button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {glaAnalysis.map((analysis, index) => (
+                      <motion.div
+                        key={analysis.uuid || index}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            {/* Header with badges */}
+                            <div className="flex items-center gap-3 mb-2">
+                              {analysis.product_type && (
+                                <span className="px-2 py-0.5 text-xs font-medium rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                                  {analysis.product_type}
+                                </span>
+                              )}
+                              {analysis.region && (
+                                <span className="px-2 py-0.5 text-xs font-medium rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                  {analysis.region}
+                                </span>
+                              )}
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
+                                {formatDate(analysis.processed_at)}
+                              </span>
+                            </div>
+
+                            {/* Project info */}
+                            <p className="font-medium text-gray-900 dark:text-gray-100">
+                              {analysis.project_name || analysis.file_name || `GLA Analysis ${index + 1}`}
+                            </p>
+                            {analysis.project_code && (
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {t('Code')}: {analysis.project_code}
+                              </p>
+                            )}
+
+                            {/* Stats */}
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                              {analysis.period_label && (
+                                <span className="flex items-center gap-1">
+                                  <ClockIcon className="h-4 w-4" />
+                                  {analysis.period_label}
+                                </span>
+                              )}
+                              {analysis.total_gla_sqm && (
+                                <span className="font-medium text-green-600 dark:text-green-400">
+                                  {analysis.total_gla_sqm.toLocaleString()} sqm
+                                </span>
+                              )}
+                            </div>
+
+                            {/* File name */}
+                            {analysis.file_name && analysis.project_name && (
+                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">
+                                {t('File')}: {analysis.file_name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Variance Analysis Tab */}
+          {activeTab === 'variance' && (
+            <motion.div
+              key="variance"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="bg-white dark:bg-[#222] rounded-lg shadow-lg border border-gray-200 dark:border-gray-800">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {t('Variance Analysis History')}
+                  </h2>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToVarianceAnalysis}
+                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                    {t('Analyze New')}
+                  </motion.button>
+                </div>
+
+                {varianceAnalysis.length === 0 ? (
+                  <div className="text-center py-16">
+                    <DocumentChartBarIcon className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      {t('No variance analysis')}
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">
+                      {t('Run variance analysis to see results here')}
+                    </p>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleNavigateToVarianceAnalysis}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white rounded-lg font-semibold transition-all"
+                    >
+                      <DocumentChartBarIcon className="h-5 w-5" />
+                      {t('Variance Analysis')}
+                    </motion.button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {varianceAnalysis.map((analysis, index) => (
+                      <motion.div
+                        key={analysis.session_id || index}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            {/* Header with badges */}
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                analysis.analysis_type === 'AI_POWERED'
+                                  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                  : analysis.analysis_type === 'REVENUE_VARIANCE'
+                                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                  : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                              }`}>
+                                {analysis.analysis_type === 'AI_POWERED' ? 'AI Analysis' :
+                                 analysis.analysis_type === 'REVENUE_VARIANCE' ? 'Revenue' :
+                                 analysis.analysis_type === 'PYTHON_VARIANCE' ? 'Python' : 'Python'}
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                analysis.status === 'COMPLETED'
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                                  : analysis.status === 'FAILED'
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                                  : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+                              }`}>
+                                {analysis.status || 'COMPLETED'}
+                              </span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
+                                {formatDate(analysis.created_at || analysis.started_at)}
+                              </span>
+                            </div>
+
+                            {/* Session info */}
+                            <p className="font-medium text-gray-900 dark:text-gray-100">
+                              {analysis.session_id || `Analysis ${index + 1}`}
+                            </p>
+
+                            {/* Stats */}
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                              <span className="flex items-center gap-1">
+                                <DocumentTextIcon className="h-4 w-4" />
+                                {analysis.files_count || 0} {t('files')}
+                              </span>
+                              {analysis.completed_at && analysis.started_at && (
+                                <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">
+                                  ⏱ {Math.round((new Date(analysis.completed_at) - new Date(analysis.started_at)) / 1000)}s
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Utility Billing Tab */}
+          {activeTab === 'utility-billing' && (
+            <motion.div
+              key="utility-billing"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="bg-white dark:bg-[#222] rounded-lg shadow-lg border border-gray-200 dark:border-gray-800">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {t('Utility Billing History')}
+                  </h2>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToUtilityBilling}
+                    className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                    {t('Process New')}
+                  </motion.button>
+                </div>
+
+                {utilityBilling.length === 0 ? (
+                  <div className="text-center py-16">
+                    <BoltIcon className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      {t('No utility billing')}
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">
+                      {t('Process utility bills to see them here')}
+                    </p>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleNavigateToUtilityBilling}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white rounded-lg font-semibold transition-all"
+                    >
+                      <BoltIcon className="h-5 w-5" />
+                      {t('Utility Billing')}
+                    </motion.button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {utilityBilling.map((billing, index) => (
+                      <motion.div
+                        key={billing.session_id || index}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            {/* Header with badges */}
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="px-2 py-0.5 text-xs font-medium rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300">
+                                UTILITY
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                billing.status === 'COMPLETED'
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                                  : billing.status === 'FAILED'
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                                  : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+                              }`}>
+                                {billing.status || 'COMPLETED'}
+                              </span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
+                                {formatDate(billing.created_at || billing.started_at)}
+                              </span>
+                            </div>
+
+                            {/* Session info */}
+                            <p className="font-medium text-gray-900 dark:text-gray-100">
+                              {billing.session_id || `Billing Session ${index + 1}`}
+                            </p>
+
+                            {/* Stats */}
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                              <span className="flex items-center gap-1">
+                                <DocumentTextIcon className="h-4 w-4" />
+                                {billing.files_count || 0} {t('files')}
+                              </span>
+                              {billing.completed_at && billing.started_at && (
+                                <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">
+                                  ⏱ {Math.round((new Date(billing.completed_at) - new Date(billing.started_at)) / 1000)}s
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Processing details */}
+                            {billing.processing_details && (
+                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">
+                                {billing.processing_details}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Excel Comparison Tab */}
+          {activeTab === 'excel-comparison' && (
+            <motion.div
+              key="excel-comparison"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="bg-white dark:bg-[#222] rounded-lg shadow-lg border border-gray-200 dark:border-gray-800">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {t('Excel Comparison History')}
+                  </h2>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNavigateToExcelComparison}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                    {t('Compare New')}
+                  </motion.button>
+                </div>
+
+                {excelComparison.length === 0 ? (
+                  <div className="text-center py-16">
+                    <TableCellsIcon className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      {t('No excel comparisons')}
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">
+                      {t('Compare Excel files to see results here')}
+                    </p>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleNavigateToExcelComparison}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-lg font-semibold transition-all"
+                    >
+                      <TableCellsIcon className="h-5 w-5" />
+                      {t('Excel Comparison')}
+                    </motion.button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {excelComparison.map((comparison, index) => (
+                      <motion.div
+                        key={comparison.session_id || index}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            {/* Header with badges */}
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="px-2 py-0.5 text-xs font-medium rounded bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">
+                                COMPARISON
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                comparison.status === 'COMPLETED'
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                                  : comparison.status === 'FAILED'
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                                  : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+                              }`}>
+                                {comparison.status || 'COMPLETED'}
+                              </span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
+                                {formatDate(comparison.created_at || comparison.started_at)}
+                              </span>
+                            </div>
+
+                            {/* Session info */}
+                            <p className="font-medium text-gray-900 dark:text-gray-100">
+                              {comparison.session_id || `Comparison ${index + 1}`}
+                            </p>
+
+                            {/* Stats */}
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                              <span className="flex items-center gap-1">
+                                <TableCellsIcon className="h-4 w-4" />
+                                {comparison.files_count || 2} {t('files compared')}
+                              </span>
+                              {comparison.completed_at && comparison.started_at && (
+                                <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">
+                                  ⏱ {Math.round((new Date(comparison.completed_at) - new Date(comparison.started_at)) / 1000)}s
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Processing details */}
+                            {comparison.processing_details && (
+                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">
+                                {comparison.processing_details}
+                              </p>
                             )}
                           </div>
                         </div>

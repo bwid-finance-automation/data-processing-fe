@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { processPythonAnalysis, getAIConfig } from '@services/variance/variance-apis';
 
-const PythonAnalysis = () => {
+const PythonAnalysis = ({ projectUuid }) => {
   const { t } = useTranslation();
   const [excelFiles, setExcelFiles] = useState([]);
   const [loanInterestFile, setLoanInterestFile] = useState(null);
@@ -56,6 +56,11 @@ const PythonAnalysis = () => {
     // Add optional loan interest file for enhanced A2 analysis
     if (loanInterestFile) {
       formData.append('loan_interest_file', loanInterestFile);
+    }
+
+    // Add project_uuid if provided (for project integration)
+    if (projectUuid) {
+      formData.append('project_uuid', projectUuid);
     }
 
     try {

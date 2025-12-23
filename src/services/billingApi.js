@@ -4,9 +4,18 @@ import { apiClient } from '@configs/APIs';
 const billingApi = apiClient;
 
 // Session Management
-export const createSession = async () => {
+export const createSession = async (projectUuid = null) => {
   try {
-    const response = await billingApi.post('/billing/session/create');
+    const formData = new FormData();
+    if (projectUuid) {
+      formData.append('project_uuid', projectUuid);
+    }
+
+    const response = await billingApi.post('/billing/session/create', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   } catch (error) {
     console.error('Error creating session:', error);

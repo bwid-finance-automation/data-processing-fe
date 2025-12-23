@@ -1,8 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
-import { ArrowLeftIcon, CloudArrowUpIcon, DocumentIcon, TrashIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeftIcon,
+  CloudArrowUpIcon,
+  DocumentIcon,
+  TrashIcon,
+  ArrowDownTrayIcon,
+  FolderIcon,
+  ChevronDownIcon,
+  LockClosedIcon,
+  PlusIcon,
+  EyeIcon,
+  EyeSlashIcon,
+} from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import {
   createSession,
@@ -17,10 +29,13 @@ import {
   getSystemStatus,
   getMasterDataStatus,
 } from '@services/billingApi';
+import { getProject, getProjects, createProject, verifyProjectPassword } from '../services/project/project-apis';
 
 export default function UtilityBilling() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const projectUuid = searchParams.get('project');
   const [sessionId, setSessionId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -40,6 +55,33 @@ export default function UtilityBilling() {
   // Processing results
   const [processingResult, setProcessingResult] = useState(null);
 
+  // Project context
+  const [project, setProject] = useState(null);
+  const [loadingProject, setLoadingProject] = useState(false);
+  const [projectsList, setProjectsList] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const projectDropdownRef = useRef(null);
+
+  // Create project dialog
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
+  const [newProjectPassword, setNewProjectPassword] = useState('');
+  const [showNewProjectPassword, setShowNewProjectPassword] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [projectError, setProjectError] = useState(null);
+
+  // Project password dialog
+  const [projectPasswordDialog, setProjectPasswordDialog] = useState({
+    open: false,
+    project: null,
+    password: '',
+  });
+  const [projectPasswordError, setProjectPasswordError] = useState('');
+  const [verifyingProjectPassword, setVerifyingProjectPassword] = useState(false);
+  const [showProjectPassword, setShowProjectPassword] = useState(false);
+
   // Initialize session
   useEffect(() => {
     initializeSession();
@@ -53,7 +95,8 @@ export default function UtilityBilling() {
   const initializeSession = async () => {
     try {
       setLoading(true);
-      const response = await createSession();
+      // Pass projectUuid if provided (for project integration)
+      const response = await createSession(projectUuid);
       setSessionId(response.session_id);
       toast.success(t('sessionCreated'));
     } catch (error) {
@@ -107,6 +150,157 @@ export default function UtilityBilling() {
       loadStatus();
     }
   }, [sessionId]);
+
+  // Fetch project info if projectUuid is provided
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!projectUuid) {
+        setProject(null);
+        setLoadingProject(false);
+        return;
+      }
+
+      setLoadingProject(true);
+      try {
+        const projectData = await getProject(projectUuid);
+        if (projectData.is_protected) {
+          const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+          if (verifiedProjects[projectUuid]) {
+            setProject(projectData);
+          } else {
+            setProjectPasswordDialog({
+              open: true,
+              project: projectData,
+              password: '',
+            });
+          }
+        } else {
+          setProject(projectData);
+        }
+      } catch (err) {
+        console.error('Error fetching project:', err);
+        setProjectError(t('Failed to load project'));
+      } finally {
+        setLoadingProject(false);
+      }
+    };
+    fetchProject();
+  }, [projectUuid, t]);
+
+  // Fetch projects list when dropdown opens
+  useEffect(() => {
+    const fetchProjects = async () => {
+      if (showProjectDropdown && projectsList.length === 0) {
+        setLoadingProjects(true);
+        try {
+          const data = await getProjects(0, 50);
+          setProjectsList(data.projects || []);
+        } catch (err) {
+          console.error('Error fetching projects:', err);
+        } finally {
+          setLoadingProjects(false);
+        }
+      }
+    };
+    fetchProjects();
+  }, [showProjectDropdown, projectsList.length]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target)) {
+        setShowProjectDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle project selection
+  const handleSelectProject = (selectedProject) => {
+    if (selectedProject) {
+      if (selectedProject.is_protected) {
+        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+        if (verifiedProjects[selectedProject.uuid]) {
+          navigate(`/utility-billing?project=${selectedProject.uuid}`);
+          setShowProjectDropdown(false);
+        } else {
+          setProjectPasswordDialog({
+            open: true,
+            project: selectedProject,
+            password: '',
+          });
+          setProjectPasswordError('');
+          setShowProjectPassword(false);
+          setShowProjectDropdown(false);
+        }
+      } else {
+        navigate(`/utility-billing?project=${selectedProject.uuid}`);
+        setShowProjectDropdown(false);
+      }
+    } else {
+      navigate('/utility-billing');
+      setProject(null);
+      setShowProjectDropdown(false);
+    }
+  };
+
+  // Handle project password verification
+  const handleVerifyProjectPassword = async () => {
+    if (!projectPasswordDialog.password.trim()) {
+      setProjectPasswordError(t('Password is required'));
+      return;
+    }
+
+    setVerifyingProjectPassword(true);
+    try {
+      const result = await verifyProjectPassword(
+        projectPasswordDialog.project.uuid,
+        projectPasswordDialog.password
+      );
+      if (result.verified) {
+        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
+        verifiedProjects[projectPasswordDialog.project.uuid] = true;
+        sessionStorage.setItem('verifiedProjects', JSON.stringify(verifiedProjects));
+
+        navigate(`/utility-billing?project=${projectPasswordDialog.project.uuid}`);
+        setProjectPasswordDialog({ open: false, project: null, password: '' });
+      } else {
+        setProjectPasswordError(t('Invalid password'));
+      }
+    } catch (err) {
+      setProjectPasswordError(err.response?.data?.detail || t('Failed to verify password'));
+    } finally {
+      setVerifyingProjectPassword(false);
+    }
+  };
+
+  // Handle create new project
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return;
+
+    setCreatingProject(true);
+    try {
+      const newProject = await createProject({
+        name: newProjectName.trim(),
+        description: newProjectDescription.trim() || null,
+        password: newProjectPassword.trim() || null
+      });
+      setProjectsList(prev => [newProject, ...prev]);
+      navigate(`/utility-billing?project=${newProject.uuid}`);
+      setNewProjectName('');
+      setNewProjectDescription('');
+      setNewProjectPassword('');
+      setShowNewProjectPassword(false);
+      setShowCreateProject(false);
+      setShowProjectDropdown(false);
+    } catch (err) {
+      console.error('Error creating project:', err);
+      setProjectError(t('Failed to create project. Please try again.'));
+    } finally {
+      setCreatingProject(false);
+    }
+  };
 
   // Handle file upload
   const handleFileUpload = async (file, type) => {
@@ -367,6 +561,118 @@ export default function UtilityBilling() {
           <p className="text-gray-600 dark:text-gray-400">
             {t('utilityBillingSubtitle')}
           </p>
+
+          {/* Project Selector */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-cyan-50 to-sky-50 dark:from-cyan-900/20 dark:to-sky-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+              <div className="flex items-center gap-3">
+                <FolderIcon className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {t('Project')}:
+                </span>
+                <div className="relative" ref={projectDropdownRef}>
+                  <button
+                    onClick={() => setShowProjectDropdown(!showProjectDropdown)}
+                    disabled={loadingProject}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#222] border border-gray-300 dark:border-gray-600 rounded-lg hover:border-cyan-400 dark:hover:border-cyan-500 transition-colors min-w-[200px]"
+                  >
+                    {loadingProject ? (
+                      <span className="text-gray-400">{t('Loading...')}</span>
+                    ) : project ? (
+                      <>
+                        <span className="text-gray-900 dark:text-gray-100 truncate max-w-[150px]">
+                          {project.project_name}
+                        </span>
+                        {project.is_protected && (
+                          <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-gray-500">{t('Standalone Mode')}</span>
+                    )}
+                    <ChevronDownIcon className="h-4 w-4 text-gray-400 ml-auto" />
+                  </button>
+
+                  {/* Dropdown */}
+                  <AnimatePresence>
+                    {showProjectDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute top-full left-0 mt-1 w-72 bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-80 overflow-auto"
+                      >
+                        {/* Create New Project Option */}
+                        <button
+                          onClick={() => {
+                            setShowCreateProject(true);
+                            setShowProjectDropdown(false);
+                          }}
+                          className="w-full px-4 py-2 text-left text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors border-b border-gray-200 dark:border-gray-700 flex items-center gap-2"
+                        >
+                          <PlusIcon className="h-4 w-4" />
+                          <span className="font-medium">{t('Create New Project')}</span>
+                        </button>
+
+                        {/* Standalone option */}
+                        <button
+                          onClick={() => handleSelectProject(null)}
+                          className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                            !project ? 'bg-cyan-50 dark:bg-cyan-900/20' : ''
+                          }`}
+                        >
+                          <span className="text-gray-600 dark:text-gray-400">{t('Standalone Mode')}</span>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">{t('Process without saving to project')}</p>
+                        </button>
+                        <div className="border-t border-gray-200 dark:border-gray-700" />
+
+                        {loadingProjects ? (
+                          <div className="px-4 py-3 text-center text-gray-500">
+                            <div className="inline-block w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mr-2" />
+                            {t('Loading...')}
+                          </div>
+                        ) : projectsList.length === 0 ? (
+                          <div className="px-4 py-3 text-center text-gray-500">
+                            {t('No projects found')}
+                          </div>
+                        ) : (
+                          projectsList.map((p) => (
+                            <button
+                              key={p.uuid}
+                              onClick={() => handleSelectProject(p)}
+                              className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                                project?.uuid === p.uuid ? 'bg-cyan-50 dark:bg-cyan-900/20' : ''
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-900 dark:text-gray-100 truncate">
+                                  {p.project_name}
+                                </span>
+                                {p.is_protected && (
+                                  <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              {p.description && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                                  {p.description}
+                                </p>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              {project && (
+                <span className="text-xs px-2 py-1 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded">
+                  {t('Results will be saved to project')}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Status Cards */}
@@ -519,6 +825,210 @@ export default function UtilityBilling() {
           <p>{t('utilityBillingSystem')}</p>
         </motion.footer>
       </div>
+
+      {/* Create Project Dialog */}
+      <AnimatePresence>
+        {showCreateProject && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowCreateProject(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-[#222] rounded-xl p-6 w-full max-w-md shadow-xl border border-gray-200 dark:border-gray-700"
+            >
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                {t('Create New Project')}
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {t('Project Name')} *
+                  </label>
+                  <input
+                    type="text"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    placeholder={t('Enter project name')}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#181818] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {t('Description')}
+                  </label>
+                  <textarea
+                    value={newProjectDescription}
+                    onChange={(e) => setNewProjectDescription(e.target.value)}
+                    placeholder={t('Optional description')}
+                    rows={2}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#181818] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {t('Password')} ({t('Optional')})
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNewProjectPassword ? 'text' : 'password'}
+                      value={newProjectPassword}
+                      onChange={(e) => setNewProjectPassword(e.target.value)}
+                      placeholder={t('Leave empty for no protection')}
+                      className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#181818] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewProjectPassword(!showNewProjectPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showNewProjectPassword ? (
+                        <EyeSlashIcon className="h-5 w-5" />
+                      ) : (
+                        <EyeIcon className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {projectError && (
+                  <p className="text-sm text-red-500">{projectError}</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowCreateProject(false);
+                    setNewProjectName('');
+                    setNewProjectDescription('');
+                    setNewProjectPassword('');
+                    setProjectError(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {t('Cancel')}
+                </button>
+                <button
+                  onClick={handleCreateProject}
+                  disabled={!newProjectName.trim() || creatingProject}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-600 hover:to-sky-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {creatingProject ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      {t('Creating...')}
+                    </span>
+                  ) : (
+                    t('Create Project')
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Project Password Dialog */}
+      <AnimatePresence>
+        {projectPasswordDialog.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setProjectPasswordDialog({ open: false, project: null, password: '' })}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-[#222] rounded-xl p-6 w-full max-w-md shadow-xl border border-gray-200 dark:border-gray-700"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                  <LockClosedIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                    {t('Protected Project')}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {projectPasswordDialog.project?.project_name}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                {t('This project is password protected. Please enter the password to continue.')}
+              </p>
+
+              <div className="relative mb-4">
+                <input
+                  type={showProjectPassword ? 'text' : 'password'}
+                  value={projectPasswordDialog.password}
+                  onChange={(e) => setProjectPasswordDialog(prev => ({ ...prev, password: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && handleVerifyProjectPassword()}
+                  placeholder={t('Enter password')}
+                  className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#181818] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowProjectPassword(!showProjectPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showProjectPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+
+              {projectPasswordError && (
+                <p className="text-sm text-red-500 mb-4">{projectPasswordError}</p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setProjectPasswordDialog({ open: false, project: null, password: '' });
+                    setProjectPasswordError('');
+                    setShowProjectPassword(false);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {t('Cancel')}
+                </button>
+                <button
+                  onClick={handleVerifyProjectPassword}
+                  disabled={!projectPasswordDialog.password.trim() || verifyingProjectPassword}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-600 hover:to-sky-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {verifyingProjectPassword ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      {t('Verifying...')}
+                    </span>
+                  ) : (
+                    t('Unlock')
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

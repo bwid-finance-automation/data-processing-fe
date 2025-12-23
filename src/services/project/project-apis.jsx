@@ -204,3 +204,79 @@ export const getProjectContracts = async (uuid) => {
     throw error;
   }
 };
+
+/**
+ * Get GLA variance analysis history for a project
+ * @param {string} uuid - Project UUID
+ * @param {number} skip - Number of records to skip (default: 0)
+ * @param {number} limit - Maximum number of records to return (default: 50)
+ * @returns {Promise} List of GLA variance analysis records linked to project
+ */
+export const getProjectGla = async (uuid, skip = 0, limit = 50) => {
+  try {
+    const response = await projectApiClient.get(`/${uuid}/cases/gla`, {
+      params: { skip, limit }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching project GLA analysis:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get variance analysis history for a project
+ * @param {string} uuid - Project UUID
+ * @param {number} skip - Number of records to skip (default: 0)
+ * @param {number} limit - Maximum number of records to return (default: 50)
+ * @returns {Promise} List of variance analysis records linked to project
+ */
+export const getProjectVariance = async (uuid, skip = 0, limit = 50) => {
+  try {
+    const response = await projectApiClient.get(`/${uuid}/cases/variance`, {
+      params: { skip, limit }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching project variance analysis:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get utility billing history for a project
+ * @param {string} uuid - Project UUID
+ * @param {number} skip - Number of records to skip (default: 0)
+ * @param {number} limit - Maximum number of records to return (default: 50)
+ * @returns {Promise} List of utility billing records linked to project
+ */
+export const getProjectUtilityBilling = async (uuid, skip = 0, limit = 50) => {
+  try {
+    const response = await projectApiClient.get(`/${uuid}/cases/utility-billing`, {
+      params: { skip, limit }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching project utility billing:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get excel comparison history for a project
+ * @param {string} uuid - Project UUID
+ * @param {number} skip - Number of records to skip (default: 0)
+ * @param {number} limit - Maximum number of records to return (default: 50)
+ * @returns {Promise} List of excel comparison records linked to project
+ */
+export const getProjectExcelComparison = async (uuid, skip = 0, limit = 50) => {
+  try {
+    const response = await projectApiClient.get(`/${uuid}/cases/excel-comparison`, {
+      params: { skip, limit }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching project excel comparison:', error);
+    throw error;
+  }
+};
