@@ -7,7 +7,6 @@ import { fpaApiClient, FPA_API_BASE_URL } from '@configs/APIs';
 
 function GLAVarianceAnalysis() {
   const [file, setFile] = useState(null);
-  const [useAI, setUseAI] = useState(true); // Default to AI analysis
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
@@ -48,8 +47,8 @@ function GLAVarianceAnalysis() {
     const formData = new FormData();
     formData.append('file', file);
 
-    // Build URL with query params for AI option
-    const url = `/gla-variance/analyze?use_ai=${useAI}`;
+    // AI analysis is always enabled
+    const url = `/gla-variance/analyze`;
 
     try {
       const response = await fpaApiClient.post(url, formData, {
@@ -71,7 +70,6 @@ function GLAVarianceAnalysis() {
 
   const handleReset = () => {
     setFile(null);
-    setUseAI(true);
     setResult(null);
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -200,55 +198,27 @@ function GLAVarianceAnalysis() {
           </div>
         </motion.div>
 
-        {/* AI Analysis Toggle */}
+        {/* AI Analysis Info Banner */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="mb-4"
         >
-          <div className="bg-white dark:bg-[#222] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">AI-Powered Analysis & PDF Report</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Get intelligent explanations and download PDF report
-                  </p>
-                </div>
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl shadow-lg border border-purple-200 dark:border-purple-700 p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
               </div>
-              <button
-                onClick={() => setUseAI(!useAI)}
-                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
-                  useAI ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
-                    useAI ? 'translate-x-8' : 'translate-x-1'
-                  }`}
-                />
-              </button>
+              <div>
+                <h3 className="font-semibold text-purple-900 dark:text-purple-100">AI-Powered Analysis Enabled</h3>
+                <p className="text-sm text-purple-700 dark:text-purple-300">
+                  AI will analyze variances and generate a downloadable PDF report with insights
+                </p>
+              </div>
             </div>
-            {useAI && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700"
-              >
-                <div className="flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  <span>AI will analyze variances and generate a downloadable PDF report with insights</span>
-                </div>
-              </motion.div>
-            )}
           </div>
         </motion.div>
 
@@ -264,11 +234,7 @@ function GLAVarianceAnalysis() {
             disabled={loading || !file}
             whileHover={{ scale: loading || !file ? 1 : 1.02 }}
             whileTap={{ scale: loading || !file ? 1 : 0.98 }}
-            className={`w-full text-white text-lg font-bold py-5 px-6 rounded-xl shadow-2xl disabled:from-gray-300 dark:disabled:from-gray-600 disabled:via-gray-400 dark:disabled:via-gray-700 disabled:to-gray-400 dark:disabled:to-gray-700 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-300 relative overflow-hidden group ${
-              useAI
-                ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 hover:from-purple-700 hover:via-indigo-700 hover:to-cyan-700'
-                : 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-700 hover:via-teal-700 hover:to-cyan-700'
-            }`}
+            className="w-full text-white text-lg font-bold py-5 px-6 rounded-xl shadow-2xl disabled:from-gray-300 dark:disabled:from-gray-600 disabled:via-gray-400 dark:disabled:via-gray-700 disabled:to-gray-400 dark:disabled:to-gray-700 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-300 relative overflow-hidden group bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 hover:from-purple-700 hover:via-indigo-700 hover:to-cyan-700"
           >
             <span className="relative z-10 flex items-center justify-center gap-3">
               {loading ? (
@@ -277,20 +243,14 @@ function GLAVarianceAnalysis() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>{useAI ? 'AI Analyzing GLA Data...' : 'Analyzing GLA Data...'}</span>
+                  <span>AI Analyzing GLA Data...</span>
                 </>
               ) : (
                 <>
-                  {useAI ? (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  )}
-                  <span>{useAI ? 'Analyze with AI & Generate PDF' : 'Analyze GLA Variance'}</span>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span>Analyze with AI & Generate PDF</span>
                 </>
               )}
             </span>
