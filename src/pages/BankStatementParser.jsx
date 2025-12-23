@@ -348,8 +348,8 @@ const BankStatementParser = () => {
     }
   };
 
-  const supportedBanksFallback = ['ACB', 'VIB', 'CTBC', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'VCB'];
-  const supportedBanksPDF = ['KBANK', 'SCB', 'TCB', 'VIB'];
+  const supportedBanksFallback = ['ACB', 'VIB', 'VCB', 'CTBC', 'TCB', 'SCB', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'UOB'];
+  const supportedBanksPDF = ['KBANK', 'SCB', 'TCB', 'VIB', 'ACB', 'CTBC'];
   const struckBanks = new Set([]);
   const struckBanksPDF = new Set([]); 
   const supportedBanks = results?.supported_banks || supportedBanksFallback;
