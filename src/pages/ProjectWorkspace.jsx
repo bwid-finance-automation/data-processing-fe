@@ -783,7 +783,7 @@ const ProjectWorkspace = () => {
 
                             <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                               <span>{statement.total_transactions || 0} {t('transactions')}</span>
-                              <span>{statement.unique_accounts || 0} {t('accounts')}</span>
+                              <span>{statement.total_accounts || statement.total_balances || 0} {t('accounts')}</span>
                             </div>
 
                             {statement.original_filenames?.length > 0 && (

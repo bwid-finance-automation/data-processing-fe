@@ -1232,7 +1232,7 @@ const BankStatementParser = () => {
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                       <p className="text-sm text-green-700 dark:text-green-300 mb-1">{t('Accounts')}</p>
                       <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                        {results.summary?.unique_accounts || 0}
+                        {results.summary?.total_accounts || results.summary?.total_balances || 0}
                       </p>
                     </div>
                   </div>
