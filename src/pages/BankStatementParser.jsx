@@ -1004,14 +1004,16 @@ const BankStatementParser = () => {
               {/* Drag & Drop Zone */}
               <div
                   className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
-                    dragActive
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600'
+                    loadingProject
+                      ? 'border-gray-300 dark:border-gray-700 opacity-50 cursor-not-allowed'
+                      : dragActive
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600'
                   }`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
+                  onDragEnter={loadingProject ? undefined : handleDrag}
+                  onDragLeave={loadingProject ? undefined : handleDrag}
+                  onDragOver={loadingProject ? undefined : handleDrag}
+                  onDrop={loadingProject ? undefined : handleDrop}
                 >
                   <CloudArrowUpIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
                   <p className="text-gray-600 dark:text-gray-400 mb-2">
@@ -1019,14 +1021,15 @@ const BankStatementParser = () => {
                   </p>
                   <label className="inline-block">
                     <input
+                      key={`file-input-${projectUuid || 'standalone'}-${fileMode}`}
                       type="file"
                       multiple
                       accept={acceptString}
                       onChange={handleFileInput}
                       className="hidden"
-                      disabled={processing}
+                      disabled={processing || loadingProject}
                     />
-                    <span className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer inline-block transition-colors">
+                    <span className={`px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer inline-block transition-colors ${loadingProject ? 'opacity-50 cursor-not-allowed' : ''}`}>
                       {t('Browse Files')}
                     </span>
                   </label>
