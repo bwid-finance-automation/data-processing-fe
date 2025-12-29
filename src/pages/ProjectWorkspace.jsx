@@ -210,11 +210,11 @@ const ProjectWorkspace = () => {
 
   const handleDownloadBankStatement = async (sessionId) => {
     try {
-      const blob = await downloadBankStatementResults(sessionId);
+      const { blob, filename } = await downloadBankStatementResults(sessionId);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `bank_statements_${sessionId}.xlsx`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

@@ -329,13 +329,13 @@ const BankStatementParser = () => {
 
     setDownloadingSessionId(sessionId);
     try {
-      const blob = await downloadBankStatementFromHistory(sessionId);
+      const { blob, filename } = await downloadBankStatementFromHistory(sessionId);
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `bank_statements_${sessionId.slice(0, 8)}.xlsx`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -637,13 +637,13 @@ const BankStatementParser = () => {
       const sessionId = results.download_url.split('/').pop();
 
       // Download the file using the API
-      const blob = await downloadBankStatementResults(sessionId);
+      const { blob, filename } = await downloadBankStatementResults(sessionId);
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `bank_statements_${sessionId}.xlsx`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
 

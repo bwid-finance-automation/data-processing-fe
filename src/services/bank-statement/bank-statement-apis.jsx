@@ -98,9 +98,20 @@ export const getSupportedBanks = async () => {
 };
 
 /**
+ * Extract filename from Content-Disposition header
+ * @param {string} contentDisposition - Content-Disposition header value
+ * @returns {string|null} Filename or null
+ */
+const extractFilename = (contentDisposition) => {
+  if (!contentDisposition) return null;
+  const match = contentDisposition.match(/filename=(.+)/);
+  return match ? match[1].replace(/"/g, '') : null;
+};
+
+/**
  * Download processed bank statement Excel file
  * @param {string} sessionId - Session ID from parse response
- * @returns {Promise} Blob for download
+ * @returns {Promise<{blob: Blob, filename: string}>} Blob and filename for download
  */
 export const downloadBankStatementResults = async (sessionId) => {
   try {
@@ -110,7 +121,8 @@ export const downloadBankStatementResults = async (sessionId) => {
         responseType: 'blob',
       }
     );
-    return response.data;
+    const filename = extractFilename(response.headers['content-disposition']) || `bank_statements_${sessionId}.xlsx`;
+    return { blob: response.data, filename };
   } catch (error) {
     console.error('Error downloading bank statement results:', error);
     throw error;
@@ -120,7 +132,7 @@ export const downloadBankStatementResults = async (sessionId) => {
 /**
  * Download bank statement Excel file from history (regenerated from database)
  * @param {string} sessionId - Session ID from parse history
- * @returns {Promise} Blob for download
+ * @returns {Promise<{blob: Blob, filename: string}>} Blob and filename for download
  */
 export const downloadBankStatementFromHistory = async (sessionId) => {
   try {
@@ -130,7 +142,8 @@ export const downloadBankStatementFromHistory = async (sessionId) => {
         responseType: 'blob',
       }
     );
-    return response.data;
+    const filename = extractFilename(response.headers['content-disposition']) || `bank_statements_${sessionId}.xlsx`;
+    return { blob: response.data, filename };
   } catch (error) {
     console.error('Error downloading bank statement from history:', error);
     throw error;
