@@ -495,21 +495,26 @@ const BankStatementParser = () => {
     if (fileMode === 'pdf') {
       setCheckingPdf(true);
       const newEncryptedFiles = { ...encryptedFiles };
+      let firstEncryptedFile = null;
 
+      // Check ALL files first
       for (const file of uniqueFiles) {
         const isEncrypted = await checkPdfEncryption(file);
         newEncryptedFiles[file.name] = isEncrypted;
 
-        // If encrypted, show password dialog
-        if (isEncrypted) {
-          setPasswordDialog({ open: true, fileName: file.name, password: '' });
-          // Wait for user to close dialog before checking next file
-          break; // Process one at a time
+        // Remember first encrypted file to show dialog
+        if (isEncrypted && !firstEncryptedFile) {
+          firstEncryptedFile = file.name;
         }
       }
 
       setEncryptedFiles(newEncryptedFiles);
       setCheckingPdf(false);
+
+      // Show password dialog for first encrypted file
+      if (firstEncryptedFile) {
+        setPasswordDialog({ open: true, fileName: firstEncryptedFile, password: '' });
+      }
     }
   };
 
@@ -1212,11 +1217,66 @@ const BankStatementParser = () => {
 
               {/* Processing State */}
               {processing && (
-                <div className="text-center py-12">
-                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
-                  <p className="text-gray-600 dark:text-gray-400">{t('Processing bank statements...')}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                    {fileMode === 'pdf' ? t('Running OCR and extracting data...') : t('Auto-detecting banks and extracting data')}
+                <div className="py-6">
+                  <div className="flex items-center justify-center gap-3 mb-6">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+                    <div>
+                      <p className="text-gray-700 dark:text-gray-300 font-medium">{t('Processing bank statements...')}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500">
+                        {fileMode === 'pdf' ? t('Running OCR and extracting data...') : t('Auto-detecting banks and extracting data')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* File Processing List */}
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {files.map((file, index) => (
+                      <motion.div
+                        key={file.name}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                      >
+                        <div className="relative">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                            <DocumentTextIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center">
+                            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></div>
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {fileMode === 'pdf' ? t('OCR processing...') : t('Parsing...')}
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <motion.div
+                              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                              initial={{ width: '0%' }}
+                              animate={{ width: '100%' }}
+                              transition={{
+                                duration: fileMode === 'pdf' ? 15 : 5,
+                                ease: 'linear',
+                                delay: index * 2
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-4">
+                    {fileMode === 'pdf'
+                      ? t('PDF files may take 10-30 seconds each depending on complexity')
+                      : t('Excel files typically process in a few seconds')
+                    }
                   </p>
                 </div>
               )}

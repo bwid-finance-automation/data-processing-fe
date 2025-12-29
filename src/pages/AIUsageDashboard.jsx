@@ -107,8 +107,14 @@ const AIUsageDashboard = () => {
 
   // Format date for display - use dynamic locale based on language
   const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    // Append 'Z' if not present to indicate UTC time
+    let normalizedDate = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      normalizedDate = dateString + 'Z';
+    }
     const locale = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
-    return new Date(dateString).toLocaleString(locale, {
+    return new Date(normalizedDate).toLocaleString(locale, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
