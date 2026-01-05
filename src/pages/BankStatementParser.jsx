@@ -1300,23 +1300,6 @@ const BankStatementParser = () => {
                     </div>
                   </div>
 
-                  {/* Banks Detected */}
-                  <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                    <p className="text-sm font-semibold text-purple-900 dark:text-purple-300 mb-2">
-                      {t('Banks Detected')} ({results.summary?.banks_detected?.length || 0})
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {results.summary?.banks_detected?.map(bank => (
-                        <span
-                          key={bank}
-                          className="px-3 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-full text-sm font-medium"
-                        >
-                          {bank}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
                   {/* Download Button */}
                   <button
                     onClick={handleDownload}
@@ -1335,9 +1318,6 @@ const BankStatementParser = () => {
                           {t('Original Files')} ({uploadedFiles.length})
                         </h4>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        {t('Files are stored for 30 days. Download them before they expire.')}
-                      </p>
                       <div className="space-y-2 max-h-40 overflow-y-auto">
                         {uploadedFiles.map((file) => (
                           <div
@@ -1487,6 +1467,9 @@ const BankStatementParser = () => {
                 </span>
               </h3>
             </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              {t('Files are stored for 30 days. Download them before they expire.')}
+            </p>
 
             {/* History Filters */}
             {projectBankStatements.length > 0 && !loadingProjectHistory && (
