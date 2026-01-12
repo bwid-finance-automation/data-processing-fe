@@ -6,6 +6,9 @@ import { FINANCE_API_BASE_URL } from '@configs/APIs';
 const AIAnalysis = ({ projectUuid }) => {
   const { t } = useTranslation();
   const [excelFiles, setExcelFiles] = useState([]);
+  const [loanInterestFile, setLoanInterestFile] = useState(null);
+  const [revenueBreakdownFile, setRevenueBreakdownFile] = useState(null);
+  const [unitForLeaseFile, setUnitForLeaseFile] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState('upload'); // upload, analyze, generate, complete
@@ -24,6 +27,21 @@ const AIAnalysis = ({ projectUuid }) => {
 
   const handleExcelChange = (e) => {
     setExcelFiles(Array.from(e.target.files));
+  };
+
+  const handleLoanInterestChange = (e) => {
+    const file = e.target.files[0];
+    setLoanInterestFile(file || null);
+  };
+
+  const handleRevenueBreakdownChange = (e) => {
+    const file = e.target.files[0];
+    setRevenueBreakdownFile(file || null);
+  };
+
+  const handleUnitForLeaseChange = (e) => {
+    const file = e.target.files[0];
+    setUnitForLeaseFile(file || null);
   };
 
   // Helper function to categorize log messages and add metadata
@@ -238,6 +256,19 @@ const AIAnalysis = ({ projectUuid }) => {
       formData.append('excel_files', file);
     });
 
+    // Add optional loan interest file for enhanced A2 analysis
+    if (loanInterestFile) {
+      formData.append('loan_interest_file', loanInterestFile);
+    }
+
+    // Add optional Account 511 files for revenue drill-down
+    if (revenueBreakdownFile) {
+      formData.append('revenue_breakdown_file', revenueBreakdownFile);
+    }
+    if (unitForLeaseFile) {
+      formData.append('unit_for_lease_file', unitForLeaseFile);
+    }
+
     // Add project_uuid if provided (for project integration)
     if (projectUuid) {
       formData.append('project_uuid', projectUuid);
@@ -440,6 +471,159 @@ const AIAnalysis = ({ projectUuid }) => {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Optional Loan Interest File */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+              <span className="w-1 h-4 bg-amber-500 rounded-full mr-2"></span>
+              ERP Loan Interest Rate
+              <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
+            </h3>
+
+            <div className="relative">
+              <input
+                type="file"
+                id="ai-loan-interest-upload"
+                accept=".xlsx,.xls"
+                onChange={handleLoanInterestChange}
+                disabled={isProcessing}
+                className="hidden"
+              />
+              <label
+                htmlFor="ai-loan-interest-upload"
+                className={`flex items-center gap-3 w-full px-4 py-3 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                  isProcessing
+                    ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                    : loanInterestFile
+                    ? 'border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20'
+                    : 'border-gray-300 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 hover:border-amber-400'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  loanInterestFile ? 'bg-amber-500' : 'bg-gradient-to-br from-amber-500 to-amber-600'
+                }`}>
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {loanInterestFile ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    )}
+                  </svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    {loanInterestFile ? loanInterestFile.name : 'Loan Interest Rate File'}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {loanInterestFile ? `${(loanInterestFile.size / 1024).toFixed(2)} KB` : 'NetSuite Save Search (.xls/.xlsx)'}
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Upload the ERP Loan Interest Rate Save Search file to enable enhanced Rule A2 analysis with interest rate lookups.
+            </p>
+          </div>
+
+          {/* Account 511 Drill-Down Files Section */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+              <span className="w-1 h-4 bg-purple-500 rounded-full mr-2"></span>
+              Account 511 (Revenue) Drill-Down
+              <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
+            </h3>
+
+            <div className="grid grid-cols-1 gap-3">
+              {/* Revenue Breakdown File */}
+              <div className="relative">
+                <input
+                  type="file"
+                  id="ai-revenue-breakdown-upload"
+                  accept=".xlsx,.xls"
+                  onChange={handleRevenueBreakdownChange}
+                  disabled={isProcessing}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="ai-revenue-breakdown-upload"
+                  className={`flex items-center gap-3 w-full px-4 py-3 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                    isProcessing
+                      ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                      : revenueBreakdownFile
+                      ? 'border-purple-400 dark:border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                      : 'border-gray-300 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 hover:border-purple-400'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    revenueBreakdownFile ? 'bg-purple-500' : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                  }`}>
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {revenueBreakdownFile ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      )}
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                      {revenueBreakdownFile ? revenueBreakdownFile.name : 'RevenueBreakdown File'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {revenueBreakdownFile ? `${(revenueBreakdownFile.size / 1024).toFixed(2)} KB` : 'NetSuite export (.xls)'}
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Unit For Lease List File */}
+              <div className="relative">
+                <input
+                  type="file"
+                  id="ai-unit-for-lease-upload"
+                  accept=".xlsx,.xls"
+                  onChange={handleUnitForLeaseChange}
+                  disabled={isProcessing}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="ai-unit-for-lease-upload"
+                  className={`flex items-center gap-3 w-full px-4 py-3 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                    isProcessing
+                      ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                      : unitForLeaseFile
+                      ? 'border-purple-400 dark:border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                      : 'border-gray-300 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 hover:border-purple-400'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    unitForLeaseFile ? 'bg-purple-500' : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                  }`}>
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {unitForLeaseFile ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      )}
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                      {unitForLeaseFile ? unitForLeaseFile.name : 'UnitForLeaseList File'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {unitForLeaseFile ? `${(unitForLeaseFile.size / 1024).toFixed(2)} KB` : 'NetSuite export (.xls)'}
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Upload both files to enable Account 511 revenue drill-down with sub-account breakdown, project analysis, and tenant matching.
+            </p>
           </div>
 
           {/* AI Features */}
