@@ -615,85 +615,74 @@ const ProjectWorkspace = () => {
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                    {bankStatements.slice(0, 10).map((entry, index) => (
-                      <motion.div
-                        key={entry.id || entry.session_id || index}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
-                      >
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 text-xs font-medium rounded ${
-                              entry.file_type === 'pdf'
-                                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                                : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                            }`}>
-                              {entry.file_type === 'pdf' ? 'PDF' : 'Excel'}
+                    {bankStatements.slice(0, 10).map((entry, index) => {
+                      const uploadedFiles = entry.uploaded_files || [];
+                      const banks = entry.banks || [];
+
+                      return (
+                        <motion.div
+                          key={entry.id || entry.session_id || index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
+                        >
+                          {/* Header */}
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {banks.slice(0, 3).map((bank, i) => (
+                                <span key={i} className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
+                                  {bank}
+                                </span>
+                              ))}
+                              {banks.length > 3 && (
+                                <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
+                                  +{banks.length - 3}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap ml-2">
+                              {formatDate(entry.processed_at || entry.created_at || entry.timestamp)}
                             </span>
-                            {entry.bank_name && (
-                              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
-                                {entry.bank_name}
-                              </span>
-                            )}
                           </div>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {formatDate(entry.created_at || entry.timestamp)}
-                          </span>
-                        </div>
 
-                        {/* Stats */}
-                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
-                          <span>{entry.transaction_count || entry.total_transactions || 0} {t('transactions')}</span>
-                          {entry.account_number && (
-                            <span>{t('Account')}: {entry.account_number}</span>
-                          )}
-                          {entry.processing_time && (
-                            <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">
-                              ⏱ {entry.processing_time}s
-                            </span>
-                          )}
-                        </div>
+                          {/* Stats */}
+                          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
+                            <span>{entry.total_transactions || entry.transaction_count || 0} {t('transactions')}</span>
+                            <span>{entry.file_count || (entry.files || []).length || 0} {t('files')}</span>
+                          </div>
 
-                        {/* Files */}
-                        <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-600">
-                          {/* Original file */}
-                          {entry.original_filename && (
-                            <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-600">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <DocumentTextIcon className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{t('Original File')}</p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{entry.original_filename}</p>
-                                </div>
-                              </div>
+                          {/* Files */}
+                          {uploadedFiles.length > 0 && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-3 truncate">
+                              {uploadedFiles.map(f => f.file_name).join(', ')}
                             </div>
                           )}
 
-                          {/* Combined result */}
-                          {(entry.download_url || entry.session_id) && (
-                            <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-700">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <ArrowDownTrayIcon className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-xs font-medium text-green-700 dark:text-green-300">{t('Combined Result')}</p>
-                                  <p className="text-xs text-green-600 dark:text-green-400">bank_statements_{entry.session_id || entry.id}.xlsx</p>
-                                </div>
-                              </div>
+                          {/* Actions */}
+                          {entry.session_id && (
+                            <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-600">
                               <button
-                                onClick={() => handleDownloadBankStatement(entry.session_id || entry.download_url?.split('/').pop())}
-                                className="p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 rounded transition-colors"
+                                onClick={() => navigate(`/bank-statement-parser/session/${entry.session_id}`)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors text-xs font-medium"
+                                title={t('View Details')}
+                              >
+                                <EyeIcon className="h-4 w-4" />
+                                {t('Details')}
+                              </button>
+                              <button
+                                onClick={() => handleDownloadBankStatement(entry.session_id)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-colors text-xs font-medium"
                                 title={t('Download Results')}
                               >
                                 <ArrowDownTrayIcon className="h-4 w-4" />
+                                {t('Download')}
                               </button>
                             </div>
                           )}
-                        </div>
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -737,7 +726,7 @@ const ProjectWorkspace = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={handleNavigateToBankParser}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                     >
                       <BanknotesIcon className="h-5 w-5" />
                       {t('Parse Bank Statements')}
@@ -745,68 +734,79 @@ const ProjectWorkspace = () => {
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {bankStatements.map((statement, index) => (
-                      <motion.div
-                        key={statement.id || index}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.03 }}
-                        className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <span className={`px-2 py-0.5 text-xs font-medium rounded ${
-                                statement.file_type === 'excel'
-                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                                  : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                              }`}>
-                                {statement.file_type?.toUpperCase() || 'EXCEL'}
-                              </span>
-                              <span className="text-sm text-gray-500 dark:text-gray-400">
-                                {formatDate(statement.created_at)}
-                              </span>
-                            </div>
+                    {bankStatements.map((session, index) => {
+                      const uploadedFiles = session.uploaded_files || [];
+                      const banks = session.banks || session.banks_detected || [];
 
-                            {statement.banks_detected?.length > 0 && (
-                              <div className="flex flex-wrap gap-2 mb-2">
-                                {statement.banks_detected.map(bank => (
+                      return (
+                        <motion.div
+                          key={session.session_id || index}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.03 }}
+                          className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              {/* Banks & Date */}
+                              <div className="flex items-center gap-2 flex-wrap mb-2">
+                                {banks.slice(0, 5).map((bank, i) => (
                                   <span
-                                    key={bank}
+                                    key={i}
                                     className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium"
                                   >
                                     {bank}
                                   </span>
                                 ))}
+                                {banks.length > 5 && (
+                                  <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
+                                    +{banks.length - 5}
+                                  </span>
+                                )}
+                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                  {formatDate(session.processed_at || session.created_at)}
+                                </span>
                               </div>
-                            )}
 
-                            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                              <span>{statement.total_transactions || 0} {t('transactions')}</span>
-                              <span>{statement.total_accounts || statement.total_balances || 0} {t('accounts')}</span>
+                              {/* Stats */}
+                              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                                <span>{session.total_transactions || 0} {t('transactions')}</span>
+                                <span>{session.file_count || (session.files || []).length || 0} {t('files')}</span>
+                              </div>
+
+                              {/* Uploaded files */}
+                              {uploadedFiles.length > 0 && (
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 truncate">
+                                  {uploadedFiles.map(f => f.file_name).join(', ')}
+                                </p>
+                              )}
                             </div>
 
-                            {statement.original_filenames?.length > 0 && (
-                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 truncate">
-                                {t('Files')}: {statement.original_filenames.join(', ')}
-                              </p>
-                            )}
+                            {/* Actions */}
+                            <div className="flex items-center gap-2 ml-4">
+                              {session.session_id && (
+                                <>
+                                  <button
+                                    onClick={() => navigate(`/bank-statement-parser/session/${session.session_id}`)}
+                                    className="p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                    title={t('View Details')}
+                                  >
+                                    <EyeIcon className="h-5 w-5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDownloadBankStatement(session.session_id)}
+                                    className="p-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                    title={t('Download Results')}
+                                  >
+                                    <ArrowDownTrayIcon className="h-5 w-5" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
-
-                          <div className="flex items-center gap-2 ml-4">
-                            {statement.session_id && (
-                              <button
-                                onClick={() => handleDownloadBankStatement(statement.session_id)}
-                                className="p-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                title={t('Download Results')}
-                              >
-                                <ArrowDownTrayIcon className="h-5 w-5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

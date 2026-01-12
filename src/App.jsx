@@ -18,6 +18,7 @@ import GLAVarianceAnalysis from "@pages/GLAVarianceAnalysis";
 import ContractOCR from "@pages/ContractOCR";
 import UtilityBilling from "@pages/UtilityBilling";
 import BankStatementParser from "@pages/BankStatementParser";
+import BankStatementSessionDetail from "@pages/BankStatementSessionDetail";
 import AIUsageDashboard from "@pages/AIUsageDashboard";
 import NotFound from "@pages/NotFound";
 
@@ -150,6 +151,15 @@ function AnimatedRoutes() {
           element={
             <PageWrapper>
               <BankStatementParser />
+            </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/bank-statement-parser/session/:sessionId"
+          element={
+            <PageWrapper>
+              <BankStatementSessionDetail />
             </PageWrapper>
           }
         />

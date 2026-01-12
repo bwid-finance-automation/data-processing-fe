@@ -910,11 +910,35 @@ const BankStatementParser = () => {
       if (!session.banks || !session.banks.includes(historyBankFilter)) return false;
     }
 
-    // File type filter
+    // File type filter - check both uploaded_files and files arrays
     if (historyFileTypeFilter !== 'all') {
-      const hasPdf = session.files?.some(f => f.file_name?.toLowerCase().endsWith('.pdf'));
+      const uploadedFiles = session.uploaded_files || [];
+      const files = session.files || [];
+
+      // Check uploaded files for ZIP
+      const hasZip = uploadedFiles.some(f => f.file_name?.toLowerCase().endsWith('.zip'));
+
+      // Check for PDF in uploaded files OR extracted from ZIP OR in parsed files
+      const uploadedPdf = uploadedFiles.some(f => f.file_name?.toLowerCase().endsWith('.pdf'));
+      const extractedPdf = uploadedFiles.some(f => (f.metadata?.extracted_pdf_count || 0) > 0);
+      const parsedPdf = files.some(f => f.file_name?.toLowerCase().endsWith('.pdf'));
+      const hasPdf = uploadedPdf || extractedPdf || parsedPdf;
+
+      // Check for Excel in uploaded files OR extracted from ZIP OR in parsed files
+      const uploadedExcel = uploadedFiles.some(f => {
+        const name = f.file_name?.toLowerCase();
+        return name?.endsWith('.xlsx') || name?.endsWith('.xls');
+      });
+      const extractedExcel = uploadedFiles.some(f => (f.metadata?.extracted_excel_count || 0) > 0);
+      const parsedExcel = files.some(f => {
+        const name = f.file_name?.toLowerCase();
+        return name?.endsWith('.xlsx') || name?.endsWith('.xls');
+      });
+      const hasExcel = uploadedExcel || extractedExcel || parsedExcel;
+
       if (historyFileTypeFilter === 'pdf' && !hasPdf) return false;
-      if (historyFileTypeFilter === 'excel' && hasPdf) return false;
+      if (historyFileTypeFilter === 'excel' && !hasExcel) return false;
+      if (historyFileTypeFilter === 'zip' && !hasZip) return false;
     }
 
     return true;
@@ -1815,7 +1839,8 @@ const BankStatementParser = () => {
                     {[
                       { value: 'all', label: t('All') },
                       { value: 'excel', label: 'Excel' },
-                      { value: 'pdf', label: 'PDF' }
+                      { value: 'pdf', label: 'PDF' },
+                      { value: 'zip', label: 'ZIP' }
                     ].map(option => (
                       <button
                         key={option.value}
@@ -1860,8 +1885,41 @@ const BankStatementParser = () => {
             {projectUuid && !loadingProjectHistory && filteredProjectBankStatements.length > 0 && (
               <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
                 {filteredProjectBankStatements.map((session, sessionIdx) => {
-                  // API returns: session_id, processed_at, file_count, total_transactions, banks[], files[]
-                  const hasPdf = session.files?.some(f => f.file_name?.toLowerCase().endsWith('.pdf'));
+                  // API returns: session_id, processed_at, file_count, total_transactions, banks[], files[], uploaded_files[]
+                  // uploaded_files contains original uploads with metadata (including ZIP extraction info)
+                  const uploadedFiles = session.uploaded_files || [];
+                  const uploadedZipFiles = uploadedFiles.filter(f => f.file_name?.toLowerCase().endsWith('.zip')) || [];
+                  const uploadedPdfFiles = uploadedFiles.filter(f => f.file_name?.toLowerCase().endsWith('.pdf')) || [];
+                  const uploadedExcelFiles = uploadedFiles.filter(f => {
+                    const name = f.file_name?.toLowerCase();
+                    return name?.endsWith('.xlsx') || name?.endsWith('.xls');
+                  }) || [];
+
+                  // Calculate extraction totals from ZIP metadata
+                  let extractedExcelCount = 0;
+                  let extractedPdfCount = 0;
+                  uploadedZipFiles.forEach(zip => {
+                    const meta = zip.metadata || {};
+                    extractedExcelCount += meta.extracted_excel_count || 0;
+                    extractedPdfCount += meta.extracted_pdf_count || 0;
+                  });
+
+                  // If no uploaded_files, fall back to files array
+                  const fallbackFiles = session.files || [];
+                  const fallbackPdfFiles = fallbackFiles.filter(f => f.file_name?.toLowerCase().endsWith('.pdf')) || [];
+                  const fallbackExcelFiles = fallbackFiles.filter(f => {
+                    const name = f.file_name?.toLowerCase();
+                    return name?.endsWith('.xlsx') || name?.endsWith('.xls');
+                  }) || [];
+
+                  const hasZip = uploadedZipFiles.length > 0;
+                  const hasPdf = uploadedPdfFiles.length > 0 || extractedPdfCount > 0 || fallbackPdfFiles.length > 0;
+                  const hasExcel = uploadedExcelFiles.length > 0 || extractedExcelCount > 0 || fallbackExcelFiles.length > 0;
+
+                  // Display counts
+                  const displayExcelCount = uploadedExcelFiles.length + extractedExcelCount || fallbackExcelFiles.length;
+                  const displayPdfCount = uploadedPdfFiles.length + extractedPdfCount || fallbackPdfFiles.length;
+
                   const isExpanded = expandedHistorySessions[session.session_id] ?? (sessionIdx === 0);
 
                   return (
@@ -1873,7 +1931,15 @@ const BankStatementParser = () => {
                       className="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-850 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-lg transition-all duration-300 overflow-hidden"
                     >
                       {/* Decorative accent line */}
-                      <div className={`absolute top-0 left-0 w-1 h-full ${hasPdf ? 'bg-gradient-to-b from-orange-500 to-red-500' : 'bg-gradient-to-b from-emerald-500 to-emerald-600'}`} />
+                      <div className={`absolute top-0 left-0 w-1 h-full ${
+                        hasZip
+                          ? 'bg-gradient-to-b from-purple-500 to-purple-600'
+                          : hasPdf && hasExcel
+                            ? 'bg-gradient-to-b from-orange-500 via-emerald-500 to-emerald-600'
+                            : hasPdf
+                              ? 'bg-gradient-to-b from-orange-500 to-red-500'
+                              : 'bg-gradient-to-b from-emerald-500 to-emerald-600'
+                      }`} />
 
                       {/* Main content */}
                       <div className="pl-4 pr-4 py-4">
@@ -1882,22 +1948,31 @@ const BankStatementParser = () => {
                           <div className="flex-1 min-w-0">
                             {/* Type and Banks badges */}
                             <div className="flex items-center gap-2 flex-wrap mb-2">
-                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full shadow-sm ${
-                                hasPdf
-                                  ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 ring-1 ring-orange-200 dark:ring-orange-800'
-                                  : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800'
-                              }`}>
-                                {hasPdf ? (
-                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                                  </svg>
-                                ) : (
+                              {/* ZIP badge */}
+                              {hasZip && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full shadow-sm bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 ring-1 ring-purple-200 dark:ring-purple-800">
+                                  <ArchiveBoxIcon className="w-3 h-3" />
+                                  ZIP ({uploadedZipFiles.length})
+                                </span>
+                              )}
+                              {/* Excel badge */}
+                              {hasExcel && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full shadow-sm bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800">
                                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
                                   </svg>
-                                )}
-                                {hasPdf ? 'PDF' : 'Excel'}
-                              </span>
+                                  Excel ({displayExcelCount})
+                                </span>
+                              )}
+                              {/* PDF badge */}
+                              {hasPdf && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full shadow-sm bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 ring-1 ring-orange-200 dark:ring-orange-800">
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                                  </svg>
+                                  PDF ({displayPdfCount})
+                                </span>
+                              )}
                               {session.banks?.map(bank => (
                                 <span key={bank} className="inline-flex items-center px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium ring-1 ring-blue-100 dark:ring-blue-800">
                                   {bank}
@@ -1914,25 +1989,35 @@ const BankStatementParser = () => {
                             </div>
                           </div>
 
-                          {/* Download button */}
-                          <button
-                            onClick={() => handleDownloadFromHistory(session.session_id)}
-                            disabled={downloadingSessionId === session.session_id}
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-400 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200 disabled:cursor-not-allowed"
-                            title={t('Download Excel')}
-                          >
-                            {downloadingSessionId === session.session_id ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                <span>{t('Downloading...')}</span>
-                              </>
-                            ) : (
-                              <>
-                                <ArrowDownTrayIcon className="h-4 w-4" />
-                                <span>{t('Download')}</span>
-                              </>
-                            )}
-                          </button>
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => navigate(`/bank-statement-parser/session/${session.session_id}`)}
+                              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg transition-all duration-200"
+                              title={t('View Details')}
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                              <span>{t('Details')}</span>
+                            </button>
+                            <button
+                              onClick={() => handleDownloadFromHistory(session.session_id)}
+                              disabled={downloadingSessionId === session.session_id}
+                              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-400 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200 disabled:cursor-not-allowed"
+                              title={t('Download Excel')}
+                            >
+                              {downloadingSessionId === session.session_id ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  <span>{t('Downloading...')}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ArrowDownTrayIcon className="h-4 w-4" />
+                                  <span>{t('Download')}</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
 
                         {/* Stats grid */}

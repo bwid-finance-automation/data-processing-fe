@@ -235,6 +235,23 @@ export const getUploadedFiles = async (sessionId) => {
 };
 
 /**
+ * Get detailed session information including files, statements, and transactions
+ * @param {string} sessionId - Session ID from parse response
+ * @returns {Promise} Detailed session data
+ */
+export const getSessionDetails = async (sessionId) => {
+  try {
+    const response = await apiClient.get(
+      `${FINANCE_API_BASE_URL}/bank-statements/session/${sessionId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching session details:', error);
+    throw error;
+  }
+};
+
+/**
  * Download original uploaded file by file ID
  * @param {number} fileId - File ID from uploaded files list
  * @returns {Promise} Response with blob data and headers
