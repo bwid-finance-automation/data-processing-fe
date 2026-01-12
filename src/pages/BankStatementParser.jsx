@@ -16,7 +16,8 @@ import {
   FolderIcon,
   LinkIcon,
   ChevronDownIcon,
-  PlusIcon
+  PlusIcon,
+  ArchiveBoxIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -29,7 +30,8 @@ import {
   downloadBankStatementResults,
   downloadBankStatementFromHistory,
   getUploadedFiles,
-  downloadUploadedFile
+  downloadUploadedFile,
+  verifyZipPassword
 } from '../services/bank-statement/bank-statement-apis';
 
 // Configure PDF.js worker
@@ -46,7 +48,8 @@ const BankStatementParser = () => {
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
-  const [fileMode, setFileMode] = useState('excel'); // 'excel' or 'pdf'
+  const [processingTime, setProcessingTime] = useState(null); // Actual total processing time in seconds
+  const [fileMode, setFileMode] = useState('excel'); // 'excel', 'pdf', or 'zip'
 
   // Project context
   const [project, setProject] = useState(null);
@@ -59,11 +62,16 @@ const BankStatementParser = () => {
   // PDF password management
   const [encryptedFiles, setEncryptedFiles] = useState({}); // {fileName: true/false}
   const [filePasswords, setFilePasswords] = useState({}); // {fileName: password}
-  const [passwordDialog, setPasswordDialog] = useState({ open: false, fileName: '', password: '' });
+  const [passwordDialog, setPasswordDialog] = useState({ open: false, fileName: '', password: '', fileType: 'pdf' }); // fileType: 'pdf' or 'zip'
   const [showPassword, setShowPassword] = useState(false);
   const [checkingPdf, setCheckingPdf] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [verifyingPassword, setVerifyingPassword] = useState(false);
+
+  // ZIP password management
+  const [encryptedZipFiles, setEncryptedZipFiles] = useState({}); // {fileName: true/false}
+  const [zipPasswords, setZipPasswords] = useState({}); // {fileName: password}
+  const [checkingZip, setCheckingZip] = useState(false);
 
   // Uploaded files history
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -362,12 +370,16 @@ const BankStatementParser = () => {
   ];
 
   const acceptedExtensions = fileMode === 'excel'
-    ? ['.xlsx', '.xls']
-    : ['.pdf'];
+    ? ['.xlsx', '.xls', '.zip']
+    : fileMode === 'pdf'
+      ? ['.pdf', '.zip']
+      : ['.zip']; // zip mode - only .zip files
 
   const acceptString = fileMode === 'excel'
-    ? '.xlsx,.xls'
-    : '.pdf';
+    ? '.xlsx,.xls,.zip'
+    : fileMode === 'pdf'
+      ? '.pdf,.zip'
+      : '.zip'; // zip mode - only .zip files
 
   const isValidFile = (file) => {
     const fileName = file.name.toLowerCase();
@@ -452,6 +464,59 @@ const BankStatementParser = () => {
     });
   };
 
+  // Check if a ZIP file is password-protected by reading file headers
+  const checkZipEncryption = async (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const arrayBuffer = e.target.result;
+          const dataView = new DataView(arrayBuffer);
+
+          // ZIP local file header signature: 0x04034b50 (PK\x03\x04)
+          let offset = 0;
+          while (offset < arrayBuffer.byteLength - 30) {
+            // Check for local file header signature
+            const signature = dataView.getUint32(offset, true);
+            if (signature !== 0x04034b50) {
+              // Not a local file header, might be central directory
+              break;
+            }
+
+            // General purpose bit flag is at offset 6 (2 bytes)
+            const generalPurposeFlag = dataView.getUint16(offset + 6, true);
+
+            // Bit 0: If set, file is encrypted
+            if (generalPurposeFlag & 0x0001) {
+              console.log('ZIP file is encrypted:', file.name);
+              resolve(true);
+              return;
+            }
+
+            // Move to next file header
+            // Compressed size is at offset 18 (4 bytes)
+            // File name length is at offset 26 (2 bytes)
+            // Extra field length is at offset 28 (2 bytes)
+            const compressedSize = dataView.getUint32(offset + 18, true);
+            const fileNameLength = dataView.getUint16(offset + 26, true);
+            const extraFieldLength = dataView.getUint16(offset + 28, true);
+
+            // Skip to next local file header
+            offset += 30 + fileNameLength + extraFieldLength + compressedSize;
+          }
+
+          // No encrypted entries found
+          resolve(false);
+        } catch (err) {
+          console.warn('Error checking ZIP encryption:', err);
+          resolve(false);
+        }
+      };
+      reader.onerror = () => resolve(false);
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
   const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -491,29 +556,55 @@ const BankStatementParser = () => {
     setError(null);
     setResults(null);
 
-    // Check PDF files for encryption (only in PDF mode)
-    if (fileMode === 'pdf') {
-      setCheckingPdf(true);
-      const newEncryptedFiles = { ...encryptedFiles };
-      let firstEncryptedFile = null;
+    // Check ZIP files for encryption (both modes support ZIP)
+    const zipFiles = uniqueFiles.filter(f => f.name.toLowerCase().endsWith('.zip'));
+    if (zipFiles.length > 0) {
+      setCheckingZip(true);
+      const newEncryptedZipFiles = { ...encryptedZipFiles };
+      let firstEncryptedZip = null;
 
-      // Check ALL files first
-      for (const file of uniqueFiles) {
-        const isEncrypted = await checkPdfEncryption(file);
-        newEncryptedFiles[file.name] = isEncrypted;
+      for (const file of zipFiles) {
+        const isEncrypted = await checkZipEncryption(file);
+        newEncryptedZipFiles[file.name] = isEncrypted;
 
-        // Remember first encrypted file to show dialog
-        if (isEncrypted && !firstEncryptedFile) {
-          firstEncryptedFile = file.name;
+        if (isEncrypted && !firstEncryptedZip) {
+          firstEncryptedZip = file.name;
         }
       }
 
-      setEncryptedFiles(newEncryptedFiles);
-      setCheckingPdf(false);
+      setEncryptedZipFiles(newEncryptedZipFiles);
+      setCheckingZip(false);
 
-      // Show password dialog for first encrypted file
-      if (firstEncryptedFile) {
-        setPasswordDialog({ open: true, fileName: firstEncryptedFile, password: '' });
+      // Show password dialog for first encrypted ZIP
+      if (firstEncryptedZip) {
+        setPasswordDialog({ open: true, fileName: firstEncryptedZip, password: '', fileType: 'zip' });
+      }
+    }
+
+    // Check PDF files for encryption (only in PDF mode)
+    if (fileMode === 'pdf') {
+      const pdfFiles = uniqueFiles.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+      if (pdfFiles.length > 0) {
+        setCheckingPdf(true);
+        const newEncryptedFiles = { ...encryptedFiles };
+        let firstEncryptedFile = null;
+
+        for (const file of pdfFiles) {
+          const isEncrypted = await checkPdfEncryption(file);
+          newEncryptedFiles[file.name] = isEncrypted;
+
+          if (isEncrypted && !firstEncryptedFile) {
+            firstEncryptedFile = file.name;
+          }
+        }
+
+        setEncryptedFiles(newEncryptedFiles);
+        setCheckingPdf(false);
+
+        // Show password dialog for first encrypted PDF (only if no ZIP dialog was shown)
+        if (firstEncryptedFile && !passwordDialog.open) {
+          setPasswordDialog({ open: true, fileName: firstEncryptedFile, password: '', fileType: 'pdf' });
+        }
       }
     }
   };
@@ -529,7 +620,17 @@ const BankStatementParser = () => {
         delete newState[fileName];
         return newState;
       });
+      setEncryptedZipFiles(prev => {
+        const newState = { ...prev };
+        delete newState[fileName];
+        return newState;
+      });
       setFilePasswords(prev => {
+        const newState = { ...prev };
+        delete newState[fileName];
+        return newState;
+      });
+      setZipPasswords(prev => {
         const newState = { ...prev };
         delete newState[fileName];
         return newState;
@@ -541,49 +642,100 @@ const BankStatementParser = () => {
   const handlePasswordSubmit = async () => {
     if (!passwordDialog.password) return;
 
-    setVerifyingPassword(true);
-    setPasswordError('');
+    const isZipFile = passwordDialog.fileType === 'zip';
 
-    // Verify the password is correct
-    const isValid = await verifyPdfPassword(passwordDialog.fileName, passwordDialog.password);
+    if (isZipFile) {
+      // Verify ZIP password using backend API
+      setVerifyingPassword(true);
+      setPasswordError('');
 
-    if (!isValid) {
-      setPasswordError(t('Incorrect password. Please try again.'));
+      try {
+        const file = files.find(f => f.name === passwordDialog.fileName);
+        if (!file) {
+          setPasswordError(t('File not found'));
+          setVerifyingPassword(false);
+          return;
+        }
+
+        const result = await verifyZipPassword(file, passwordDialog.password);
+
+        if (!result.valid) {
+          setPasswordError(t('Incorrect password. Please try again.'));
+          setVerifyingPassword(false);
+          return;
+        }
+
+        // Password is correct, save it
+        setZipPasswords(prev => ({
+          ...prev,
+          [passwordDialog.fileName]: passwordDialog.password
+        }));
+
+        setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+        setPasswordError('');
+        setVerifyingPassword(false);
+        setShowPassword(false);
+
+        // Check for next encrypted ZIP file without password
+        const nextEncryptedZip = files.find(f =>
+          encryptedZipFiles[f.name] && !zipPasswords[f.name] && f.name !== passwordDialog.fileName
+        );
+        if (nextEncryptedZip) {
+          setPasswordDialog({ open: true, fileName: nextEncryptedZip.name, password: '', fileType: 'zip' });
+        }
+      } catch (err) {
+        console.error('Error verifying ZIP password:', err);
+        setPasswordError(t('Failed to verify password. Please try again.'));
+        setVerifyingPassword(false);
+      }
+    } else {
+      // PDF file - verify password
+      setVerifyingPassword(true);
+      setPasswordError('');
+
+      // Verify the password is correct
+      const isValid = await verifyPdfPassword(passwordDialog.fileName, passwordDialog.password);
+
+      if (!isValid) {
+        setPasswordError(t('Incorrect password. Please try again.'));
+        setVerifyingPassword(false);
+        return;
+      }
+
+      // Password is correct, save it
+      setFilePasswords(prev => ({
+        ...prev,
+        [passwordDialog.fileName]: passwordDialog.password
+      }));
+
+      setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+      setPasswordError('');
       setVerifyingPassword(false);
-      return;
-    }
+      setShowPassword(false);
 
-    // Password is correct, save it
-    setFilePasswords(prev => ({
-      ...prev,
-      [passwordDialog.fileName]: passwordDialog.password
-    }));
-
-    setPasswordDialog({ open: false, fileName: '', password: '' });
-    setPasswordError('');
-    setVerifyingPassword(false);
-    setShowPassword(false);
-
-    // Check for next encrypted file without password
-    const nextEncryptedFile = files.find(f =>
-      encryptedFiles[f.name] && !filePasswords[f.name] && f.name !== passwordDialog.fileName
-    );
-    if (nextEncryptedFile) {
-      setPasswordDialog({ open: true, fileName: nextEncryptedFile.name, password: '' });
+      // Check for next encrypted file without password
+      const nextEncryptedFile = files.find(f =>
+        encryptedFiles[f.name] && !filePasswords[f.name] && f.name !== passwordDialog.fileName
+      );
+      if (nextEncryptedFile) {
+        setPasswordDialog({ open: true, fileName: nextEncryptedFile.name, password: '', fileType: 'pdf' });
+      }
     }
   };
 
   const handlePasswordCancel = () => {
-    setPasswordDialog({ open: false, fileName: '', password: '' });
+    setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
     setPasswordError('');
     setShowPassword(false);
   };
 
-  const openPasswordDialog = (fileName) => {
+  const openPasswordDialog = (fileName, fileType = 'pdf') => {
+    const existingPassword = fileType === 'zip' ? zipPasswords[fileName] : filePasswords[fileName];
     setPasswordDialog({
       open: true,
       fileName,
-      password: filePasswords[fileName] || ''
+      password: existingPassword || '',
+      fileType
     });
   };
 
@@ -595,8 +747,10 @@ const BankStatementParser = () => {
       setError(null);
       // Clear password state when switching modes
       setEncryptedFiles({});
+      setEncryptedZipFiles({});
       setFilePasswords({});
-      setPasswordDialog({ open: false, fileName: '', password: '' });
+      setZipPasswords({});
+      setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
     }
   };
 
@@ -606,12 +760,20 @@ const BankStatementParser = () => {
       return;
     }
 
+    // Check if any encrypted ZIP is missing password
+    const missingZipPassword = files.find(f => encryptedZipFiles[f.name] && !zipPasswords[f.name]);
+    if (missingZipPassword) {
+      setError(`${t('Please enter password for encrypted file')}: ${missingZipPassword.name}`);
+      setPasswordDialog({ open: true, fileName: missingZipPassword.name, password: '', fileType: 'zip' });
+      return;
+    }
+
     // Check if any encrypted PDF is missing password
     if (fileMode === 'pdf') {
       const missingPassword = files.find(f => encryptedFiles[f.name] && !filePasswords[f.name]);
       if (missingPassword) {
         setError(`${t('Please enter password for encrypted file')}: ${missingPassword.name}`);
-        setPasswordDialog({ open: true, fileName: missingPassword.name, password: '' });
+        setPasswordDialog({ open: true, fileName: missingPassword.name, password: '', fileType: 'pdf' });
         return;
       }
     }
@@ -619,11 +781,20 @@ const BankStatementParser = () => {
     setProcessing(true);
     setError(null);
     setResults(null);
+    setProcessingTime(null);
+
+    const startTime = performance.now();
 
     try {
-      const response = fileMode === 'excel'
-        ? await parseBankStatements(files, projectUuid)
-        : await parseBankStatementsPDF(files, filePasswords, projectUuid);
+      // ZIP mode uses parseBankStatements which handles both Excel and PDF inside ZIP
+      const response = fileMode === 'pdf'
+        ? await parseBankStatementsPDF(files, filePasswords, zipPasswords, projectUuid)
+        : await parseBankStatements(files, zipPasswords, projectUuid);
+
+      const endTime = performance.now();
+      const elapsed = (endTime - startTime) / 1000; // Convert to seconds
+      setProcessingTime(elapsed);
+
       setResults(response);
     } catch (err) {
       console.error('Error processing bank statements:', err);
@@ -666,8 +837,10 @@ const BankStatementParser = () => {
     setResults(null);
     setError(null);
     setEncryptedFiles({});
+    setEncryptedZipFiles({});
     setFilePasswords({});
-    setPasswordDialog({ open: false, fileName: '', password: '' });
+    setZipPasswords({});
+    setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
   };
 
   const formatFileSize = (bytes) => {
@@ -1003,6 +1176,18 @@ const BankStatementParser = () => {
                   >
                     {t('PDF Files (OCR)')}
                   </button>
+                  <button
+                    onClick={() => handleModeChange('zip')}
+                    disabled={processing}
+                    className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1 ${
+                      fileMode === 'zip'
+                        ? 'bg-white dark:bg-[#333] text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <ArchiveBoxIcon className="h-4 w-4" />
+                    {t('ZIP Files')}
+                  </button>
                 </div>
               </div>
 
@@ -1020,9 +1205,13 @@ const BankStatementParser = () => {
                   onDragOver={loadingProject ? undefined : handleDrag}
                   onDrop={loadingProject ? undefined : handleDrop}
                 >
-                  <CloudArrowUpIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
+                  {fileMode === 'zip' ? (
+                    <ArchiveBoxIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
+                  ) : (
+                    <CloudArrowUpIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
+                  )}
                   <p className="text-gray-600 dark:text-gray-400 mb-2">
-                    {t('Drag and drop')} {fileMode === 'excel' ? 'Excel' : 'PDF'} {t('files here, or')}
+                    {t('Drag and drop')} {fileMode === 'excel' ? 'Excel' : fileMode === 'pdf' ? 'PDF' : 'ZIP'} {t('files here, or')}
                   </p>
                   <label className="inline-block">
                     <input
@@ -1039,7 +1228,7 @@ const BankStatementParser = () => {
                     </span>
                   </label>
                   <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                    {t('Supported formats')}: {fileMode === 'excel' ? '.xlsx, .xls' : '.pdf'}
+                    {t('Supported formats')}: {fileMode === 'excel' ? '.xlsx, .xls, .zip' : fileMode === 'pdf' ? '.pdf, .zip' : '.zip'}
                   </p>
                 </div>
 
@@ -1097,29 +1286,104 @@ const BankStatementParser = () => {
                 </div>
               )}
 
+              {/* ZIP Mode Info */}
+              {fileMode === 'zip' && (
+                <div className="mt-4 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                  <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-300 mb-2 flex items-center gap-2">
+                    <ArchiveBoxIcon className="h-4 w-4" />
+                    {t('ZIP Archive Processing')}
+                  </h3>
+                  <div className="flex flex-wrap gap-3 text-xs mb-3">
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2.5 py-1.5 rounded-md border border-purple-200 dark:border-purple-700">
+                      <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-purple-700 dark:text-purple-300">.xlsx, .xls {t('files')}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2.5 py-1.5 rounded-md border border-purple-200 dark:border-purple-700">
+                      <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-purple-700 dark:text-purple-300">.pdf {t('files')} (OCR)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2.5 py-1.5 rounded-md border border-purple-200 dark:border-purple-700">
+                      <LockClosedIcon className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="text-purple-700 dark:text-purple-300">{t('Password-protected ZIP supported')}</span>
+                    </div>
+                  </div>
+
+                  {/* Supported Banks for Excel */}
+                  <div className="mb-3">
+                    <p className="text-xs font-medium text-purple-800 dark:text-purple-200 mb-1.5">
+                      Excel ({supportedBanks.length} {t('banks')}):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {supportedBanks.map(bank => (
+                        <span
+                          key={bank}
+                          className="px-2 py-0.5 bg-white dark:bg-gray-800 rounded text-xs font-medium text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700"
+                        >
+                          {bank}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Supported Banks for PDF */}
+                  <div>
+                    <p className="text-xs font-medium text-purple-800 dark:text-purple-200 mb-1.5">
+                      PDF ({supportedBanksPDF.length} {t('banks')}):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {supportedBanksPDF.map(bank => (
+                        <span
+                          key={bank}
+                          className="px-2 py-0.5 bg-white dark:bg-gray-800 rounded text-xs font-medium text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700"
+                        >
+                          {bank}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* File List */}
               {files.length > 0 && (
                 <div className="mt-4">
                   <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     {t('Selected Files')} ({files.length})
-                    {checkingPdf && <span className="ml-2 text-xs text-blue-600">{t('Checking encryption...')}</span>}
+                    {(checkingPdf || checkingZip) && <span className="ml-2 text-xs text-blue-600">{t('Checking encryption...')}</span>}
                   </h3>
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {files.map((file, index) => {
-                      const isEncrypted = encryptedFiles[file.name];
-                      const hasPassword = !!filePasswords[file.name];
+                      const isZipFile = file.name.toLowerCase().endsWith('.zip');
+                      const isZipEncrypted = encryptedZipFiles[file.name];
+                      const isPdfEncrypted = encryptedFiles[file.name];
+                      const hasPassword = isZipFile ? !!zipPasswords[file.name] : !!filePasswords[file.name];
+                      const needsPassword = isZipFile ? (isZipEncrypted && !hasPassword) : (isPdfEncrypted && !hasPassword);
 
                       return (
                         <div
                           key={index}
                           className={`flex items-center justify-between p-3 rounded-lg border ${
-                            isEncrypted && !hasPassword
+                            needsPassword
                               ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700'
-                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                              : (isZipEncrypted || isPdfEncrypted) && hasPassword
+                                ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'
+                                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
                           }`}
                         >
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {isEncrypted ? (
+                            {isZipFile ? (
+                              isZipEncrypted ? (
+                                <LockClosedIcon className={`h-5 w-5 flex-shrink-0 ${
+                                  hasPassword ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
+                                }`} />
+                              ) : (
+                                <ArchiveBoxIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                              )
+                            ) : isPdfEncrypted ? (
                               <LockClosedIcon className={`h-5 w-5 flex-shrink-0 ${
                                 hasPassword ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
                               }`} />
@@ -1132,7 +1396,12 @@ const BankStatementParser = () => {
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
                                 {formatFileSize(file.size)}
-                                {isEncrypted && (
+                                {isZipFile && isZipEncrypted && (
+                                  <span className={`ml-2 ${hasPassword ? 'text-green-600' : 'text-amber-600'}`}>
+                                    {hasPassword ? `• ${t('Password set')}` : `• ${t('Encrypted - needs password')}`}
+                                  </span>
+                                )}
+                                {!isZipFile && isPdfEncrypted && (
                                   <span className={`ml-2 ${hasPassword ? 'text-green-600' : 'text-amber-600'}`}>
                                     {hasPassword ? `• ${t('Password set')}` : `• ${t('Encrypted - needs password')}`}
                                   </span>
@@ -1141,12 +1410,26 @@ const BankStatementParser = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
-                            {isEncrypted && (
+                            {isZipFile && isZipEncrypted && (
                               <button
-                                onClick={() => openPasswordDialog(file.name)}
+                                onClick={() => openPasswordDialog(file.name, 'zip')}
+                                disabled={processing}
+                                className={`p-1 transition-colors disabled:opacity-50 ${
+                                  hasPassword
+                                    ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
+                                    : 'text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300'
+                                }`}
+                                title={hasPassword ? t('Change ZIP password') : t('Enter ZIP password')}
+                              >
+                                <KeyIcon className="h-5 w-5" />
+                              </button>
+                            )}
+                            {!isZipFile && isPdfEncrypted && (
+                              <button
+                                onClick={() => openPasswordDialog(file.name, 'pdf')}
                                 disabled={processing}
                                 className="p-1 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 transition-colors disabled:opacity-50"
-                                title={hasPassword ? 'Change password' : 'Enter password'}
+                                title={hasPassword ? t('Change password') : t('Enter password')}
                               >
                                 <KeyIcon className="h-5 w-5" />
                               </button>
@@ -1223,7 +1506,7 @@ const BankStatementParser = () => {
                     <div>
                       <p className="text-gray-700 dark:text-gray-300 font-medium">{t('Processing bank statements...')}</p>
                       <p className="text-sm text-gray-500 dark:text-gray-500">
-                        {fileMode === 'pdf' ? t('Running OCR and extracting data...') : t('Auto-detecting banks and extracting data')}
+                        {fileMode === 'pdf' ? t('Running OCR and extracting data...') : fileMode === 'zip' ? t('Extracting and processing files from ZIP...') : t('Auto-detecting banks and extracting data')}
                       </p>
                     </div>
                   </div>
@@ -1251,19 +1534,21 @@ const BankStatementParser = () => {
                             {file.name}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {fileMode === 'pdf' ? t('OCR processing...') : t('Parsing...')}
+                            {fileMode === 'pdf' ? t('OCR processing...') : fileMode === 'zip' ? t('Extracting...') : t('Parsing...')}
                           </p>
                         </div>
                         <div className="flex-shrink-0">
-                          <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden relative">
+                            {/* Indeterminate progress bar - animates infinitely */}
                             <motion.div
-                              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
-                              initial={{ width: '0%' }}
-                              animate={{ width: '100%' }}
+                              className="absolute h-full w-8 bg-gradient-to-r from-transparent via-blue-500 to-transparent rounded-full"
+                              initial={{ x: -32 }}
+                              animate={{ x: 64 }}
                               transition={{
-                                duration: fileMode === 'pdf' ? 15 : 5,
-                                ease: 'linear',
-                                delay: index * 2
+                                duration: 1.2,
+                                ease: 'easeInOut',
+                                repeat: Infinity,
+                                delay: index * 0.2
                               }}
                             />
                           </div>
@@ -1275,7 +1560,9 @@ const BankStatementParser = () => {
                   <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-4">
                     {fileMode === 'pdf'
                       ? t('PDF files may take 10-30 seconds each depending on complexity')
-                      : t('Excel files typically process in a few seconds')
+                      : fileMode === 'zip'
+                        ? t('ZIP files are extracted and processed automatically (may include OCR for PDFs)')
+                        : t('Excel files typically process in a few seconds')
                     }
                   </p>
                 </div>
@@ -1285,7 +1572,7 @@ const BankStatementParser = () => {
               {results && !processing && (
                 <div className="space-y-4">
                   {/* Summary Stats */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                       <p className="text-sm text-blue-700 dark:text-blue-300 mb-1">{t('Transactions')}</p>
                       <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
@@ -1296,6 +1583,12 @@ const BankStatementParser = () => {
                       <p className="text-sm text-green-700 dark:text-green-300 mb-1">{t('Accounts')}</p>
                       <p className="text-2xl font-bold text-green-900 dark:text-green-100">
                         {results.summary?.total_accounts || results.summary?.total_balances || 0}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                      <p className="text-sm text-purple-700 dark:text-purple-300 mb-1">{t('Processing Time')}</p>
+                      <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                        {processingTime ? `${processingTime.toFixed(1)}s` : '-'}
                       </p>
                     </div>
                   </div>
@@ -1387,7 +1680,7 @@ const BankStatementParser = () => {
                           </p>
                         </div>
                         <div className="p-2 bg-white/50 dark:bg-gray-800/50 rounded">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('Processing Time')}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('AI Time')}</p>
                           <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                             {results.ai_usage.total_processing_time_seconds?.toFixed(1) || 0}s
                           </p>
@@ -1437,7 +1730,7 @@ const BankStatementParser = () => {
           <ol className="space-y-2 text-gray-700 dark:text-gray-300">
             <li className="flex items-start gap-2">
               <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">1</span>
-              <span>{t('Upload one or more bank statement files')} ({fileMode === 'excel' ? t('Excel format') : t('PDF format - will be processed with OCR')})</span>
+              <span>{t('Upload one or more bank statement files')} ({fileMode === 'excel' ? t('Excel format') : fileMode === 'pdf' ? t('PDF format - will be processed with OCR') : t('ZIP format - contains Excel and/or PDF files')})</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">2</span>
@@ -1778,15 +2071,25 @@ const BankStatementParser = () => {
             className="bg-white dark:bg-[#222] rounded-lg shadow-xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-full">
-                <LockClosedIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              <div className={`p-2 rounded-full ${
+                passwordDialog.fileType === 'zip'
+                  ? 'bg-purple-100 dark:bg-purple-900/30'
+                  : 'bg-amber-100 dark:bg-amber-900/30'
+              }`}>
+                {passwordDialog.fileType === 'zip' ? (
+                  <ArchiveBoxIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                ) : (
+                  <LockClosedIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                )}
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {t('Password Required')}
+                  {passwordDialog.fileType === 'zip' ? t('ZIP Password') : t('Password Required')}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {t('This PDF file is password-protected')}
+                  {passwordDialog.fileType === 'zip'
+                    ? t('Enter password if this ZIP file is encrypted')
+                    : t('This PDF file is password-protected')}
                 </p>
               </div>
             </div>
@@ -1804,7 +2107,7 @@ const BankStatementParser = () => {
                     setPasswordError(''); // Clear error when typing
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && !verifyingPassword && handlePasswordSubmit()}
-                  placeholder={t('Enter PDF password')}
+                  placeholder={passwordDialog.fileType === 'zip' ? t('Enter ZIP password') : t('Enter PDF password')}
                   className={`w-full px-4 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     passwordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   }`}
@@ -1843,7 +2146,11 @@ const BankStatementParser = () => {
               <button
                 onClick={handlePasswordSubmit}
                 disabled={!passwordDialog.password || verifyingPassword}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className={`flex-1 px-4 py-2 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                  passwordDialog.fileType === 'zip'
+                    ? 'bg-purple-600 hover:bg-purple-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
                 {verifyingPassword ? (
                   <>
