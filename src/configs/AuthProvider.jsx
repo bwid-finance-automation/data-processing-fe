@@ -30,7 +30,8 @@ const AuthProvider = ({ children }) => {
     user: null,
     isAuthenticated: false,
   });
-  const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true); // Only for initial session check
+  const [loading, setLoading] = useState(false); // For login/logout operations
   const [error, setError] = useState(null);
 
   // Store tokens in localStorage
@@ -62,6 +63,23 @@ const AuthProvider = ({ children }) => {
     });
     setError(null);
   }, []);
+
+  // Login with username/password
+  const handleLogin = useCallback(async (username, password) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await authApi.login(username, password);
+      storeAuth(response.data);
+      return response.data;
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || "Login failed";
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [storeAuth]);
 
   // Get Google OAuth URL
   const getGoogleAuthUrl = useCallback(async () => {
@@ -151,14 +169,14 @@ const AuthProvider = ({ children }) => {
           }
         }
       }
-      setLoading(false);
+      setInitializing(false);
     };
 
     verifySession();
   }, [refreshTokens, clearAuth]);
 
-  // Show loading state while checking auth
-  if (loading) {
+  // Show loading state only during initial session verification
+  if (initializing) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="flex flex-col items-center gap-4">
@@ -175,6 +193,7 @@ const AuthProvider = ({ children }) => {
         ...auth,
         loading,
         error,
+        handleLogin,
         getGoogleAuthUrl,
         handleGoogleCallback,
         refreshTokens,

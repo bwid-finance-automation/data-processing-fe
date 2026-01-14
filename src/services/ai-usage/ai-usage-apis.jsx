@@ -112,6 +112,23 @@ export const getAIUsageByTaskType = async (params = {}) => {
 };
 
 /**
+ * Get AI usage aggregated by user
+ * @param {Object} params - Query parameters
+ * @param {string} params.start_date - Start date filter (ISO format)
+ * @param {string} params.end_date - End date filter (ISO format)
+ * @returns {Promise} Usage by user
+ */
+export const getAIUsageByUser = async (params = {}) => {
+  try {
+    const response = await aiUsageApiClient.get('/by-user', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching AI usage by user:', error);
+    throw error;
+  }
+};
+
+/**
  * Get daily AI usage statistics
  * @param {Object} params - Query parameters
  * @param {number} params.project_id - Optional project ID filter

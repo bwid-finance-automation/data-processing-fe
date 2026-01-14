@@ -11,6 +11,7 @@ import {
   ArrowPathIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import Breadcrumb from '../components/common/Breadcrumb';
@@ -347,7 +348,7 @@ const AIUsageDashboard = () => {
             </div>
 
             {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               {/* Usage by Provider */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -412,6 +413,50 @@ const AIUsageDashboard = () => {
                         <div className="text-right">
                           <p className="text-gray-900 dark:text-white font-medium">{formatTokens(taskType.total_tokens)}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">{taskType.request_count} {t('requests')}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Usage by User */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="bg-white dark:bg-[#222] rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5"
+              >
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <UsersIcon className="h-5 w-5 text-emerald-500" />
+                  {t('Usage by User')}
+                </h3>
+                {!dashboardData.by_user || dashboardData.by_user.length === 0 ? (
+                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">{t('No data available')}</p>
+                ) : (
+                  <div className="space-y-3">
+                    {dashboardData.by_user.slice(0, 5).map((user, index) => (
+                      <div key={user.user_id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white ${
+                            index === 0 ? 'bg-yellow-500' :
+                            index === 1 ? 'bg-gray-400' :
+                            index === 2 ? 'bg-amber-600' : 'bg-gray-300'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-gray-700 dark:text-gray-300 text-sm truncate" title={user.full_name || user.email}>
+                              {user.full_name || user.email.split('@')[0]}
+                            </span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                              {user.email}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <p className="text-gray-900 dark:text-white font-medium">{formatTokens(user.total_tokens)}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{user.request_count} {t('requests')}</p>
                         </div>
                       </div>
                     ))}

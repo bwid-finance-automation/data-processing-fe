@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDownIcon, SunIcon, MoonIcon, GlobeAltIcon, UserCircleIcon, ArrowRightOnRectangleIcon, Bars3Icon } from "@heroicons/react/24/solid";
+import { ChevronDownIcon, SunIcon, MoonIcon, GlobeAltIcon, UserCircleIcon, ArrowRightOnRectangleIcon, Bars3Icon, ShieldCheckIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from 'react-i18next';
 import { useDarkMode } from "@configs/DarkModeProvider";
 import { motion, AnimatePresence } from "framer-motion";
@@ -53,7 +53,6 @@ export default function Header() {
   const navItems = [
     { label: t("departments"), path: "/department" },
     { label: t("Projects"), path: "/projects" },
-    { label: t("AI Usage"), path: "/ai-usage" },
   ];
 
   return (
@@ -83,6 +82,32 @@ export default function Header() {
       </motion.div>
 
       <div className="flex items-center gap-2">
+        {/* Language & Theme Toggles */}
+        <div className="flex items-center gap-1.5">
+          <motion.button
+            onClick={toggleLanguage}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center gap-1.5 px-3 h-[38px] text-gray-600 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-500 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all"
+          >
+            <GlobeAltIcon className="w-4 h-4" />
+            <span className="text-xs font-semibold">{i18n.language.toUpperCase()}</span>
+          </motion.button>
+
+          <motion.button
+            onClick={toggleDarkMode}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center justify-center w-[38px] h-[38px] text-gray-600 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-500 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all"
+          >
+            {isDark ? (
+              <SunIcon className="w-5 h-5 text-yellow-500" />
+            ) : (
+              <MoonIcon className="w-5 h-5" />
+            )}
+          </motion.button>
+        </div>
+
         {/* Menu Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <motion.button
@@ -160,45 +185,25 @@ export default function Header() {
                     ))}
                   </div>
 
-                  {/* Divider */}
-                  <div className="border-t border-gray-200 dark:border-gray-700"></div>
-
-                  {/* Settings Section */}
-                  <div className="py-1">
-                    {/* Language Toggle */}
-                    <motion.button
-                      onClick={toggleLanguage}
-                      whileHover={{ x: 4 }}
-                      className="w-full text-left px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <GlobeAltIcon className="w-5 h-5 text-gray-500" />
-                        <span className="font-medium">{t('Language')}</span>
+                  {/* Admin Section (only for admin users) */}
+                  {isAuthenticated && user?.role === "admin" && (
+                    <>
+                      <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                      <div className="py-1">
+                        <motion.button
+                          onClick={() => {
+                            navigate('/admin');
+                            setOpen(false);
+                          }}
+                          whileHover={{ x: 4 }}
+                          className="w-full text-left px-4 py-2.5 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all flex items-center gap-3"
+                        >
+                          <ShieldCheckIcon className="w-5 h-5" />
+                          <span className="font-medium">{t('Admin Panel')}</span>
+                        </motion.button>
                       </div>
-                      <span className="text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
-                        {i18n.language.toUpperCase()}
-                      </span>
-                    </motion.button>
-
-                    {/* Theme Toggle */}
-                    <motion.button
-                      onClick={toggleDarkMode}
-                      whileHover={{ x: 4 }}
-                      className="w-full text-left px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        {isDark ? (
-                          <SunIcon className="w-5 h-5 text-yellow-500" />
-                        ) : (
-                          <MoonIcon className="w-5 h-5 text-gray-500" />
-                        )}
-                        <span className="font-medium">{t('Theme')}</span>
-                      </div>
-                      <span className="text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
-                        {isDark ? 'Dark' : 'Light'}
-                      </span>
-                    </motion.button>
-                  </div>
+                    </>
+                  )}
 
                   {/* Divider */}
                   <div className="border-t border-gray-200 dark:border-gray-700"></div>

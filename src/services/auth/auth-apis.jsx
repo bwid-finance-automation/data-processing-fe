@@ -22,6 +22,19 @@ const authApiClient = axios.create({
  */
 export const authApi = {
   /**
+   * Login with username and password
+   * @param {string} username - Username or email
+   * @param {string} password - Password
+   * @returns {Promise} - Response with access_token, refresh_token, and user
+   */
+  login: (username, password) => {
+    return authApiClient.post('/login', {
+      username,
+      password,
+    });
+  },
+
+  /**
    * Get Google OAuth authorization URL
    * @returns {Promise} - Response with authorization_url and state
    */
@@ -122,6 +135,100 @@ export const authApi = {
    */
   getConfig: () => {
     return authApiClient.get('/config');
+  },
+
+  // ==================== Admin APIs ====================
+
+  /**
+   * List all users (Admin only)
+   * @param {string} accessToken - Access token for authorization
+   * @param {Object} params - Query parameters
+   * @param {number} params.page - Page number
+   * @param {number} params.pageSize - Items per page
+   * @param {string} params.search - Search term
+   * @param {string} params.role - Filter by role
+   * @param {boolean} params.isActive - Filter by active status
+   * @returns {Promise} - Response with users list and pagination
+   */
+  listUsers: (accessToken, params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.pageSize) queryParams.append('page_size', params.pageSize);
+    if (params.search) queryParams.append('search', params.search);
+    if (params.role) queryParams.append('role', params.role);
+    if (params.isActive !== undefined) queryParams.append('is_active', params.isActive);
+
+    return authApiClient.get(`/admin/users?${queryParams.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  },
+
+  /**
+   * Get user by UUID (Admin only)
+   * @param {string} accessToken - Access token
+   * @param {string} userUuid - User UUID
+   * @returns {Promise}
+   */
+  getUser: (accessToken, userUuid) => {
+    return authApiClient.get(`/admin/users/${userUuid}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  },
+
+  /**
+   * Update user role (Admin only)
+   * @param {string} accessToken - Access token
+   * @param {string} userUuid - User UUID
+   * @param {string} role - New role ('user' or 'admin')
+   * @returns {Promise}
+   */
+  updateUserRole: (accessToken, userUuid, role) => {
+    return authApiClient.patch(
+      `/admin/users/${userUuid}/role`,
+      { role },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+  },
+
+  /**
+   * Update user status (Admin only)
+   * @param {string} accessToken - Access token
+   * @param {string} userUuid - User UUID
+   * @param {boolean} isActive - New active status
+   * @returns {Promise}
+   */
+  updateUserStatus: (accessToken, userUuid, isActive) => {
+    return authApiClient.patch(
+      `/admin/users/${userUuid}/status`,
+      { is_active: isActive },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+  },
+
+  /**
+   * Revoke all sessions for a user (Admin only)
+   * @param {string} accessToken - Access token
+   * @param {string} userUuid - User UUID
+   * @returns {Promise}
+   */
+  revokeUserSessions: (accessToken, userUuid) => {
+    return authApiClient.delete(`/admin/users/${userUuid}/sessions`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
   },
 };
 
