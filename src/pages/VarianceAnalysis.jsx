@@ -10,13 +10,13 @@ import {
   EyeIcon,
   EyeSlashIcon,
 } from '@heroicons/react/24/outline';
-import PythonAnalysis from "@components/variance/PythonAnalysis";
 import AIAnalysis from "@components/variance/AIAnalysis";
+import Account511Analysis from "@components/variance/Account511Analysis";
 import Breadcrumb from "@components/common/Breadcrumb";
 import { getProject, getProjects, createProject, verifyProjectPassword } from '../services/project/project-apis';
 
 export default function VarianceAnalysis() {
-  const [activeTab, setActiveTab] = useState('python');
+  const [activeTab, setActiveTab] = useState('ai');
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -357,35 +357,6 @@ export default function VarianceAnalysis() {
         {/* Tab Navigation */}
         <div className="bg-white dark:bg-[#222] p-2 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex gap-2 mb-6">
           <motion.button
-            onClick={() => setActiveTab('python')}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            className={`relative flex-1 py-4 px-6 rounded-lg font-semibold transition-all overflow-hidden ${
-              activeTab === 'python'
-                ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
-            }`}
-          >
-            {activeTab === 'python' && (
-              <motion.div
-                layoutId="activeTab"
-                className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              />
-            )}
-            <span className="relative z-10 flex items-center justify-center gap-2">
-              <span className="text-lg font-bold">Python</span>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                activeTab === 'python'
-                  ? 'bg-white/25 text-white'
-                  : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-              }`}>
-                Analysis
-              </span>
-            </span>
-          </motion.button>
-
-          <motion.button
             onClick={() => setActiveTab('ai')}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
@@ -413,6 +384,35 @@ export default function VarianceAnalysis() {
               </span>
             </span>
           </motion.button>
+
+          <motion.button
+            onClick={() => setActiveTab('account511')}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className={`relative flex-1 py-4 px-6 rounded-lg font-semibold transition-all overflow-hidden ${
+              activeTab === 'account511'
+                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-md'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+            }`}
+          >
+            {activeTab === 'account511' && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg"
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              <span className="text-lg font-bold">Account 511</span>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                activeTab === 'account511'
+                  ? 'bg-white/25 text-white'
+                  : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+              }`}>
+                Revenue
+              </span>
+            </span>
+          </motion.button>
         </div>
 
         {/* Tab Content */}
@@ -424,7 +424,8 @@ export default function VarianceAnalysis() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {activeTab === 'python' ? <PythonAnalysis projectUuid={projectUuid} /> : <AIAnalysis projectUuid={projectUuid} />}
+            {activeTab === 'ai' && <AIAnalysis projectUuid={projectUuid} />}
+            {activeTab === 'account511' && <Account511Analysis projectUuid={projectUuid} />}
           </motion.div>
         </AnimatePresence>
       </div>
