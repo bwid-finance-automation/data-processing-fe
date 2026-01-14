@@ -1,9 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { ChevronDownIcon, SunIcon, MoonIcon, GlobeAltIcon } from "@heroicons/react/24/solid";
+import { ChevronDownIcon, SunIcon, MoonIcon, GlobeAltIcon, UserCircleIcon, ArrowRightOnRectangleIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import { useTranslation } from 'react-i18next';
 import { useDarkMode } from "@configs/DarkModeProvider";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@configs/AuthProvider";
 
 export default function Header() {
   const navigate = useNavigate();
@@ -11,11 +12,18 @@ export default function Header() {
   const dropdownRef = useRef(null);
   const { isDark, toggleDarkMode } = useDarkMode();
   const { t, i18n } = useTranslation();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const toggleLanguage = () => {
     const newLang = i18n.language === 'vi' ? 'en' : 'vi';
     i18n.changeLanguage(newLang);
     localStorage.setItem('language', newLang);
+  };
+
+  const handleLogout = async () => {
+    setOpen(false);
+    await logout();
+    navigate("/login");
   };
 
   // Handle click outside dropdown to close it
@@ -67,73 +75,21 @@ export default function Header() {
       </motion.div>
 
       <div className="flex items-center gap-2">
-        {/* Language Toggle */}
-        <motion.button
-          onClick={toggleLanguage}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="relative flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-[#222] hover:bg-gray-200 dark:hover:bg-[#2a2a2a] transition-all group overflow-hidden"
-          aria-label="Toggle language"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-          <GlobeAltIcon className="w-5 h-5 text-gray-700 dark:text-gray-300 relative z-10" />
-          <motion.span
-            key={i18n.language}
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="text-sm font-semibold text-gray-700 dark:text-gray-300 relative z-10"
-          >
-            {i18n.language.toUpperCase()}
-          </motion.span>
-        </motion.button>
-
-        {/* Dark Mode Toggle */}
-        <motion.button
-          onClick={toggleDarkMode}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="relative p-2 rounded-lg bg-gray-100 dark:bg-[#222] hover:bg-gray-200 dark:hover:bg-[#2a2a2a] transition-all overflow-hidden"
-          aria-label="Toggle dark mode"
-        >
-          <AnimatePresence mode="wait">
-            {isDark ? (
-              <motion.div
-                key="sun"
-                initial={{ rotate: -90, scale: 0 }}
-                animate={{ rotate: 0, scale: 1 }}
-                exit={{ rotate: 90, scale: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <SunIcon className="w-5 h-5 text-yellow-500" />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="moon"
-                initial={{ rotate: 90, scale: 0 }}
-                animate={{ rotate: 0, scale: 1 }}
-                exit={{ rotate: -90, scale: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <MoonIcon className="w-5 h-5 text-gray-700" />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.button>
-
         {/* Menu Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <motion.button
             onClick={() => setOpen(!open)}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all"
           >
-            <span className="font-medium">{t("menu")}</span>
+            <Bars3Icon className="w-5 h-5" />
+            <span className="font-medium hidden sm:block">{t("menu")}</span>
             <motion.div
               animate={{ rotate: open ? 180 : 0 }}
               transition={{ duration: 0.3 }}
             >
-              <ChevronDownIcon className="w-5 h-5" />
+              <ChevronDownIcon className="w-4 h-4" />
             </motion.div>
           </motion.button>
 
@@ -153,21 +109,117 @@ export default function Header() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden z-50"
+                  className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden z-50"
                 >
-                  {navItems.map((item, idx) => (
+                  {/* User Info Section (if logged in) */}
+                  {isAuthenticated && user && (
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm ring-2 ring-white dark:ring-gray-700">
+                          {user.full_name?.split(' ').map(n => n.charAt(0)).join('').slice(0, 2).toUpperCase() || "U"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                            {user.full_name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                      {user.role === "admin" && (
+                        <span className="mt-2 inline-block px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded">
+                          Admin
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Navigation Items */}
+                  <div className="py-1">
+                    {navItems.map((item, idx) => (
+                      <motion.button
+                        key={idx}
+                        onClick={() => {
+                          navigate(item.path);
+                          setOpen(false);
+                        }}
+                        whileHover={{ x: 4 }}
+                        className="w-full text-left px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all flex items-center gap-3"
+                      >
+                        <span className="font-medium">{item.label}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+                  {/* Settings Section */}
+                  <div className="py-1">
+                    {/* Language Toggle */}
                     <motion.button
-                      key={idx}
-                      onClick={() => {
-                        navigate(item.path);
-                        setOpen(false);
-                      }}
-                      whileHover={{ x: 5 }}
-                      className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 transition-all border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center gap-2"
+                      onClick={toggleLanguage}
+                      whileHover={{ x: 4 }}
+                      className="w-full text-left px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all flex items-center justify-between"
                     >
-                      <span className="font-medium">{item.label}</span>
+                      <div className="flex items-center gap-3">
+                        <GlobeAltIcon className="w-5 h-5 text-gray-500" />
+                        <span className="font-medium">{t('Language')}</span>
+                      </div>
+                      <span className="text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
+                        {i18n.language.toUpperCase()}
+                      </span>
                     </motion.button>
-                  ))}
+
+                    {/* Theme Toggle */}
+                    <motion.button
+                      onClick={toggleDarkMode}
+                      whileHover={{ x: 4 }}
+                      className="w-full text-left px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        {isDark ? (
+                          <SunIcon className="w-5 h-5 text-yellow-500" />
+                        ) : (
+                          <MoonIcon className="w-5 h-5 text-gray-500" />
+                        )}
+                        <span className="font-medium">{t('Theme')}</span>
+                      </div>
+                      <span className="text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
+                        {isDark ? 'Dark' : 'Light'}
+                      </span>
+                    </motion.button>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+                  {/* Auth Section */}
+                  <div className="py-1">
+                    {isAuthenticated && user ? (
+                      <motion.button
+                        onClick={handleLogout}
+                        whileHover={{ x: 4 }}
+                        className="w-full text-left px-4 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center gap-3"
+                      >
+                        <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                        <span className="font-medium">{t('Sign Out')}</span>
+                      </motion.button>
+                    ) : (
+                      <motion.button
+                        onClick={() => {
+                          navigate('/login');
+                          setOpen(false);
+                        }}
+                        whileHover={{ x: 4 }}
+                        className="w-full text-left px-4 py-2.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all flex items-center gap-3"
+                      >
+                        <UserCircleIcon className="w-5 h-5" />
+                        <span className="font-medium">{t('Sign In')}</span>
+                      </motion.button>
+                    )}
+                  </div>
                 </motion.div>
               </>
             )}

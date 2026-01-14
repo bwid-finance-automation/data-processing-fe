@@ -468,5 +468,29 @@
   "of": "of",
   "Previous": "Previous",
   "Next": "Next",
-  "Failed to load dashboard data": "Failed to load dashboard data"
+  "Failed to load dashboard data": "Failed to load dashboard data",
+
+  "Language": "Language",
+  "Theme": "Theme",
+  "Sign Out": "Sign Out",
+  "Sign In": "Sign In",
+  "Please login to use this feature": "Please login to use this feature",
+  "You will be redirected to the login page": "You will be redirected to the login page",
+  "Live for 7 days": "Live for 7 days",
+  "Files are stored for 7 days. Download them before they expire.": "Files are stored for 7 days. Download them before they expire.",
+  "Latest": "Latest",
+  "All Time": "All Time",
+  "Last 24h": "Last 24h",
+  "This Week": "This Week",
+  "All Types": "All Types",
+
+  "Data Processing System": "Data Processing System",
+  "BW Industrial - Finance Automation": "BW Industrial - Finance Automation",
+  "Sign in to continue": "Sign in to continue",
+  "Sign in with Google": "Sign in with Google",
+  "Redirecting...": "Redirecting...",
+  "Internal use only": "Secure login",
+  "Please use your company Google account to sign in.": "Please use your Google account to sign in.",
+  "Access is restricted to authorized personnel.": "Access is restricted to authorized accounts.",
+  "Failed to initiate Google login. Please try again.": "Failed to initiate Google login. Please try again."
 }

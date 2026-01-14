@@ -468,5 +468,29 @@
   "of": "của",
   "Previous": "Trước",
   "Next": "Tiếp",
-  "Failed to load dashboard data": "Không thể tải dữ liệu bảng điều khiển"
+  "Failed to load dashboard data": "Không thể tải dữ liệu bảng điều khiển",
+
+  "Language": "Ngôn ngữ",
+  "Theme": "Giao diện",
+  "Sign Out": "Đăng xuất",
+  "Sign In": "Đăng nhập",
+  "Please login to use this feature": "Vui lòng đăng nhập để sử dụng tính năng này",
+  "You will be redirected to the login page": "Bạn sẽ được chuyển hướng đến trang đăng nhập",
+  "Live for 7 days": "Lưu trữ 7 ngày",
+  "Files are stored for 7 days. Download them before they expire.": "Tệp được lưu trữ trong 7 ngày. Tải xuống trước khi hết hạn.",
+  "Latest": "Mới nhất",
+  "All Time": "Tất cả",
+  "Last 24h": "24 giờ qua",
+  "This Week": "Tuần này",
+  "All Types": "Tất cả loại",
+
+  "Data Processing System": "Hệ thống Xử lý Dữ liệu",
+  "BW Industrial - Finance Automation": "BW Industrial - Tự động hóa Tài chính",
+  "Sign in to continue": "Đăng nhập để tiếp tục",
+  "Sign in with Google": "Đăng nhập bằng Google",
+  "Redirecting...": "Đang chuyển hướng...",
+  "Internal use only": "Đăng nhập an toàn",
+  "Please use your company Google account to sign in.": "Vui lòng sử dụng tài khoản Google để đăng nhập.",
+  "Access is restricted to authorized personnel.": "Chỉ tài khoản được ủy quyền mới có quyền truy cập.",
+  "Failed to initiate Google login. Please try again.": "Không thể khởi tạo đăng nhập Google. Vui lòng thử lại."
 }

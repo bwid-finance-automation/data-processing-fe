@@ -890,6 +890,22 @@ const BankStatementParser = () => {
     projectBankStatements.flatMap(session => session.banks || [])
   )].sort();
 
+  const historyTotals = projectBankStatements.reduce((acc, session) => {
+    const uploadedCount = session.uploaded_files?.length || 0;
+    const parsedCount = session.files?.length || 0;
+    const derivedFileCount = session.file_count || Math.max(uploadedCount, parsedCount) || uploadedCount || parsedCount;
+    acc.files += derivedFileCount;
+    acc.transactions += session.total_transactions || 0;
+
+    if (session.processed_at) {
+      const processedDate = new Date(session.processed_at);
+      if (!acc.latest || processedDate > acc.latest) {
+        acc.latest = processedDate;
+      }
+    }
+    return acc;
+  }, { files: 0, transactions: 0, latest: null });
+
   // Filter history based on selected filters
   const filteredProjectBankStatements = projectBankStatements.filter(session => {
     // Time filter
@@ -1775,103 +1791,78 @@ const BankStatementParser = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="mt-6 bg-white dark:bg-[#222] rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-800"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                <DocumentTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                {t('Project Parse History')}
-                <span className="text-sm font-normal text-gray-500">
-                  ({filteredProjectBankStatements.length}{filteredProjectBankStatements.length !== projectBankStatements.length ? ` / ${projectBankStatements.length}` : ''})
-                </span>
-              </h3>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-              {t('Files are stored for 30 days. Download them before they expire.')}
-            </p>
-
-            {/* History Filters */}
-            {projectBankStatements.length > 0 && !loadingProjectHistory && (
-              <div className="mb-4 flex flex-wrap items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                {/* Time Filter */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('Time')}:</span>
-                  <div className="flex rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden">
-                    {[
-                      { value: 'all', label: t('All') },
-                      { value: '24h', label: '24h' },
-                      { value: 'week', label: t('Week') }
-                    ].map(option => (
-                      <button
-                        key={option.value}
-                        onClick={() => setHistoryTimeFilter(option.value)}
-                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                          historyTimeFilter === option.value
-                            ? 'bg-blue-600 text-white'
-                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
+            {/* Modern Header with integrated filters */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shadow-blue-500/20">
+                  <DocumentTextIcon className="h-5 w-5 text-white" />
                 </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    {t('Parse History')}
+                    <span className="text-sm font-medium text-gray-400 dark:text-gray-500">
+                      {filteredProjectBankStatements.length}{filteredProjectBankStatements.length !== projectBankStatements.length ? ` / ${projectBankStatements.length}` : ''}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                    {t('Live for 7 days')}
+                  </p>
+                </div>
+              </div>
 
-                {/* Bank Filter */}
-                {uniqueBanksInHistory.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('Bank')}:</span>
+              {/* Compact Filters */}
+              {projectBankStatements.length > 0 && !loadingProjectHistory && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={historyTimeFilter}
+                    onChange={(e) => setHistoryTimeFilter(e.target.value)}
+                    className="h-9 px-3 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                  >
+                    <option value="all">{t('All Time')}</option>
+                    <option value="24h">{t('Last 24h')}</option>
+                    <option value="week">{t('This Week')}</option>
+                  </select>
+
+                  {uniqueBanksInHistory.length > 0 && (
                     <select
                       value={historyBankFilter}
                       onChange={(e) => setHistoryBankFilter(e.target.value)}
-                      className="px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="h-9 px-3 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer transition-all hover:border-gray-300 dark:hover:border-gray-600"
                     >
                       <option value="all">{t('All Banks')}</option>
                       {uniqueBanksInHistory.map(bank => (
                         <option key={bank} value={bank}>{bank}</option>
                       ))}
                     </select>
-                  </div>
-                )}
+                  )}
 
-                {/* File Type Filter */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('Type')}:</span>
-                  <div className="flex rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden">
-                    {[
-                      { value: 'all', label: t('All') },
-                      { value: 'excel', label: 'Excel' },
-                      { value: 'pdf', label: 'PDF' },
-                      { value: 'zip', label: 'ZIP' }
-                    ].map(option => (
-                      <button
-                        key={option.value}
-                        onClick={() => setHistoryFileTypeFilter(option.value)}
-                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                          historyFileTypeFilter === option.value
-                            ? 'bg-blue-600 text-white'
-                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Clear Filters Button */}
-                {(historyTimeFilter !== 'all' || historyBankFilter !== 'all' || historyFileTypeFilter !== 'all') && (
-                  <button
-                    onClick={() => {
-                      setHistoryTimeFilter('all');
-                      setHistoryBankFilter('all');
-                      setHistoryFileTypeFilter('all');
-                    }}
-                    className="px-2 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  <select
+                    value={historyFileTypeFilter}
+                    onChange={(e) => setHistoryFileTypeFilter(e.target.value)}
+                    className="h-9 px-3 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer transition-all hover:border-gray-300 dark:hover:border-gray-600"
                   >
-                    {t('Clear Filters')}
-                  </button>
-                )}
-              </div>
-            )}
+                    <option value="all">{t('All Types')}</option>
+                    <option value="excel">Excel</option>
+                    <option value="pdf">PDF</option>
+                    <option value="zip">ZIP</option>
+                  </select>
+
+                  {(historyTimeFilter !== 'all' || historyBankFilter !== 'all' || historyFileTypeFilter !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setHistoryTimeFilter('all');
+                        setHistoryBankFilter('all');
+                        setHistoryFileTypeFilter('all');
+                      }}
+                      className="h-9 px-3 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                    >
+                      {t('Clear')}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Loading state for project history */}
             {loadingProjectHistory && (
@@ -1881,12 +1872,10 @@ const BankStatementParser = () => {
               </div>
             )}
 
-            {/* Project Bank Statements - Grouped by Session */}
+            {/* Project Bank Statements - Modern List */}
             {projectUuid && !loadingProjectHistory && filteredProjectBankStatements.length > 0 && (
-              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
                 {filteredProjectBankStatements.map((session, sessionIdx) => {
-                  // API returns: session_id, processed_at, file_count, total_transactions, banks[], files[], uploaded_files[]
-                  // uploaded_files contains original uploads with metadata (including ZIP extraction info)
                   const uploadedFiles = session.uploaded_files || [];
                   const uploadedZipFiles = uploadedFiles.filter(f => f.file_name?.toLowerCase().endsWith('.zip')) || [];
                   const uploadedPdfFiles = uploadedFiles.filter(f => f.file_name?.toLowerCase().endsWith('.pdf')) || [];
@@ -1895,7 +1884,6 @@ const BankStatementParser = () => {
                     return name?.endsWith('.xlsx') || name?.endsWith('.xls');
                   }) || [];
 
-                  // Calculate extraction totals from ZIP metadata
                   let extractedExcelCount = 0;
                   let extractedPdfCount = 0;
                   uploadedZipFiles.forEach(zip => {
@@ -1904,7 +1892,6 @@ const BankStatementParser = () => {
                     extractedPdfCount += meta.extracted_pdf_count || 0;
                   });
 
-                  // If no uploaded_files, fall back to files array
                   const fallbackFiles = session.files || [];
                   const fallbackPdfFiles = fallbackFiles.filter(f => f.file_name?.toLowerCase().endsWith('.pdf')) || [];
                   const fallbackExcelFiles = fallbackFiles.filter(f => {
@@ -1916,193 +1903,172 @@ const BankStatementParser = () => {
                   const hasPdf = uploadedPdfFiles.length > 0 || extractedPdfCount > 0 || fallbackPdfFiles.length > 0;
                   const hasExcel = uploadedExcelFiles.length > 0 || extractedExcelCount > 0 || fallbackExcelFiles.length > 0;
 
-                  // Display counts
                   const displayExcelCount = uploadedExcelFiles.length + extractedExcelCount || fallbackExcelFiles.length;
                   const displayPdfCount = uploadedPdfFiles.length + extractedPdfCount || fallbackPdfFiles.length;
 
-                  const isExpanded = expandedHistorySessions[session.session_id] ?? (sessionIdx === 0);
+                  const isExpanded = expandedHistorySessions[session.session_id] ?? false;
 
                   return (
                     <motion.div
                       key={session.session_id}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: sessionIdx * 0.05 }}
-                      className="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-850 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-lg transition-all duration-300 overflow-hidden"
+                      transition={{ duration: 0.2, delay: sessionIdx * 0.03 }}
+                      className="group"
                     >
-                      {/* Decorative accent line */}
-                      <div className={`absolute top-0 left-0 w-1 h-full ${
-                        hasZip
-                          ? 'bg-gradient-to-b from-purple-500 to-purple-600'
-                          : hasPdf && hasExcel
-                            ? 'bg-gradient-to-b from-orange-500 via-emerald-500 to-emerald-600'
-                            : hasPdf
-                              ? 'bg-gradient-to-b from-orange-500 to-red-500'
-                              : 'bg-gradient-to-b from-emerald-500 to-emerald-600'
-                      }`} />
+                      <div className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700/50 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-md transition-all duration-200">
+                        {/* Main Row */}
+                        <div className="p-4">
+                          <div className="flex items-center justify-between gap-4">
+                            {/* Left: Date & Info */}
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                              {/* Date Block */}
+                              <div className="flex-shrink-0 text-center">
+                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
+                                  {new Date(session.processed_at).getDate()}
+                                </div>
+                                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                  {new Date(session.processed_at).toLocaleDateString('en', { month: 'short' })}
+                                </div>
+                              </div>
 
-                      {/* Main content */}
-                      <div className="pl-4 pr-4 py-4">
-                        {/* Header */}
-                        <div className="flex items-start justify-between gap-4 mb-4">
-                          <div className="flex-1 min-w-0">
-                            {/* Type and Banks badges */}
-                            <div className="flex items-center gap-2 flex-wrap mb-2">
-                              {/* ZIP badge */}
-                              {hasZip && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full shadow-sm bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 ring-1 ring-purple-200 dark:ring-purple-800">
-                                  <ArchiveBoxIcon className="w-3 h-3" />
-                                  ZIP ({uploadedZipFiles.length})
-                                </span>
-                              )}
-                              {/* Excel badge */}
-                              {hasExcel && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full shadow-sm bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800">
-                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
-                                  </svg>
-                                  Excel ({displayExcelCount})
-                                </span>
-                              )}
-                              {/* PDF badge */}
-                              {hasPdf && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full shadow-sm bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 ring-1 ring-orange-200 dark:ring-orange-800">
-                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                                  </svg>
-                                  PDF ({displayPdfCount})
-                                </span>
-                              )}
-                              {session.banks?.map(bank => (
-                                <span key={bank} className="inline-flex items-center px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium ring-1 ring-blue-100 dark:ring-blue-800">
-                                  {bank}
-                                </span>
-                              ))}
+                              {/* Divider */}
+                              <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 flex-shrink-0"></div>
+
+                              {/* Info */}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {session.banks?.map(bank => (
+                                    <span key={bank} className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                      {bank}
+                                    </span>
+                                  ))}
+                                  {sessionIdx === 0 && (
+                                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                                      {t('Latest')}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  <span>{formatDate(session.processed_at).split(',')[1]?.trim() || formatDate(session.processed_at)}</span>
+                                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                                  <span>{session.file_count || displayExcelCount + displayPdfCount || 0} {t('files')}</span>
+                                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                                  <span>{(session.total_transactions || 0).toLocaleString()} {t('txns')}</span>
+                                </div>
+                              </div>
                             </div>
 
-                            {/* Date and time */}
-                            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <span>{formatDate(session.processed_at)}</span>
-                            </div>
-                          </div>
+                            {/* Right: File Types & Actions */}
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              {/* File Type Badges */}
+                              <div className="hidden sm:flex items-center gap-1.5">
+                                {hasZip && (
+                                  <span className="px-2 py-1 text-xs font-medium rounded-md bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                                    ZIP
+                                  </span>
+                                )}
+                                {hasExcel && (
+                                  <span className="px-2 py-1 text-xs font-medium rounded-md bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                                    Excel
+                                  </span>
+                                )}
+                                {hasPdf && (
+                                  <span className="px-2 py-1 text-xs font-medium rounded-md bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                                    PDF
+                                  </span>
+                                )}
+                              </div>
 
-                          {/* Action buttons */}
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => navigate(`/bank-statement-parser/session/${session.session_id}`)}
-                              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg transition-all duration-200"
-                              title={t('View Details')}
-                            >
-                              <EyeIcon className="h-4 w-4" />
-                              <span>{t('Details')}</span>
-                            </button>
-                            <button
-                              onClick={() => handleDownloadFromHistory(session.session_id)}
-                              disabled={downloadingSessionId === session.session_id}
-                              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-400 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200 disabled:cursor-not-allowed"
-                              title={t('Download Excel')}
-                            >
-                              {downloadingSessionId === session.session_id ? (
-                                <>
-                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  <span>{t('Downloading...')}</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ArrowDownTrayIcon className="h-4 w-4" />
-                                  <span>{t('Download')}</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Stats grid */}
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          <div className="flex items-center gap-3 p-3 bg-gray-100/50 dark:bg-gray-900/50 rounded-lg">
-                            <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
-                              <DocumentTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{session.file_count || 0}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{t('files')}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 p-3 bg-gray-100/50 dark:bg-gray-900/50 rounded-lg">
-                            <div className="p-2 bg-green-100 dark:bg-green-900/40 rounded-lg">
-                              <svg className="h-5 w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{session.total_transactions || 0}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{t('transactions')}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Collapsible files section */}
-                        <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                          <button
-                            onClick={() => setExpandedHistorySessions(prev => ({
-                              ...prev,
-                              [session.session_id]: !isExpanded
-                            }))}
-                            className="flex items-center justify-between w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-                          >
-                            <span className="font-medium">{t('Files')} ({session.files?.length || 0})</span>
-                            <svg
-                              className={`w-4 h-4 transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-
-                          {/* Files list - animated */}
-                          <motion.div
-                            initial={false}
-                            animate={{ height: isExpanded ? 'auto' : 0, opacity: isExpanded ? 1 : 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="space-y-2 mt-3">
-                              {session.files?.map((file, idx) => (
-                                <div
-                                  key={file.uuid || idx}
-                                  className="flex items-center gap-3 p-2.5 bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-700 transition-colors"
+                              {/* Actions */}
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setExpandedHistorySessions(prev => ({
+                                    ...prev,
+                                    [session.session_id]: !isExpanded
+                                  }))}
+                                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                  title={t('View Files')}
                                 >
-                                  <div className={`p-1.5 rounded-lg flex-shrink-0 ${
-                                    file.file_name?.toLowerCase().endsWith('.pdf')
-                                      ? 'bg-orange-100 dark:bg-orange-900/30'
-                                      : 'bg-emerald-100 dark:bg-emerald-900/30'
-                                  }`}>
-                                    <DocumentTextIcon className={`h-4 w-4 ${
-                                      file.file_name?.toLowerCase().endsWith('.pdf')
-                                        ? 'text-orange-600 dark:text-orange-400'
-                                        : 'text-emerald-600 dark:text-emerald-400'
-                                    }`} />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm text-gray-800 dark:text-gray-200 truncate font-medium">
-                                      {file.file_name || '-'}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                      <span className="text-xs text-gray-500 dark:text-gray-500">{file.bank_name}</span>
-                                      <span className="text-gray-300 dark:text-gray-600">•</span>
-                                      <span className="text-xs text-gray-500 dark:text-gray-500">{file.transaction_count || 0} {t('txns')}</span>
+                                  <svg className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => navigate(`/bank-statement-parser/session/${session.session_id}`)}
+                                  className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                  title={t('View Details')}
+                                >
+                                  <EyeIcon className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadFromHistory(session.session_id)}
+                                  disabled={downloadingSessionId === session.session_id}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors disabled:cursor-not-allowed"
+                                  title={t('Download Excel')}
+                                >
+                                  {downloadingSessionId === session.session_id ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <ArrowDownTrayIcon className="h-4 w-4" />
+                                  )}
+                                  <span className="hidden sm:inline">{t('Download')}</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expandable Files Section */}
+                        <motion.div
+                          initial={false}
+                          animate={{ height: isExpanded ? 'auto' : 0, opacity: isExpanded ? 1 : 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-4 pb-4 pt-0">
+                            <div className="border-t border-gray-100 dark:border-gray-700/50 pt-3">
+                              <div className="grid gap-2">
+                                {session.files?.map((file, idx) => (
+                                  <div
+                                    key={file.uuid || idx}
+                                    className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 dark:bg-gray-900/30 rounded-lg"
+                                  >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                        file.file_name?.toLowerCase().endsWith('.pdf')
+                                          ? 'bg-orange-100 dark:bg-orange-900/40'
+                                          : 'bg-emerald-100 dark:bg-emerald-900/40'
+                                      }`}>
+                                        <span className={`text-xs font-bold ${
+                                          file.file_name?.toLowerCase().endsWith('.pdf')
+                                            ? 'text-orange-600 dark:text-orange-400'
+                                            : 'text-emerald-600 dark:text-emerald-400'
+                                        }`}>
+                                          {file.file_name?.toLowerCase().endsWith('.pdf') ? 'PDF' : 'XLS'}
+                                        </span>
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                          {file.file_name || '-'}
+                                        </p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                          {file.bank_name}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                        {(file.transaction_count || 0).toLocaleString()}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">{t('txns')}</p>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
-                          </motion.div>
-                        </div>
+                          </div>
+                        </motion.div>
                       </div>
                     </motion.div>
                   );

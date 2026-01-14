@@ -5,9 +5,12 @@ import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { AnimatePresence, motion } from "framer-motion";
 
 import DarkModeProvider from "@configs/DarkModeProvider";
+import AuthProvider from "@configs/AuthProvider";
 import MainLayout from "@layouts/MainLayout";
 
 import Home from "@pages/Home";
+import Login from "@pages/Login";
+import AuthCallback from "@pages/AuthCallback";
 import Department from "@pages/Department";
 import Project from "@pages/Project";
 import ProjectManagement from "@pages/ProjectManagement";
@@ -21,6 +24,7 @@ import BankStatementParser from "@pages/BankStatementParser";
 import BankStatementSessionDetail from "@pages/BankStatementSessionDetail";
 import AIUsageDashboard from "@pages/AIUsageDashboard";
 import NotFound from "@pages/NotFound";
+import ProtectedRoute from "@components/auth/ProtectedRoute";
 
 
 // Scroll to top on route change
@@ -56,6 +60,10 @@ function AnimatedRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
+        {/* Public Auth Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+
         <Route
           path="/"
           element={
@@ -86,18 +94,22 @@ function AnimatedRoutes() {
         <Route
           path="/projects"
           element={
-            <PageWrapper>
-              <ProjectManagement />
-            </PageWrapper>
+            <ProtectedRoute>
+              <PageWrapper>
+                <ProjectManagement />
+              </PageWrapper>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/projects/:uuid"
           element={
-            <PageWrapper>
-              <ProjectWorkspace />
-            </PageWrapper>
+            <ProtectedRoute>
+              <PageWrapper>
+                <ProjectWorkspace />
+              </PageWrapper>
+            </ProtectedRoute>
           }
         />
 
@@ -149,27 +161,33 @@ function AnimatedRoutes() {
         <Route
           path="/bank-statement-parser"
           element={
-            <PageWrapper>
-              <BankStatementParser />
-            </PageWrapper>
+            <ProtectedRoute>
+              <PageWrapper>
+                <BankStatementParser />
+              </PageWrapper>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/bank-statement-parser/session/:sessionId"
           element={
-            <PageWrapper>
-              <BankStatementSessionDetail />
-            </PageWrapper>
+            <ProtectedRoute>
+              <PageWrapper>
+                <BankStatementSessionDetail />
+              </PageWrapper>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/ai-usage"
           element={
-            <PageWrapper>
-              <AIUsageDashboard />
-            </PageWrapper>
+            <ProtectedRoute>
+              <PageWrapper>
+                <AIUsageDashboard />
+              </PageWrapper>
+            </ProtectedRoute>
           }
         />
 
@@ -193,17 +211,19 @@ function App() {
   }, []);
 
   return (
-    <DarkModeProvider>
-      <TooltipProvider>
-        <BrowserRouter>
-          <ScrollToTop />
-          <MainLayout>
-            <Toaster richColors position="top-center" />
-            <AnimatedRoutes />
-          </MainLayout>
-        </BrowserRouter>
-      </TooltipProvider>
-    </DarkModeProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <DarkModeProvider>
+          <TooltipProvider>
+            <ScrollToTop />
+            <MainLayout>
+              <Toaster richColors position="top-center" />
+              <AnimatedRoutes />
+            </MainLayout>
+          </TooltipProvider>
+        </DarkModeProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 
