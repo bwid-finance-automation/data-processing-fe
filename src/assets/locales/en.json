@@ -492,5 +492,7 @@
   "Internal use only": "Secure login",
   "Please use your company Google account to sign in.": "Please use your Google account to sign in.",
   "Access is restricted to authorized personnel.": "Access is restricted to authorized accounts.",
-  "Failed to initiate Google login. Please try again.": "Failed to initiate Google login. Please try again."
+  "Failed to initiate Google login. Please try again.": "Failed to initiate Google login. Please try again.",
+  "Confirm Sign Out": "Confirm Sign Out",
+  "Are you sure you want to sign out?": "Are you sure you want to sign out?"
 }

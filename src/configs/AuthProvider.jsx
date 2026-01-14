@@ -60,6 +60,7 @@ const AuthProvider = ({ children }) => {
       user: null,
       isAuthenticated: false,
     });
+    setError(null);
   }, []);
 
   // Get Google OAuth URL

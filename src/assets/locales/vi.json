@@ -492,5 +492,7 @@
   "Internal use only": "Đăng nhập an toàn",
   "Please use your company Google account to sign in.": "Vui lòng sử dụng tài khoản Google để đăng nhập.",
   "Access is restricted to authorized personnel.": "Chỉ tài khoản được ủy quyền mới có quyền truy cập.",
-  "Failed to initiate Google login. Please try again.": "Không thể khởi tạo đăng nhập Google. Vui lòng thử lại."
+  "Failed to initiate Google login. Please try again.": "Không thể khởi tạo đăng nhập Google. Vui lòng thử lại.",
+  "Confirm Sign Out": "Xác nhận đăng xuất",
+  "Are you sure you want to sign out?": "Bạn có chắc chắn muốn đăng xuất?"
 }

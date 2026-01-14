@@ -9,6 +9,7 @@ import { useAuth } from "@configs/AuthProvider";
 export default function Header() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const dropdownRef = useRef(null);
   const { isDark, toggleDarkMode } = useDarkMode();
   const { t, i18n } = useTranslation();
@@ -20,8 +21,13 @@ export default function Header() {
     localStorage.setItem('language', newLang);
   };
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
     setOpen(false);
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setShowLogoutConfirm(false);
     await logout();
     navigate("/login");
   };
@@ -199,7 +205,7 @@ export default function Header() {
                   <div className="py-1">
                     {isAuthenticated && user ? (
                       <motion.button
-                        onClick={handleLogout}
+                        onClick={handleLogoutClick}
                         whileHover={{ x: 4 }}
                         className="w-full text-left px-4 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center gap-3"
                       >
@@ -226,6 +232,54 @@ export default function Header() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100]"
+              onClick={() => setShowLogoutConfirm(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 z-[101] w-[90%] max-w-sm"
+            >
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <ArrowRightOnRectangleIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  {t('Confirm Sign Out')}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                  {t('Are you sure you want to sign out?')}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowLogoutConfirm(false)}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                  >
+                    {t('Cancel')}
+                  </button>
+                  <button
+                    onClick={handleLogoutConfirm}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                  >
+                    {t('Sign Out')}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </motion.header>
   );
 }
