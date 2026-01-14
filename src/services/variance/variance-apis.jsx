@@ -56,4 +56,15 @@ export const downloadDebugFile = async (fileKey) => {
   return response.data;
 };
 
+export const analyzeAccount511 = async (formData, onUploadProgress) => {
+  const response = await api.post('/account-511-analysis', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    responseType: 'blob',
+    onUploadProgress,
+  });
+  return response.data;
+};
+
 export default api;
