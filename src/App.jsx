@@ -86,6 +86,12 @@ function AdminRoute({ children }) {
 // User Routes (with MainLayout)
 function UserRoutes() {
   const location = useLocation();
+  const { isAuthenticated, user, loading } = useAuth();
+
+  // Redirect admin users to admin panel
+  if (!loading && isAuthenticated && user?.role === "admin") {
+    return <Navigate to="/admin" replace />;
+  }
 
   return (
     <MainLayout>
