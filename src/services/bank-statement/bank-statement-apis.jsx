@@ -5,9 +5,10 @@ import { apiClient, FINANCE_API_BASE_URL } from '../../configs/APIs';
  * @param {File[]} files - Array of Excel files to process
  * @param {Object} zipPasswords - Object mapping ZIP file names to passwords (optional)
  * @param {string} projectUuid - Optional project UUID to link statements to
+ * @param {Object} zipPdfPasswords - Object mapping PDF filenames inside ZIP to passwords (optional)
  * @returns {Promise} Response with session_id, download_url, and summary
  */
-export const parseBankStatements = async (files, zipPasswords = {}, projectUuid = null) => {
+export const parseBankStatements = async (files, zipPasswords = {}, projectUuid = null, zipPdfPasswords = {}) => {
   const formData = new FormData();
 
   // Build ZIP passwords string in same order as ZIP files appear
@@ -22,6 +23,11 @@ export const parseBankStatements = async (files, zipPasswords = {}, projectUuid 
   // Only append zip_passwords if at least one ZIP has a password
   if (Object.keys(zipPasswords).length > 0 && zipFiles.length > 0) {
     formData.append('zip_passwords', zipPasswordsString);
+  }
+
+  // Append PDF passwords for files inside ZIP (as JSON)
+  if (Object.keys(zipPdfPasswords).length > 0) {
+    formData.append('zip_pdf_passwords', JSON.stringify(zipPdfPasswords));
   }
 
   if (projectUuid) {
@@ -52,9 +58,10 @@ export const parseBankStatements = async (files, zipPasswords = {}, projectUuid 
  * @param {Object} filePasswords - Object mapping PDF file names to passwords (optional)
  * @param {Object} zipPasswords - Object mapping ZIP file names to passwords (optional)
  * @param {string} projectUuid - Optional project UUID to link statements to
+ * @param {Object} zipPdfPasswords - Object mapping PDF filenames inside ZIP to passwords (optional)
  * @returns {Promise} Response with session_id, download_url, and summary
  */
-export const parseBankStatementsPDF = async (files, filePasswords = {}, zipPasswords = {}, projectUuid = null) => {
+export const parseBankStatementsPDF = async (files, filePasswords = {}, zipPasswords = {}, projectUuid = null, zipPdfPasswords = {}) => {
   const formData = new FormData();
 
   // Build passwords string for PDF files in same order as they appear
@@ -80,6 +87,11 @@ export const parseBankStatementsPDF = async (files, filePasswords = {}, zipPassw
   // Only append zip_passwords if at least one ZIP has a password
   if (Object.keys(zipPasswords).length > 0 && zipFiles.length > 0) {
     formData.append('zip_passwords', zipPasswordsString);
+  }
+
+  // Append PDF passwords for files inside ZIP (as JSON)
+  if (Object.keys(zipPdfPasswords).length > 0) {
+    formData.append('zip_pdf_passwords', JSON.stringify(zipPdfPasswords));
   }
 
   if (projectUuid) {
@@ -144,6 +156,36 @@ export const verifyZipPassword = async (file, password) => {
     return response.data;
   } catch (error) {
     console.error('Error verifying ZIP password:', error);
+    throw error;
+  }
+};
+
+/**
+ * Analyze ZIP file contents to detect files and encrypted PDFs
+ * @param {File} file - ZIP file to analyze
+ * @param {string} password - Password for encrypted ZIP (optional)
+ * @returns {Promise<Object>} Analysis result with file list and encryption status
+ */
+export const analyzeZipContents = async (file, password = null) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (password) {
+    formData.append('password', password);
+  }
+
+  try {
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/bank-statements/analyze-zip`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error analyzing ZIP contents:', error);
     throw error;
   }
 };

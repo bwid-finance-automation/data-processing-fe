@@ -31,8 +31,10 @@ import {
   downloadBankStatementFromHistory,
   getUploadedFiles,
   downloadUploadedFile,
-  verifyZipPassword
+  verifyZipPassword,
+  analyzeZipContents
 } from '../services/bank-statement/bank-statement-apis';
+import ZipContentsDialog from '../components/bank-statement/ZipContentsDialog';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -72,6 +74,17 @@ const BankStatementParser = () => {
   const [encryptedZipFiles, setEncryptedZipFiles] = useState({}); // {fileName: true/false}
   const [zipPasswords, setZipPasswords] = useState({}); // {fileName: password}
   const [checkingZip, setCheckingZip] = useState(false);
+
+  // ZIP contents dialog (for analyzing PDFs inside ZIP)
+  const [zipContentsDialog, setZipContentsDialog] = useState({
+    open: false,
+    zipFile: null,
+    zipFileName: '',
+    analysis: null,
+    isLoading: false
+  });
+  const [zipPdfPasswords, setZipPdfPasswords] = useState({}); // {pdfFileName: password} for PDFs inside ZIP
+  const [pendingZipFiles, setPendingZipFiles] = useState([]); // Queue of ZIP files to analyze
 
   // Uploaded files history
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -557,18 +570,21 @@ const BankStatementParser = () => {
     setResults(null);
 
     // Check ZIP files for encryption (both modes support ZIP)
-    const zipFiles = uniqueFiles.filter(f => f.name.toLowerCase().endsWith('.zip'));
-    if (zipFiles.length > 0) {
+    const zipFilesAdded = uniqueFiles.filter(f => f.name.toLowerCase().endsWith('.zip'));
+    if (zipFilesAdded.length > 0) {
       setCheckingZip(true);
       const newEncryptedZipFiles = { ...encryptedZipFiles };
       let firstEncryptedZip = null;
+      const unencryptedZips = [];
 
-      for (const file of zipFiles) {
+      for (const file of zipFilesAdded) {
         const isEncrypted = await checkZipEncryption(file);
         newEncryptedZipFiles[file.name] = isEncrypted;
 
         if (isEncrypted && !firstEncryptedZip) {
           firstEncryptedZip = file.name;
+        } else if (!isEncrypted) {
+          unencryptedZips.push(file);
         }
       }
 
@@ -577,7 +593,12 @@ const BankStatementParser = () => {
 
       // Show password dialog for first encrypted ZIP
       if (firstEncryptedZip) {
+        // Store unencrypted zips for later analysis
+        setPendingZipFiles(unencryptedZips);
         setPasswordDialog({ open: true, fileName: firstEncryptedZip, password: '', fileType: 'zip' });
+      } else if (unencryptedZips.length > 0) {
+        // No encrypted ZIPs, analyze the first unencrypted ZIP for PDF contents
+        analyzeZipFile(unencryptedZips[0], null, unencryptedZips.slice(1));
       }
     }
 
@@ -611,6 +632,8 @@ const BankStatementParser = () => {
 
   const removeFile = (index) => {
     const fileName = files[index]?.name;
+    const isZipFile = fileName?.toLowerCase().endsWith('.zip');
+
     setFiles(prev => prev.filter((_, i) => i !== index));
 
     // Clean up password state for removed file
@@ -635,6 +658,25 @@ const BankStatementParser = () => {
         delete newState[fileName];
         return newState;
       });
+
+      // Clean up ZIP PDF passwords if removing a ZIP file
+      if (isZipFile) {
+        // Clear all ZIP PDF passwords (since we don't track which PDF belongs to which ZIP)
+        setZipPdfPasswords({});
+      }
+
+      // Remove from pending queue if present
+      setPendingZipFiles(prev => prev.filter(f => f.name !== fileName));
+
+      // Close dialogs if the removed file is currently being processed
+      if (passwordDialog.open && passwordDialog.fileName === fileName) {
+        setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+        setPasswordError('');
+        setShowPassword(false);
+      }
+      if (zipContentsDialog.open && zipContentsDialog.zipFileName === fileName) {
+        setZipContentsDialog({ open: false, zipFile: null, zipFileName: '', analysis: null, isLoading: false });
+      }
     }
   };
 
@@ -666,9 +708,12 @@ const BankStatementParser = () => {
         }
 
         // Password is correct, save it
+        const confirmedZipPassword = passwordDialog.password;
+        const confirmedZipFileName = passwordDialog.fileName;
+
         setZipPasswords(prev => ({
           ...prev,
-          [passwordDialog.fileName]: passwordDialog.password
+          [confirmedZipFileName]: confirmedZipPassword
         }));
 
         setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
@@ -676,12 +721,27 @@ const BankStatementParser = () => {
         setVerifyingPassword(false);
         setShowPassword(false);
 
-        // Check for next encrypted ZIP file without password
-        const nextEncryptedZip = files.find(f =>
-          encryptedZipFiles[f.name] && !zipPasswords[f.name] && f.name !== passwordDialog.fileName
-        );
-        if (nextEncryptedZip) {
-          setPasswordDialog({ open: true, fileName: nextEncryptedZip.name, password: '', fileType: 'zip' });
+        // After ZIP password is confirmed, analyze the ZIP contents for encrypted PDFs
+        const zipFile = files.find(f => f.name === confirmedZipFileName);
+        if (zipFile) {
+          // Find remaining encrypted ZIPs that still need passwords
+          const remainingEncryptedZips = files.filter(f =>
+            encryptedZipFiles[f.name] && !zipPasswords[f.name] && f.name !== confirmedZipFileName
+          );
+          // Combine with pending unencrypted ZIPs
+          const allRemainingZips = [...remainingEncryptedZips, ...pendingZipFiles];
+
+          // Analyze this ZIP first
+          analyzeZipFile(zipFile, confirmedZipPassword, allRemainingZips);
+          setPendingZipFiles([]);
+        } else {
+          // Fallback: Check for next encrypted ZIP file without password
+          const nextEncryptedZip = files.find(f =>
+            encryptedZipFiles[f.name] && !zipPasswords[f.name] && f.name !== confirmedZipFileName
+          );
+          if (nextEncryptedZip) {
+            setPasswordDialog({ open: true, fileName: nextEncryptedZip.name, password: '', fileType: 'zip' });
+          }
         }
       } catch (err) {
         console.error('Error verifying ZIP password:', err);
@@ -727,6 +787,7 @@ const BankStatementParser = () => {
     setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
     setPasswordError('');
     setShowPassword(false);
+    setVerifyingPassword(false);
   };
 
   const openPasswordDialog = (fileName, fileType = 'pdf') => {
@@ -739,18 +800,107 @@ const BankStatementParser = () => {
     });
   };
 
+  // Analyze ZIP file contents to detect encrypted PDFs
+  const analyzeZipFile = async (zipFile, zipPassword = null, remainingZips = []) => {
+    setZipContentsDialog({
+      open: true,
+      zipFile: zipFile,
+      zipFileName: zipFile.name,
+      analysis: null,
+      isLoading: true
+    });
+
+    try {
+      const analysis = await analyzeZipContents(zipFile, zipPassword);
+      setZipContentsDialog(prev => ({
+        ...prev,
+        analysis: analysis,
+        isLoading: false
+      }));
+
+      // Store remaining zips for later
+      setPendingZipFiles(remainingZips);
+    } catch (err) {
+      console.error('Error analyzing ZIP contents:', err);
+      setZipContentsDialog(prev => ({
+        ...prev,
+        analysis: { error: err.response?.data?.detail || err.message || 'Failed to analyze ZIP' },
+        isLoading: false
+      }));
+    }
+  };
+
+  // Handle ZIP contents dialog confirm
+  const handleZipContentsConfirm = (pdfPasswords) => {
+    // Merge new PDF passwords with existing ones
+    setZipPdfPasswords(prev => ({ ...prev, ...pdfPasswords }));
+
+    // Close dialog
+    setZipContentsDialog({
+      open: false,
+      zipFile: null,
+      zipFileName: '',
+      analysis: null,
+      isLoading: false
+    });
+
+    // Check if there are more ZIP files to analyze
+    if (pendingZipFiles.length > 0) {
+      const nextZip = pendingZipFiles[0];
+      const remainingZips = pendingZipFiles.slice(1);
+      setPendingZipFiles(remainingZips);
+
+      // Check if this ZIP needs a password
+      if (encryptedZipFiles[nextZip.name]) {
+        // Show password dialog for this ZIP
+        setPasswordDialog({ open: true, fileName: nextZip.name, password: '', fileType: 'zip' });
+      } else {
+        // Analyze the ZIP
+        analyzeZipFile(nextZip, null, remainingZips);
+      }
+    }
+  };
+
+  // Handle ZIP contents dialog close
+  const handleZipContentsClose = () => {
+    setZipContentsDialog({
+      open: false,
+      zipFile: null,
+      zipFileName: '',
+      analysis: null,
+      isLoading: false
+    });
+    setPendingZipFiles([]);
+  };
+
+  // Open ZIP contents dialog for a specific file
+  const openZipContentsDialog = (fileName) => {
+    const file = files.find(f => f.name === fileName);
+    if (file) {
+      const zipPassword = zipPasswords[fileName] || null;
+      analyzeZipFile(file, zipPassword, []);
+    }
+  };
+
   const handleModeChange = (mode) => {
     if (mode !== fileMode) {
       setFileMode(mode);
       setFiles([]); // Clear files when switching modes
       setResults(null);
       setError(null);
+      setProcessingTime(null);
       // Clear password state when switching modes
       setEncryptedFiles({});
       setEncryptedZipFiles({});
       setFilePasswords({});
       setZipPasswords({});
+      setZipPdfPasswords({});
+      setPendingZipFiles([]);
       setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+      setPasswordError('');
+      setShowPassword(false);
+      setVerifyingPassword(false);
+      setZipContentsDialog({ open: false, zipFile: null, zipFileName: '', analysis: null, isLoading: false });
     }
   };
 
@@ -787,9 +937,10 @@ const BankStatementParser = () => {
 
     try {
       // ZIP mode uses parseBankStatements which handles both Excel and PDF inside ZIP
+      // Pass zipPdfPasswords for encrypted PDFs inside ZIP files
       const response = fileMode === 'pdf'
-        ? await parseBankStatementsPDF(files, filePasswords, zipPasswords, projectUuid)
-        : await parseBankStatements(files, zipPasswords, projectUuid);
+        ? await parseBankStatementsPDF(files, filePasswords, zipPasswords, projectUuid, zipPdfPasswords)
+        : await parseBankStatements(files, zipPasswords, projectUuid, zipPdfPasswords);
 
       const endTime = performance.now();
       const elapsed = (endTime - startTime) / 1000; // Convert to seconds
@@ -836,11 +987,18 @@ const BankStatementParser = () => {
     setFiles([]);
     setResults(null);
     setError(null);
+    setProcessingTime(null);
     setEncryptedFiles({});
     setEncryptedZipFiles({});
     setFilePasswords({});
     setZipPasswords({});
+    setZipPdfPasswords({});
+    setPendingZipFiles([]);
     setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+    setPasswordError('');
+    setShowPassword(false);
+    setVerifyingPassword(false);
+    setZipContentsDialog({ open: false, zipFile: null, zipFileName: '', analysis: null, isLoading: false });
   };
 
   const formatFileSize = (bytes) => {
@@ -1438,7 +1596,12 @@ const BankStatementParser = () => {
                                 {formatFileSize(file.size)}
                                 {isZipFile && isZipEncrypted && (
                                   <span className={`ml-2 ${hasPassword ? 'text-green-600' : 'text-amber-600'}`}>
-                                    {hasPassword ? `• ${t('Password set')}` : `• ${t('Encrypted - needs password')}`}
+                                    {hasPassword ? `• ${t('ZIP Password set')}` : `• ${t('Encrypted - needs password')}`}
+                                  </span>
+                                )}
+                                {isZipFile && Object.keys(zipPdfPasswords).length > 0 && (
+                                  <span className="ml-2 text-blue-600">
+                                    • {Object.keys(zipPdfPasswords).length} {t('PDF password(s)')}
                                   </span>
                                 )}
                                 {!isZipFile && isPdfEncrypted && (
@@ -1462,6 +1625,16 @@ const BankStatementParser = () => {
                                 title={hasPassword ? t('Change ZIP password') : t('Enter ZIP password')}
                               >
                                 <KeyIcon className="h-5 w-5" />
+                              </button>
+                            )}
+                            {isZipFile && (
+                              <button
+                                onClick={() => openZipContentsDialog(file.name)}
+                                disabled={processing || (isZipEncrypted && !hasPassword)}
+                                className="p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors disabled:opacity-50"
+                                title={t('View ZIP contents & manage PDF passwords')}
+                              >
+                                <FolderOpenIcon className="h-5 w-5" />
                               </button>
                             )}
                             {!isZipFile && isPdfEncrypted && (
@@ -2216,6 +2389,16 @@ const BankStatementParser = () => {
           </motion.div>
         </div>
       )}
+
+      {/* ZIP Contents Dialog */}
+      <ZipContentsDialog
+        isOpen={zipContentsDialog.open}
+        onClose={handleZipContentsClose}
+        zipAnalysis={zipContentsDialog.analysis}
+        onConfirm={handleZipContentsConfirm}
+        isLoading={zipContentsDialog.isLoading}
+        zipFileName={zipContentsDialog.zipFileName}
+      />
 
       {/* Create Project Dialog Modal */}
       {showCreateProject && (
