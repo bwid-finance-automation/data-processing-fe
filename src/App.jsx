@@ -95,7 +95,6 @@ function UserRoutes() {
 
   return (
     <MainLayout>
-      <Toaster richColors position="top-center" />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route
@@ -246,7 +245,6 @@ function UserRoutes() {
 function AdminRoutes() {
   return (
     <AdminRoute>
-      <Toaster richColors position="top-center" />
       <Routes>
         <Route path="/" element={<AdminDashboard />} />
         <Route path="/users" element={<AdminUsers />} />
@@ -265,6 +263,7 @@ function AppRoutes() {
 
   return (
     <>
+      <Toaster richColors position="top-center" />
       <ScrollToTop />
       <Routes location={location}>
         {/* Public Auth Routes - No Layout */}

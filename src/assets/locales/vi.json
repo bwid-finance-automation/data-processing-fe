@@ -369,6 +369,8 @@
   "Download original file": "Tải tệp gốc",
   "Loading uploaded files...": "Đang tải tệp đã tải lên...",
   "Parse History": "Lịch sử Trích xuất",
+  "Parse completed successfully": "Trích xuất thành công",
+  "Parse failed": "Trích xuất thất bại",
   "Project Parse History": "Lịch sử Trích xuất Dự án",
   "Loading history...": "Đang tải lịch sử...",
   "No bank statements in this project yet": "Chưa có sao kê ngân hàng trong dự án này",

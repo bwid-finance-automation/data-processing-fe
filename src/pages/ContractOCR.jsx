@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import FileUpload from '@components/contract-ocr/FileUpload';
 import ProcessingStatus from '@components/contract-ocr/ProcessingStatus';
 import ResultsTable from '@components/contract-ocr/ResultsTable';

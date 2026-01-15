@@ -27,7 +27,9 @@ const ProtectedRoute = ({
       hasShownToast.current = true;
       toast(t("Please login to use this feature").toUpperCase(), {
         duration: 4000,
-        className: "text-center justify-center !px-4 !py-2 !rounded-full !whitespace-nowrap",
+        unstyled: true,
+        className: "flex items-center justify-center px-4 py-2 rounded-full text-white text-sm font-medium shadow-lg",
+        style: { backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(8px)' },
       });
     }
   }, [loading, isAuthenticated, t]);

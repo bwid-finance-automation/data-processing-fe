@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 export default function FileUpload({ onFilesSelected, selectedFiles, onProcess, onClear, processing }) {
   const { t } = useTranslation();
@@ -39,16 +40,26 @@ export default function FileUpload({ onFilesSelected, selectedFiles, onProcess, 
       return ext.endsWith('.pdf') || ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg');
     });
 
-    if (validFiles.length !== filesArray.length) {
-      alert('Some files were skipped. Only PDF, PNG, JPG, and JPEG files are supported.');
+    const invalidFiles = filesArray.filter(file => {
+      const ext = file.name.toLowerCase();
+      return !(ext.endsWith('.pdf') || ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg'));
+    });
+
+    if (invalidFiles.length > 0) {
+      const invalidNames = invalidFiles.map(f => f.name).join(', ');
+      toast.error(t('Invalid file format'), {
+        description: `${t('Only')} PDF, PNG, JPG, JPEG ${t('files are allowed')}. ${t('Rejected')}: ${invalidNames}`,
+      });
     }
 
     // Merge with existing files and remove duplicates
     const existingFileNames = selectedFiles.map(f => f.name);
     const newUniqueFiles = validFiles.filter(file => !existingFileNames.includes(file.name));
 
-    if (newUniqueFiles.length < validFiles.length) {
-      alert(`${validFiles.length - newUniqueFiles.length} duplicate file(s) were skipped.`);
+    if (newUniqueFiles.length < validFiles.length && newUniqueFiles.length > 0) {
+      toast.warning(t('Duplicate files skipped'), {
+        description: `${validFiles.length - newUniqueFiles.length} ${t('file(s) already selected')}`,
+      });
     }
 
     onFilesSelected([...selectedFiles, ...newUniqueFiles]);

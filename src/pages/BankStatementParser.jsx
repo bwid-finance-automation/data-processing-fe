@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import {
   DocumentTextIcon,
   CloudArrowUpIcon,
@@ -546,9 +547,8 @@ const BankStatementParser = () => {
     setDragActive(false);
 
     const droppedFiles = Array.from(e.dataTransfer.files);
-    const validFiles = droppedFiles.filter(isValidFile);
-
-    addFiles(validFiles);
+    // Pass all files to addFiles - it will handle validation and show toast for invalid files
+    addFiles(droppedFiles);
   };
 
   const handleFileInput = (e) => {
@@ -558,6 +558,20 @@ const BankStatementParser = () => {
 
   const addFiles = async (newFiles) => {
     const validFiles = newFiles.filter(isValidFile);
+    const invalidFiles = newFiles.filter(f => !isValidFile(f));
+
+    // Show toast for invalid files
+    if (invalidFiles.length > 0) {
+      const invalidNames = invalidFiles.map(f => f.name).join(', ');
+      const allowedFormats = fileMode === 'excel'
+        ? '.xlsx, .xls, .zip'
+        : fileMode === 'pdf'
+          ? '.pdf, .zip'
+          : '.zip';
+      toast.error(t('Invalid file format'), {
+        description: `${t('Only')} ${allowedFormats} ${t('files are allowed')}. ${t('Rejected')}: ${invalidNames}`,
+      });
+    }
 
     // Prevent duplicates
     const existingNames = files.map(f => f.name);
@@ -947,9 +961,27 @@ const BankStatementParser = () => {
       setProcessingTime(elapsed);
 
       setResults(response);
+
+      // Show success toast
+      const totalTransactions = response.total_transactions || 0;
+      toast(t('Parse completed successfully', { count: totalTransactions }).toUpperCase(), {
+        duration: 4000,
+        unstyled: true,
+        className: "flex items-center justify-center px-4 py-2 rounded-full text-white text-sm font-medium shadow-lg",
+        style: { backgroundColor: 'rgba(34, 197, 94, 0.5)', backdropFilter: 'blur(8px)' },
+      });
     } catch (err) {
       console.error('Error processing bank statements:', err);
-      setError(err.response?.data?.detail || err.message || 'Failed to process bank statements');
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to process bank statements';
+      setError(errorMessage);
+
+      // Show error toast
+      toast(t('Parse failed').toUpperCase(), {
+        duration: 4000,
+        unstyled: true,
+        className: "flex items-center justify-center px-4 py-2 rounded-full text-white text-sm font-medium shadow-lg",
+        style: { backgroundColor: 'rgba(239, 68, 68, 0.5)', backdropFilter: 'blur(8px)' },
+      });
     } finally {
       setProcessing(false);
     }

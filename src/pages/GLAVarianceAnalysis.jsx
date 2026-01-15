@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import {
   FolderIcon,
   ChevronDownIcon,
@@ -222,6 +223,14 @@ function GLAVarianceAnalysis() {
   const handleFileSelect = (event) => {
     const selectedFile = event.target.files[0];
     if (selectedFile) {
+      const fileName = selectedFile.name.toLowerCase();
+      if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+        toast.error(t('Invalid file format'), {
+          description: t('Only .xlsx and .xls files are allowed'),
+        });
+        event.target.value = '';
+        return;
+      }
       setFile(selectedFile);
     }
   };

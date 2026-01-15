@@ -369,6 +369,8 @@
   "Download original file": "Download original file",
   "Loading uploaded files...": "Loading uploaded files...",
   "Parse History": "Parse History",
+  "Parse completed successfully": "Parse completed successfully",
+  "Parse failed": "Parse failed",
   "Project Parse History": "Project Parse History",
   "Loading history...": "Loading history...",
   "No bank statements in this project yet": "No bank statements in this project yet",
