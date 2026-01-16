@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import ScrollContainer from '../common/ScrollContainer';
 import { useTranslation } from 'react-i18next';
 import { startAIAnalysis, streamLogs, downloadResult } from '@services/variance/variance-apis';
 import { FINANCE_API_BASE_URL } from '@configs/APIs';
@@ -789,7 +790,7 @@ const AIAnalysis = ({ projectUuid }) => {
                 <span className="text-gray-600 dark:text-gray-400">Total: {logStats.total}</span>
               </div>
             </div>
-            <div className="bg-gray-900 dark:bg-black border border-gray-700 rounded-lg max-h-96 overflow-y-auto font-mono text-xs">
+            <ScrollContainer maxHeight="max-h-96" className="bg-gray-900 dark:bg-black border border-gray-700 rounded-lg font-mono text-xs">
               <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center space-x-4 text-gray-400 text-xs">
                 <span className="w-20">Time</span>
                 <span className="w-16">Level</span>
@@ -804,7 +805,7 @@ const AIAnalysis = ({ projectUuid }) => {
                   </div>
                 ))}
               </div>
-            </div>
+            </ScrollContainer>
           </div>
         )}
       </div>

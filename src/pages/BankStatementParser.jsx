@@ -36,6 +36,7 @@ import {
   analyzeZipContents
 } from '../services/bank-statement/bank-statement-apis';
 import ZipContentsDialog from '../components/bank-statement/ZipContentsDialog';
+import ScrollContainer from '../components/common/ScrollContainer';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -1587,7 +1588,7 @@ const BankStatementParser = () => {
                     {t('Selected Files')} ({files.length})
                     {(checkingPdf || checkingZip) && <span className="ml-2 text-xs text-blue-600">{t('Checking encryption...')}</span>}
                   </h3>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <ScrollContainer maxHeight="max-h-60" className="space-y-2">
                     {files.map((file, index) => {
                       const isZipFile = file.name.toLowerCase().endsWith('.zip');
                       const isZipEncrypted = encryptedZipFiles[file.name];
@@ -1692,7 +1693,7 @@ const BankStatementParser = () => {
                         </div>
                       );
                     })}
-                  </div>
+                  </ScrollContainer>
                 </div>
               )}
 
@@ -1759,7 +1760,7 @@ const BankStatementParser = () => {
                   </div>
 
                   {/* File Processing List */}
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <ScrollContainer maxHeight="max-h-60" className="space-y-2">
                     {files.map((file, index) => (
                       <motion.div
                         key={file.name}
@@ -1802,7 +1803,7 @@ const BankStatementParser = () => {
                         </div>
                       </motion.div>
                     ))}
-                  </div>
+                  </ScrollContainer>
 
                   <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-4">
                     {fileMode === 'pdf'
@@ -1858,7 +1859,7 @@ const BankStatementParser = () => {
                           {t('Original Files')} ({uploadedFiles.length})
                         </h4>
                       </div>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                      <ScrollContainer maxHeight="max-h-40" className="space-y-2">
                         {uploadedFiles.map((file) => (
                           <div
                             key={file.id}
@@ -1882,7 +1883,7 @@ const BankStatementParser = () => {
                             </button>
                           </div>
                         ))}
-                      </div>
+                      </ScrollContainer>
                     </div>
                   )}
                   {loadingUploadedFiles && (
@@ -2081,7 +2082,7 @@ const BankStatementParser = () => {
 
             {/* Project Bank Statements - Modern List */}
             {projectUuid && !loadingProjectHistory && filteredProjectBankStatements.length > 0 && (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
+              <ScrollContainer maxHeight="max-h-[600px]" className="space-y-3 pr-1">
                 {filteredProjectBankStatements.map((session, sessionIdx) => {
                   const uploadedFiles = session.uploaded_files || [];
                   const uploadedZipFiles = uploadedFiles.filter(f => f.file_name?.toLowerCase().endsWith('.zip')) || [];
@@ -2280,7 +2281,7 @@ const BankStatementParser = () => {
                     </motion.div>
                   );
                 })}
-              </div>
+              </ScrollContainer>
             )}
 
             {/* Empty state when no history */}

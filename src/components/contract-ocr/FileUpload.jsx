@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import ScrollContainer from '../common/ScrollContainer';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
@@ -141,7 +142,7 @@ export default function FileUpload({ onFilesSelected, selectedFiles, onProcess, 
               {t('totalSize') || 'Total'}: {formatFileSize(getTotalSize())}
             </p>
           </div>
-          <div className="space-y-2 max-h-60 overflow-y-auto">
+          <ScrollContainer maxHeight="max-h-60" className="space-y-2">
             {selectedFiles.map((file, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-[#181818] rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500 transition-colors group">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -168,7 +169,7 @@ export default function FileUpload({ onFilesSelected, selectedFiles, onProcess, 
                 </button>
               </div>
             ))}
-          </div>
+          </ScrollContainer>
         </div>
       )}
 

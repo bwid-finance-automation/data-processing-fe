@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import ScrollContainer from '../components/common/ScrollContainer';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -625,7 +626,7 @@ const ProjectWorkspace = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                  <ScrollContainer maxHeight="max-h-[400px]" className="space-y-2 pr-1">
                     {bankStatements.slice(0, 10).map((entry, index) => {
                       const banks = entry.banks || [];
 
@@ -698,7 +699,7 @@ const ProjectWorkspace = () => {
                         </motion.div>
                       );
                     })}
-                  </div>
+                  </ScrollContainer>
                 )}
               </div>
             </motion.div>
@@ -763,7 +764,7 @@ const ProjectWorkspace = () => {
                     </motion.button>
                   </div>
                 ) : (
-                  <div className="p-4 space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar">
+                  <ScrollContainer maxHeight="max-h-[600px]" className="p-4 space-y-3">
                     {bankStatements.map((session, index) => {
                       const banks = session.banks || session.banks_detected || [];
                       const fileCount = session.file_count || (session.files || []).length || 0;
@@ -849,7 +850,7 @@ const ProjectWorkspace = () => {
                         </motion.div>
                       );
                     })}
-                  </div>
+                  </ScrollContainer>
                 )}
               </div>
             </motion.div>

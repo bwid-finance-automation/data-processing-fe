@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import ScrollContainer from '../common/ScrollContainer';
 
 export default function DetailModal({ contract, onClose }) {
   const { t } = useTranslation();
@@ -78,7 +79,7 @@ export default function DetailModal({ contract, onClose }) {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <ScrollContainer maxHeight="max-h-[calc(90vh-140px)]" className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {fields.map((field, index) => {
               const value = field.value || '-';
@@ -160,7 +161,7 @@ export default function DetailModal({ contract, onClose }) {
               </ul>
             </div>
           )}
-        </div>
+        </ScrollContainer>
 
         {/* Footer */}
         <div className="flex justify-end p-6 border-t border-gray-200 dark:border-gray-700">

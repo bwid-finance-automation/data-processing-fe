@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ScrollContainer from '../common/ScrollContainer';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   XMarkIcon,
@@ -136,7 +137,7 @@ const ZipContentsDialog = ({
           </div>
 
           {/* Content */}
-          <div className="px-6 py-4 overflow-y-auto max-h-[60vh]">
+          <ScrollContainer maxHeight="max-h-[60vh]" className="px-6 py-4">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <ArrowPathIcon className="w-8 h-8 text-blue-500 animate-spin" />
@@ -316,7 +317,7 @@ const ZipContentsDialog = ({
                 )}
               </div>
             )}
-          </div>
+          </ScrollContainer>
 
           {/* Footer */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
