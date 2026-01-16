@@ -554,6 +554,8 @@ const BankStatementParser = () => {
   const handleFileInput = (e) => {
     const selectedFiles = Array.from(e.target.files);
     addFiles(selectedFiles);
+    // Reset input value to allow re-selecting the same file after clear
+    e.target.value = '';
   };
 
   const addFiles = async (newFiles) => {
@@ -900,9 +902,9 @@ const BankStatementParser = () => {
     if (mode !== fileMode) {
       setFileMode(mode);
       setFiles([]); // Clear files when switching modes
-      setResults(null);
+      // Keep results - don't clear when switching tabs
       setError(null);
-      setProcessingTime(null);
+      // Keep processingTime - associated with results
       // Clear password state when switching modes
       setEncryptedFiles({});
       setEncryptedZipFiles({});
