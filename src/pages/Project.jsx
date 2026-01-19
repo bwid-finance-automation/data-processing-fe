@@ -14,6 +14,7 @@ export default function Project() {
     1: [
       { id: 1, name: t("ExcelComparision"), description: t("excelComparisionDesc"), link: "/excel-comparison" },
       { id: 6, name: t("glaVarianceAnalysis") || "GLA Variance Analysis", description: t("glaVarianceAnalysisDesc") || "Compare Gross Leasable Area between periods to track Handover and Committed GLA changes", link: "/gla-variance-analysis" },
+      { id: 7, name: t("ntmEbitdaAnalysis") || "NTM EBITDA Variance Analysis", description: t("ntmEbitdaAnalysisDesc") || "Analyze NTM EBITDA variance between periods with AI-powered commentary", link: "/ntm-ebitda-analysis" },
     ],
     2: [
       { id: 2, name: t("varianceAnalysisProject"), description: t("varianceAnalysisDesc"), link: "/variance-analysis" },

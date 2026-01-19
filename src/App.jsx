@@ -20,6 +20,7 @@ import ProjectWorkspace from "@pages/ProjectWorkspace";
 import VarianceAnalysis from "@pages/VarianceAnalysis";
 import ExcelComparison from "@pages/ExcelComparison";
 import GLAVarianceAnalysis from "@pages/GLAVarianceAnalysis";
+import NTMEBITDAAnalysis from "@pages/NTMEBITDAAnalysis";
 import ContractOCR from "@pages/ContractOCR";
 import UtilityBilling from "@pages/UtilityBilling";
 import BankStatementParser from "@pages/BankStatementParser";
@@ -174,6 +175,17 @@ function UserRoutes() {
               <PageWrapper>
                 <FeatureGate featureKey="glaAnalysis">
                   <GLAVarianceAnalysis />
+                </FeatureGate>
+              </PageWrapper>
+            }
+          />
+
+          <Route
+            path="/ntm-ebitda-analysis"
+            element={
+              <PageWrapper>
+                <FeatureGate featureKey="ntmEbitdaAnalysis">
+                  <NTMEBITDAAnalysis />
                 </FeatureGate>
               </PageWrapper>
             }
