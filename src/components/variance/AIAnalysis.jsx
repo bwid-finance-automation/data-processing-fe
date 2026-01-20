@@ -46,7 +46,8 @@ const AIAnalysis = ({ projectUuid }) => {
   };
 
   // Helper function to categorize log messages and add metadata
-  const categorizeLog = (message) => {
+  // Memoized with useCallback since it's used in other callbacks and event handlers
+  const categorizeLog = useCallback((message) => {
     const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     // Remove emojis from message
@@ -94,7 +95,7 @@ const AIAnalysis = ({ projectUuid }) => {
       bgColor,
       id: `log-${logIdCounter.current}-${Date.now()}` // Unique ID for React keys
     };
-  };
+  }, []);
 
   const handleDownload = useCallback(async () => {
     if (!sessionId) return;
@@ -211,7 +212,7 @@ const AIAnalysis = ({ projectUuid }) => {
         setLogStats((prev) => ({ ...prev, warnings: prev.warnings + 1, total: prev.total + 1 }));
       }
     }, 300000);
-  }, [isProcessing]);
+  }, [isProcessing, categorizeLog]);
 
   // Cleanup polling on component unmount
   useEffect(() => {

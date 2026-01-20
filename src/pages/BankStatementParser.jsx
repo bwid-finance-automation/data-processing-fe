@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -10,21 +10,17 @@ import {
   ArrowDownTrayIcon,
   XMarkIcon,
   LockClosedIcon,
-  KeyIcon,
   EyeIcon,
   EyeSlashIcon,
-  FolderOpenIcon,
-  FolderIcon,
-  LinkIcon,
-  ChevronDownIcon,
-  PlusIcon,
-  ArchiveBoxIcon
+  ArchiveBoxIcon,
+  FolderOpenIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import Breadcrumb from '../components/common/Breadcrumb';
-import { getProject, getProjects, getProjectBankStatements, createProject, verifyProjectPassword } from '../services/project/project-apis';
+import { Breadcrumb, ScrollContainer, ProjectSelector, CreateProjectDialog, PasswordDialog } from '@components/common';
+import { useProjectManagement } from '@hooks';
+import { getProjectBankStatements } from '../services/project/project-apis';
 import {
   parseBankStatements,
   parseBankStatementsPDF,
@@ -36,48 +32,77 @@ import {
   analyzeZipContents
 } from '../services/bank-statement/bank-statement-apis';
 import ZipContentsDialog from '../components/bank-statement/ZipContentsDialog';
-import ScrollContainer from '../components/common/ScrollContainer';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const BankStatementParser = () => {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const projectUuid = searchParams.get('project');
 
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
-  const [processingTime, setProcessingTime] = useState(null); // Actual total processing time in seconds
-  const [fileMode, setFileMode] = useState('excel'); // 'excel', 'pdf', or 'zip'
+  const [processingTime, setProcessingTime] = useState(null);
+  const [fileMode, setFileMode] = useState('excel');
 
-  // Project context
-  const [project, setProject] = useState(null);
-  const [loadingProject, setLoadingProject] = useState(false);
-  const [projectsList, setProjectsList] = useState([]);
-  const [loadingProjects, setLoadingProjects] = useState(false);
-  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
-  const projectDropdownRef = useRef(null);
+  // Use the custom hook for project management
+  const {
+    project,
+    projectUuid,
+    loadingProject,
+    projectsList,
+    loadingProjects,
+    showProjectDropdown,
+    setShowProjectDropdown,
+    projectDropdownRef,
+    showCreateProject,
+    setShowCreateProject,
+    createProjectForm,
+    setCreateProjectForm,
+    creatingProject,
+    projectError,
+    showCreatePassword,
+    setShowCreatePassword,
+    passwordDialog: projectPasswordDialog,
+    setPasswordDialog: setProjectPasswordDialog,
+    passwordError: projectPasswordError,
+    verifyingPassword: verifyingProjectPassword,
+    showPassword: showProjectPassword,
+    setShowPassword: setShowProjectPassword,
+    handleSelectProject: baseHandleSelectProject,
+    handleVerifyPassword: handleProjectPasswordSubmit,
+    handleCreateProject,
+    handleCloseCreateDialog,
+    handleClosePasswordDialog: handleProjectPasswordCancel,
+  } = useProjectManagement({
+    basePath: '/bank-statement-parser',
+    onProjectChange: useCallback(() => {
+      // Clear results when switching projects
+      setResults(null);
+      setFiles([]);
+      setError(null);
+      setExpandedHistorySessions({});
+    }, []),
+  });
 
-  // PDF password management
-  const [encryptedFiles, setEncryptedFiles] = useState({}); // {fileName: true/false}
-  const [filePasswords, setFilePasswords] = useState({}); // {fileName: password}
-  const [passwordDialog, setPasswordDialog] = useState({ open: false, fileName: '', password: '', fileType: 'pdf' }); // fileType: 'pdf' or 'zip'
-  const [showPassword, setShowPassword] = useState(false);
+  // PDF password management (separate from project password)
+  const [encryptedFiles, setEncryptedFiles] = useState({});
+  const [filePasswords, setFilePasswords] = useState({});
+  const [filePasswordDialog, setFilePasswordDialog] = useState({ open: false, fileName: '', password: '', fileType: 'pdf' });
+  const [showFilePassword, setShowFilePassword] = useState(false);
   const [checkingPdf, setCheckingPdf] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
-  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [filePasswordError, setFilePasswordError] = useState('');
+  const [verifyingFilePassword, setVerifyingFilePassword] = useState(false);
 
   // ZIP password management
-  const [encryptedZipFiles, setEncryptedZipFiles] = useState({}); // {fileName: true/false}
-  const [zipPasswords, setZipPasswords] = useState({}); // {fileName: password}
+  const [encryptedZipFiles, setEncryptedZipFiles] = useState({});
+  const [zipPasswords, setZipPasswords] = useState({});
   const [checkingZip, setCheckingZip] = useState(false);
 
-  // ZIP contents dialog (for analyzing PDFs inside ZIP)
+  // ZIP contents dialog
   const [zipContentsDialog, setZipContentsDialog] = useState({
     open: false,
     zipFile: null,
@@ -85,8 +110,8 @@ const BankStatementParser = () => {
     analysis: null,
     isLoading: false
   });
-  const [zipPdfPasswords, setZipPdfPasswords] = useState({}); // {pdfFileName: password} for PDFs inside ZIP
-  const [pendingZipFiles, setPendingZipFiles] = useState([]); // Queue of ZIP files to analyze
+  const [zipPdfPasswords, setZipPdfPasswords] = useState({});
+  const [pendingZipFiles, setPendingZipFiles] = useState([]);
 
   // Uploaded files history
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -99,84 +124,18 @@ const BankStatementParser = () => {
   const [projectBankStatements, setProjectBankStatements] = useState([]);
   const [loadingProjectHistory, setLoadingProjectHistory] = useState(false);
 
-  // Create project dialog
-  const [showCreateProject, setShowCreateProject] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectDescription, setNewProjectDescription] = useState('');
-  const [newProjectPassword, setNewProjectPassword] = useState('');
-  const [showNewProjectPassword, setShowNewProjectPassword] = useState(false);
-  const [creatingProject, setCreatingProject] = useState(false);
-
-  // Project password dialog
-  const [projectPasswordDialog, setProjectPasswordDialog] = useState({
-    open: false,
-    project: null,
-    password: '',
-  });
-  const [projectPasswordError, setProjectPasswordError] = useState('');
-  const [verifyingProjectPassword, setVerifyingProjectPassword] = useState(false);
-  const [showProjectPassword, setShowProjectPassword] = useState(false);
-
   // Download history session state
   const [downloadingSessionId, setDownloadingSessionId] = useState(null);
-  // Track expanded/collapsed state for history sessions (first one expanded by default)
   const [expandedHistorySessions, setExpandedHistorySessions] = useState({});
 
   // History filter states
-  const [historyTimeFilter, setHistoryTimeFilter] = useState('all'); // 'all', '24h', 'week'
-  const [historyBankFilter, setHistoryBankFilter] = useState('all'); // 'all' or bank name
-  const [historyFileTypeFilter, setHistoryFileTypeFilter] = useState('all'); // 'all', 'pdf', 'excel'
-
-  // Fetch project info if projectUuid is provided
-  useEffect(() => {
-    const fetchProject = async () => {
-      if (!projectUuid) {
-        setProject(null);
-        setProjectBankStatements([]);
-        return;
-      }
-
-      setLoadingProject(true);
-      try {
-        const projectData = await getProject(projectUuid);
-
-        // Check if project is protected and password dialog is not already open
-        if (projectData.is_protected && !projectPasswordDialog.open) {
-          // Check if already verified in sessionStorage
-          const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
-          if (verifiedProjects[projectUuid]) {
-            // Already verified, set project directly
-            setProject(projectData);
-          } else {
-            // Show password dialog for protected project
-            setProjectPasswordDialog({
-              open: true,
-              project: projectData,
-              password: '',
-            });
-            setProjectPasswordError('');
-            setShowProjectPassword(false);
-            setProject(null); // Don't set project until password verified
-          }
-        } else if (!projectData.is_protected) {
-          setProject(projectData);
-        }
-        // If dialog is already open, don't change anything (user is entering password)
-      } catch (err) {
-        console.error('Error fetching project:', err);
-        setProject(null);
-      } finally {
-        setLoadingProject(false);
-      }
-    };
-
-    fetchProject();
-  }, [projectUuid]);
+  const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
+  const [historyBankFilter, setHistoryBankFilter] = useState('all');
+  const [historyFileTypeFilter, setHistoryFileTypeFilter] = useState('all');
 
   // Fetch project bank statements when project is selected and verified
   useEffect(() => {
     const fetchProjectBankStatements = async () => {
-      // Only fetch if project is set (meaning password was verified for protected projects)
       if (!project || !projectUuid) {
         setProjectBankStatements([]);
         return;
@@ -185,7 +144,6 @@ const BankStatementParser = () => {
       setLoadingProjectHistory(true);
       try {
         const data = await getProjectBankStatements(projectUuid);
-        // Handle different response structures - ensure always an array
         const statements = data?.sessions || data?.bank_statements || data?.cases || data;
         setProjectBankStatements(Array.isArray(statements) ? statements : []);
       } catch (err) {
@@ -197,154 +155,7 @@ const BankStatementParser = () => {
     };
 
     fetchProjectBankStatements();
-  }, [project, projectUuid, results?.session_id]); // Refetch when project verified or new parse completes
-
-  // Fetch all projects for dropdown
-  useEffect(() => {
-    const fetchProjectsList = async () => {
-      setLoadingProjects(true);
-      try {
-        const data = await getProjects();
-        setProjectsList(data.projects || []);
-      } catch (err) {
-        console.error('Error fetching projects list:', err);
-        setProjectsList([]);
-      } finally {
-        setLoadingProjects(false);
-      }
-    };
-    fetchProjectsList();
-  }, []);
-
-  // Handle project selection
-  const handleSelectProject = (selectedProject) => {
-    // Clear results when switching projects or going to standalone
-    setResults(null);
-    setFiles([]);
-    setError(null);
-    setExpandedHistorySessions({}); // Reset expanded state for new project
-
-    if (selectedProject) {
-      // Check if project is protected
-      if (selectedProject.is_protected) {
-        // Check if already verified in sessionStorage
-        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
-        if (verifiedProjects[selectedProject.uuid]) {
-          // Already verified, navigate directly
-          navigate(`/bank-statement-parser?project=${selectedProject.uuid}`);
-          setShowProjectDropdown(false);
-        } else {
-          // Show password dialog
-          setProjectPasswordDialog({
-            open: true,
-            project: selectedProject,
-            password: '',
-          });
-          setProjectPasswordError('');
-          setShowProjectPassword(false);
-          setShowProjectDropdown(false);
-        }
-      } else {
-        // No password, select directly
-        navigate(`/bank-statement-parser?project=${selectedProject.uuid}`);
-        setShowProjectDropdown(false);
-      }
-    } else {
-      navigate('/bank-statement-parser');
-      setShowProjectDropdown(false);
-    }
-  };
-
-  // Handle project password verification
-  const handleProjectPasswordSubmit = async () => {
-    if (!projectPasswordDialog.password || !projectPasswordDialog.project) return;
-
-    setVerifyingProjectPassword(true);
-    setProjectPasswordError('');
-
-    try {
-      const result = await verifyProjectPassword(
-        projectPasswordDialog.project.uuid,
-        projectPasswordDialog.password
-      );
-
-      if (result.verified) {
-        // Password correct, save to sessionStorage
-        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
-        verifiedProjects[projectPasswordDialog.project.uuid] = true;
-        sessionStorage.setItem('verifiedProjects', JSON.stringify(verifiedProjects));
-
-        // Set the project and close dialog
-        setProject(projectPasswordDialog.project);
-        // Navigate if not already on this project URL
-        if (projectUuid !== projectPasswordDialog.project.uuid) {
-          navigate(`/bank-statement-parser?project=${projectPasswordDialog.project.uuid}`);
-        }
-        setProjectPasswordDialog({ open: false, project: null, password: '' });
-      } else {
-        setProjectPasswordError(t('Incorrect password'));
-      }
-    } catch (err) {
-      console.error('Error verifying project password:', err);
-      setProjectPasswordError(t('Failed to verify password'));
-    } finally {
-      setVerifyingProjectPassword(false);
-    }
-  };
-
-  // Handle project password cancel
-  const handleProjectPasswordCancel = () => {
-    setProjectPasswordDialog({ open: false, project: null, password: '' });
-    setProjectPasswordError('');
-    // If user cancels password on a protected project, redirect to standalone
-    if (projectUuid) {
-      navigate('/bank-statement-parser');
-    }
-  };
-
-  // Handle create new project
-  const handleCreateProject = async () => {
-    if (!newProjectName.trim()) return;
-
-    setCreatingProject(true);
-    try {
-      const newProject = await createProject({
-        name: newProjectName.trim(),
-        description: newProjectDescription.trim() || null,
-        password: newProjectPassword.trim() || null
-      });
-
-      // Add to projects list
-      setProjectsList(prev => [newProject, ...prev]);
-
-      // Select the new project
-      navigate(`/bank-statement-parser?project=${newProject.uuid}`);
-
-      // Reset and close dialog
-      setNewProjectName('');
-      setNewProjectDescription('');
-      setNewProjectPassword('');
-      setShowNewProjectPassword(false);
-      setShowCreateProject(false);
-      setShowProjectDropdown(false);
-    } catch (err) {
-      console.error('Error creating project:', err);
-      setError(t('Failed to create project. Please try again.'));
-    } finally {
-      setCreatingProject(false);
-    }
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target)) {
-        setShowProjectDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [project, projectUuid, results?.session_id]);
 
   // Handle download from history
   const handleDownloadFromHistory = async (sessionId) => {
@@ -612,7 +423,7 @@ const BankStatementParser = () => {
       if (firstEncryptedZip) {
         // Store unencrypted zips for later analysis
         setPendingZipFiles(unencryptedZips);
-        setPasswordDialog({ open: true, fileName: firstEncryptedZip, password: '', fileType: 'zip' });
+        setFilePasswordDialog({ open: true, fileName: firstEncryptedZip, password: '', fileType: 'zip' });
       } else if (unencryptedZips.length > 0) {
         // No encrypted ZIPs, analyze the first unencrypted ZIP for PDF contents
         analyzeZipFile(unencryptedZips[0], null, unencryptedZips.slice(1));
@@ -640,8 +451,8 @@ const BankStatementParser = () => {
         setCheckingPdf(false);
 
         // Show password dialog for first encrypted PDF (only if no ZIP dialog was shown)
-        if (firstEncryptedFile && !passwordDialog.open) {
-          setPasswordDialog({ open: true, fileName: firstEncryptedFile, password: '', fileType: 'pdf' });
+        if (firstEncryptedFile && !filePasswordDialog.open) {
+          setFilePasswordDialog({ open: true, fileName: firstEncryptedFile, password: '', fileType: 'pdf' });
         }
       }
     }
@@ -686,10 +497,10 @@ const BankStatementParser = () => {
       setPendingZipFiles(prev => prev.filter(f => f.name !== fileName));
 
       // Close dialogs if the removed file is currently being processed
-      if (passwordDialog.open && passwordDialog.fileName === fileName) {
-        setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
-        setPasswordError('');
-        setShowPassword(false);
+      if (filePasswordDialog.open && filePasswordDialog.fileName === fileName) {
+        setFilePasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+        setFilePasswordError('');
+        setShowFilePassword(false);
       }
       if (zipContentsDialog.open && zipContentsDialog.zipFileName === fileName) {
         setZipContentsDialog({ open: false, zipFile: null, zipFileName: '', analysis: null, isLoading: false });
@@ -697,46 +508,46 @@ const BankStatementParser = () => {
     }
   };
 
-  // Password dialog handlers
-  const handlePasswordSubmit = async () => {
-    if (!passwordDialog.password) return;
+  // File password dialog handlers (PDF/ZIP)
+  const handleFilePasswordSubmit = async () => {
+    if (!filePasswordDialog.password) return;
 
-    const isZipFile = passwordDialog.fileType === 'zip';
+    const isZipFile = filePasswordDialog.fileType === 'zip';
 
     if (isZipFile) {
       // Verify ZIP password using backend API
-      setVerifyingPassword(true);
-      setPasswordError('');
+      setVerifyingFilePassword(true);
+      setFilePasswordError('');
 
       try {
-        const file = files.find(f => f.name === passwordDialog.fileName);
+        const file = files.find(f => f.name === filePasswordDialog.fileName);
         if (!file) {
-          setPasswordError(t('File not found'));
-          setVerifyingPassword(false);
+          setFilePasswordError(t('File not found'));
+          setVerifyingFilePassword(false);
           return;
         }
 
-        const result = await verifyZipPassword(file, passwordDialog.password);
+        const result = await verifyZipPassword(file, filePasswordDialog.password);
 
         if (!result.valid) {
-          setPasswordError(t('Incorrect password. Please try again.'));
-          setVerifyingPassword(false);
+          setFilePasswordError(t('Incorrect password. Please try again.'));
+          setVerifyingFilePassword(false);
           return;
         }
 
         // Password is correct, save it
-        const confirmedZipPassword = passwordDialog.password;
-        const confirmedZipFileName = passwordDialog.fileName;
+        const confirmedZipPassword = filePasswordDialog.password;
+        const confirmedZipFileName = filePasswordDialog.fileName;
 
         setZipPasswords(prev => ({
           ...prev,
           [confirmedZipFileName]: confirmedZipPassword
         }));
 
-        setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
-        setPasswordError('');
-        setVerifyingPassword(false);
-        setShowPassword(false);
+        setFilePasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+        setFilePasswordError('');
+        setVerifyingFilePassword(false);
+        setShowFilePassword(false);
 
         // After ZIP password is confirmed, analyze the ZIP contents for encrypted PDFs
         const zipFile = files.find(f => f.name === confirmedZipFileName);
@@ -757,59 +568,59 @@ const BankStatementParser = () => {
             encryptedZipFiles[f.name] && !zipPasswords[f.name] && f.name !== confirmedZipFileName
           );
           if (nextEncryptedZip) {
-            setPasswordDialog({ open: true, fileName: nextEncryptedZip.name, password: '', fileType: 'zip' });
+            setFilePasswordDialog({ open: true, fileName: nextEncryptedZip.name, password: '', fileType: 'zip' });
           }
         }
       } catch (err) {
         console.error('Error verifying ZIP password:', err);
-        setPasswordError(t('Failed to verify password. Please try again.'));
-        setVerifyingPassword(false);
+        setFilePasswordError(t('Failed to verify password. Please try again.'));
+        setVerifyingFilePassword(false);
       }
     } else {
       // PDF file - verify password
-      setVerifyingPassword(true);
-      setPasswordError('');
+      setVerifyingFilePassword(true);
+      setFilePasswordError('');
 
       // Verify the password is correct
-      const isValid = await verifyPdfPassword(passwordDialog.fileName, passwordDialog.password);
+      const isValid = await verifyPdfPassword(filePasswordDialog.fileName, filePasswordDialog.password);
 
       if (!isValid) {
-        setPasswordError(t('Incorrect password. Please try again.'));
-        setVerifyingPassword(false);
+        setFilePasswordError(t('Incorrect password. Please try again.'));
+        setVerifyingFilePassword(false);
         return;
       }
 
       // Password is correct, save it
       setFilePasswords(prev => ({
         ...prev,
-        [passwordDialog.fileName]: passwordDialog.password
+        [filePasswordDialog.fileName]: filePasswordDialog.password
       }));
 
-      setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
-      setPasswordError('');
-      setVerifyingPassword(false);
-      setShowPassword(false);
+      setFilePasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+      setFilePasswordError('');
+      setVerifyingFilePassword(false);
+      setShowFilePassword(false);
 
       // Check for next encrypted file without password
       const nextEncryptedFile = files.find(f =>
-        encryptedFiles[f.name] && !filePasswords[f.name] && f.name !== passwordDialog.fileName
+        encryptedFiles[f.name] && !filePasswords[f.name] && f.name !== filePasswordDialog.fileName
       );
       if (nextEncryptedFile) {
-        setPasswordDialog({ open: true, fileName: nextEncryptedFile.name, password: '', fileType: 'pdf' });
+        setFilePasswordDialog({ open: true, fileName: nextEncryptedFile.name, password: '', fileType: 'pdf' });
       }
     }
   };
 
-  const handlePasswordCancel = () => {
-    setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
-    setPasswordError('');
-    setShowPassword(false);
-    setVerifyingPassword(false);
+  const handleFilePasswordCancel = () => {
+    setFilePasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+    setFilePasswordError('');
+    setShowFilePassword(false);
+    setVerifyingFilePassword(false);
   };
 
-  const openPasswordDialog = (fileName, fileType = 'pdf') => {
+  const openFilePasswordDialog = (fileName, fileType = 'pdf') => {
     const existingPassword = fileType === 'zip' ? zipPasswords[fileName] : filePasswords[fileName];
-    setPasswordDialog({
+    setFilePasswordDialog({
       open: true,
       fileName,
       password: existingPassword || '',
@@ -870,7 +681,7 @@ const BankStatementParser = () => {
       // Check if this ZIP needs a password
       if (encryptedZipFiles[nextZip.name]) {
         // Show password dialog for this ZIP
-        setPasswordDialog({ open: true, fileName: nextZip.name, password: '', fileType: 'zip' });
+        setFilePasswordDialog({ open: true, fileName: nextZip.name, password: '', fileType: 'zip' });
       } else {
         // Analyze the ZIP
         analyzeZipFile(nextZip, null, remainingZips);
@@ -913,10 +724,10 @@ const BankStatementParser = () => {
       setZipPasswords({});
       setZipPdfPasswords({});
       setPendingZipFiles([]);
-      setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
-      setPasswordError('');
-      setShowPassword(false);
-      setVerifyingPassword(false);
+      setFilePasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+      setFilePasswordError('');
+      setShowFilePassword(false);
+      setVerifyingFilePassword(false);
       setZipContentsDialog({ open: false, zipFile: null, zipFileName: '', analysis: null, isLoading: false });
     }
   };
@@ -931,7 +742,7 @@ const BankStatementParser = () => {
     const missingZipPassword = files.find(f => encryptedZipFiles[f.name] && !zipPasswords[f.name]);
     if (missingZipPassword) {
       setError(`${t('Please enter password for encrypted file')}: ${missingZipPassword.name}`);
-      setPasswordDialog({ open: true, fileName: missingZipPassword.name, password: '', fileType: 'zip' });
+      setFilePasswordDialog({ open: true, fileName: missingZipPassword.name, password: '', fileType: 'zip' });
       return;
     }
 
@@ -940,7 +751,7 @@ const BankStatementParser = () => {
       const missingPassword = files.find(f => encryptedFiles[f.name] && !filePasswords[f.name]);
       if (missingPassword) {
         setError(`${t('Please enter password for encrypted file')}: ${missingPassword.name}`);
-        setPasswordDialog({ open: true, fileName: missingPassword.name, password: '', fileType: 'pdf' });
+        setFilePasswordDialog({ open: true, fileName: missingPassword.name, password: '', fileType: 'pdf' });
         return;
       }
     }
@@ -1029,10 +840,10 @@ const BankStatementParser = () => {
     setZipPasswords({});
     setZipPdfPasswords({});
     setPendingZipFiles([]);
-    setPasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
-    setPasswordError('');
-    setShowPassword(false);
-    setVerifyingPassword(false);
+    setFilePasswordDialog({ open: false, fileName: '', password: '', fileType: 'pdf' });
+    setFilePasswordError('');
+    setShowFilePassword(false);
+    setVerifyingFilePassword(false);
     setZipContentsDialog({ open: false, zipFile: null, zipFileName: '', analysis: null, isLoading: false });
   };
 
@@ -1255,116 +1066,22 @@ const BankStatementParser = () => {
           </p>
 
           {/* Project Selector */}
-          <div className="mt-4">
-            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center gap-3">
-                <FolderIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {t('Project')}:
-                </span>
-                <div className="relative" ref={projectDropdownRef}>
-                  <button
-                    onClick={() => setShowProjectDropdown(!showProjectDropdown)}
-                    disabled={loadingProject}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#222] border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 transition-colors min-w-[200px]"
-                  >
-                    {loadingProject ? (
-                      <span className="text-gray-400">{t('Loading...')}</span>
-                    ) : project ? (
-                      <>
-                        <span className="text-gray-900 dark:text-gray-100 truncate max-w-[150px]">
-                          {project.project_name}
-                        </span>
-                        {project.is_protected && (
-                          <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-gray-500">{t('Standalone Mode')}</span>
-                    )}
-                    <ChevronDownIcon className="h-4 w-4 text-gray-400 ml-auto" />
-                  </button>
-
-                  {/* Dropdown */}
-                  <AnimatePresence>
-                    {showProjectDropdown && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute top-full left-0 mt-1 w-72 bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-80 overflow-auto"
-                      >
-                        {/* Create New Project Option */}
-                        <button
-                          onClick={() => {
-                            setShowCreateProject(true);
-                            setShowProjectDropdown(false);
-                          }}
-                          className="w-full px-4 py-2 text-left text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors border-b border-gray-200 dark:border-gray-700 flex items-center gap-2"
-                        >
-                          <PlusIcon className="h-4 w-4" />
-                          <span className="font-medium">{t('Create New Project')}</span>
-                        </button>
-
-                        {/* Standalone option */}
-                        <button
-                          onClick={() => handleSelectProject(null)}
-                          className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                            !project ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                          }`}
-                        >
-                          <span className="text-gray-600 dark:text-gray-400">{t('Standalone Mode')}</span>
-                          <p className="text-xs text-gray-400 dark:text-gray-500">{t('Process without saving to project')}</p>
-                        </button>
-                        <div className="border-t border-gray-200 dark:border-gray-700" />
-
-                        {loadingProjects ? (
-                          <div className="px-4 py-3 text-center text-gray-500">
-                            <div className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2" />
-                            {t('Loading...')}
-                          </div>
-                        ) : projectsList.length === 0 ? (
-                          <div className="px-4 py-3 text-center text-gray-500">
-                            {t('No projects found')}
-                          </div>
-                        ) : (
-                          projectsList.map((p) => (
-                            <button
-                              key={p.uuid}
-                              onClick={() => handleSelectProject(p)}
-                              className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                                project?.uuid === p.uuid ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-900 dark:text-gray-100 truncate">
-                                  {p.project_name}
-                                </span>
-                                {p.is_protected && (
-                                  <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                                )}
-                              </div>
-                              {p.description && (
-                                <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
-                                  {p.description}
-                                </p>
-                              )}
-                            </button>
-                          ))
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              {project && (
-                <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                  {t('Results will be saved to project')}
-                </span>
-              )}
-            </div>
-          </div>
+          <ProjectSelector
+            project={project}
+            loadingProject={loadingProject}
+            projectsList={projectsList}
+            loadingProjects={loadingProjects}
+            showDropdown={showProjectDropdown}
+            onToggleDropdown={() => setShowProjectDropdown(!showProjectDropdown)}
+            dropdownRef={projectDropdownRef}
+            onSelectProject={baseHandleSelectProject}
+            onCreateNew={() => {
+              setShowCreateProject(true);
+              setShowProjectDropdown(false);
+            }}
+            colorTheme="blue"
+            className="mt-4"
+          />
         </div>
       </div>
 
@@ -1650,7 +1367,7 @@ const BankStatementParser = () => {
                           <div className="flex items-center gap-1">
                             {isZipFile && isZipEncrypted && (
                               <button
-                                onClick={() => openPasswordDialog(file.name, 'zip')}
+                                onClick={() => openFilePasswordDialog(file.name, 'zip')}
                                 disabled={processing}
                                 className={`p-1 transition-colors disabled:opacity-50 ${
                                   hasPassword
@@ -1674,7 +1391,7 @@ const BankStatementParser = () => {
                             )}
                             {!isZipFile && isPdfEncrypted && (
                               <button
-                                onClick={() => openPasswordDialog(file.name, 'pdf')}
+                                onClick={() => openFilePasswordDialog(file.name, 'pdf')}
                                 disabled={processing}
                                 className="p-1 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 transition-colors disabled:opacity-50"
                                 title={hasPassword ? t('Change password') : t('Enter password')}
@@ -2321,8 +2038,8 @@ const BankStatementParser = () => {
         )}
       </div>
 
-      {/* Password Dialog Modal */}
-      {passwordDialog.open && (
+      {/* File Password Dialog Modal (PDF/ZIP) */}
+      {filePasswordDialog.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -2331,11 +2048,11 @@ const BankStatementParser = () => {
           >
             <div className="flex items-center gap-3 mb-4">
               <div className={`p-2 rounded-full ${
-                passwordDialog.fileType === 'zip'
+                filePasswordDialog.fileType === 'zip'
                   ? 'bg-purple-100 dark:bg-purple-900/30'
                   : 'bg-amber-100 dark:bg-amber-900/30'
               }`}>
-                {passwordDialog.fileType === 'zip' ? (
+                {filePasswordDialog.fileType === 'zip' ? (
                   <ArchiveBoxIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                 ) : (
                   <LockClosedIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
@@ -2343,10 +2060,10 @@ const BankStatementParser = () => {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {passwordDialog.fileType === 'zip' ? t('ZIP Password') : t('Password Required')}
+                  {filePasswordDialog.fileType === 'zip' ? t('ZIP Password') : t('Password Required')}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {passwordDialog.fileType === 'zip'
+                  {filePasswordDialog.fileType === 'zip'
                     ? t('Enter password if this ZIP file is encrypted')
                     : t('This PDF file is password-protected')}
                 </p>
@@ -2355,63 +2072,63 @@ const BankStatementParser = () => {
 
             <div className="mb-4">
               <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 truncate">
-                {t('File')}: <span className="font-medium">{passwordDialog.fileName}</span>
+                {t('File')}: <span className="font-medium">{filePasswordDialog.fileName}</span>
               </p>
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={passwordDialog.password}
+                  type={showFilePassword ? 'text' : 'password'}
+                  value={filePasswordDialog.password}
                   onChange={(e) => {
-                    setPasswordDialog(prev => ({ ...prev, password: e.target.value }));
-                    setPasswordError(''); // Clear error when typing
+                    setFilePasswordDialog(prev => ({ ...prev, password: e.target.value }));
+                    setFilePasswordError('');
                   }}
-                  onKeyDown={(e) => e.key === 'Enter' && !verifyingPassword && handlePasswordSubmit()}
-                  placeholder={passwordDialog.fileType === 'zip' ? t('Enter ZIP password') : t('Enter PDF password')}
+                  onKeyDown={(e) => e.key === 'Enter' && !verifyingFilePassword && handleFilePasswordSubmit()}
+                  placeholder={filePasswordDialog.fileType === 'zip' ? t('Enter ZIP password') : t('Enter PDF password')}
                   className={`w-full px-4 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    passwordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    filePasswordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   autoFocus
-                  disabled={verifyingPassword}
+                  disabled={verifyingFilePassword}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowFilePassword(!showFilePassword)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                  disabled={verifyingPassword}
+                  disabled={verifyingFilePassword}
                 >
-                  {showPassword ? (
+                  {showFilePassword ? (
                     <EyeSlashIcon className="h-5 w-5" />
                   ) : (
                     <EyeIcon className="h-5 w-5" />
                   )}
                 </button>
               </div>
-              {passwordError && (
+              {filePasswordError && (
                 <p className="mt-2 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
                   <ExclamationCircleIcon className="h-4 w-4" />
-                  {passwordError}
+                  {filePasswordError}
                 </p>
               )}
             </div>
 
             <div className="flex gap-3">
               <button
-                onClick={handlePasswordCancel}
-                disabled={verifyingPassword}
+                onClick={handleFilePasswordCancel}
+                disabled={verifyingFilePassword}
                 className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
               >
                 {t('Cancel')}
               </button>
               <button
-                onClick={handlePasswordSubmit}
-                disabled={!passwordDialog.password || verifyingPassword}
+                onClick={handleFilePasswordSubmit}
+                disabled={!filePasswordDialog.password || verifyingFilePassword}
                 className={`flex-1 px-4 py-2 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                  passwordDialog.fileType === 'zip'
+                  filePasswordDialog.fileType === 'zip'
                     ? 'bg-purple-600 hover:bg-purple-700'
                     : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                {verifyingPassword ? (
+                {verifyingFilePassword ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     {t('Verifying...')}
@@ -2435,204 +2152,36 @@ const BankStatementParser = () => {
         zipFileName={zipContentsDialog.zipFileName}
       />
 
-      {/* Create Project Dialog Modal */}
-      {showCreateProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-[#222] rounded-lg shadow-xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                <FolderIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {t('Create New Project')}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {t('Create a project to organize your parsed files')}
-                </p>
-              </div>
-            </div>
+      {/* Create Project Dialog */}
+      <CreateProjectDialog
+        open={showCreateProject}
+        onClose={handleCloseCreateDialog}
+        onSubmit={handleCreateProject}
+        form={createProjectForm}
+        onFormChange={setCreateProjectForm}
+        showPassword={showCreatePassword}
+        onToggleShowPassword={() => setShowCreatePassword(!showCreatePassword)}
+        creating={creatingProject}
+        error={projectError}
+        colorTheme="blue"
+      />
 
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('Project Name')} <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !creatingProject && handleCreateProject()}
-                  placeholder={t('Enter project name')}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  autoFocus
-                  disabled={creatingProject}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('Description')} ({t('optional')})
-                </label>
-                <textarea
-                  value={newProjectDescription}
-                  onChange={(e) => setNewProjectDescription(e.target.value)}
-                  placeholder={t('Enter project description')}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  disabled={creatingProject}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('Password')} ({t('optional')})
-                </label>
-                <div className="relative">
-                  <input
-                    type={showNewProjectPassword ? 'text' : 'password'}
-                    value={newProjectPassword}
-                    onChange={(e) => setNewProjectPassword(e.target.value)}
-                    placeholder={t('Set password to protect project')}
-                    className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={creatingProject}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewProjectPassword(!showNewProjectPassword)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    {showNewProjectPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('Leave empty for no password protection')}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowCreateProject(false);
-                  setNewProjectName('');
-                  setNewProjectDescription('');
-                  setNewProjectPassword('');
-                  setShowNewProjectPassword(false);
-                }}
-                disabled={creatingProject}
-                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
-              >
-                {t('Cancel')}
-              </button>
-              <button
-                onClick={handleCreateProject}
-                disabled={!newProjectName.trim() || creatingProject}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {creatingProject ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    {t('Creating...')}
-                  </>
-                ) : (
-                  t('Create Project')
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Project Password Dialog Modal */}
-      {projectPasswordDialog.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-[#222] rounded-lg shadow-xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-full">
-                <LockClosedIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {t('Project Password Required')}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {t('This project is password protected')}
-                </p>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 truncate">
-                {t('Project')}: <span className="font-medium">{projectPasswordDialog.project?.project_name}</span>
-              </p>
-              <div className="relative">
-                <input
-                  type={showProjectPassword ? 'text' : 'password'}
-                  value={projectPasswordDialog.password}
-                  onChange={(e) => {
-                    setProjectPasswordDialog(prev => ({ ...prev, password: e.target.value }));
-                    setProjectPasswordError('');
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && !verifyingProjectPassword && handleProjectPasswordSubmit()}
-                  placeholder={t('Enter project password')}
-                  className={`w-full px-4 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    projectPasswordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                  }`}
-                  autoFocus
-                  disabled={verifyingProjectPassword}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowProjectPassword(!showProjectPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  {showProjectPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-              {projectPasswordError && (
-                <p className="mt-1 text-sm text-red-500">{projectPasswordError}</p>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleProjectPasswordCancel}
-                disabled={verifyingProjectPassword}
-                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
-              >
-                {t('Cancel')}
-              </button>
-              <button
-                onClick={handleProjectPasswordSubmit}
-                disabled={!projectPasswordDialog.password || verifyingProjectPassword}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {verifyingProjectPassword ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    {t('Verifying...')}
-                  </>
-                ) : (
-                  t('Unlock')
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      {/* Project Password Dialog */}
+      <PasswordDialog
+        open={projectPasswordDialog.open}
+        onClose={handleProjectPasswordCancel}
+        onSubmit={handleProjectPasswordSubmit}
+        title={t('Protected Project')}
+        subtitle={projectPasswordDialog.project?.project_name}
+        description={t('This project is password protected. Please enter the password to continue.')}
+        password={projectPasswordDialog.password}
+        onPasswordChange={(value) => setProjectPasswordDialog(prev => ({ ...prev, password: value }))}
+        showPassword={showProjectPassword}
+        onToggleShowPassword={() => setShowProjectPassword(!showProjectPassword)}
+        loading={verifyingProjectPassword}
+        error={projectPasswordError}
+        colorTheme="blue"
+      />
     </div>
   );
 };

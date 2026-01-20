@@ -1,25 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
 import FileUpload from '@components/contract-ocr/FileUpload';
 import ProcessingStatus from '@components/contract-ocr/ProcessingStatus';
 import ResultsTable from '@components/contract-ocr/ResultsTable';
+import { ProjectSelector, PasswordDialog } from '@components/common';
+import { useProjectManagement } from '@hooks';
 import { processContracts, processContractWithUnits, exportContractWithUnitsToExcel } from '@services/contract-ocr/contract-ocr-apis';
 import { exportToExcel, exportToJSON } from '@utils/contract-ocr/exportUtils';
+import { getProjectContracts } from '@services/project/project-apis';
 import {
-  getProject,
-  getProjects,
-  verifyProjectPassword,
-  getProjectContracts
-} from '@services/project/project-apis';
-import {
-  FolderIcon,
-  ChevronDownIcon,
-  LockClosedIcon,
-  EyeIcon,
-  EyeSlashIcon,
   ClockIcon,
   DocumentTextIcon,
   ChevronRightIcon
@@ -28,10 +19,7 @@ import {
 export default function ContractOCR() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
-  const projectUuid = searchParams.get('project');
   const excelFileRef = useRef(null);
-  const projectDropdownRef = useRef(null);
 
   const [files, setFiles] = useState([]);
   const [unitBreakdownFile, setUnitBreakdownFile] = useState(null);
@@ -39,78 +27,45 @@ export default function ContractOCR() {
   const [results, setResults] = useState(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
-  // Project states
-  const [project, setProject] = useState(null);
-  const [loadingProject, setLoadingProject] = useState(false);
-  const [projectsList, setProjectsList] = useState([]);
-  const [loadingProjects, setLoadingProjects] = useState(false);
-  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
-
-  // Project password dialog
-  const [projectPasswordDialog, setProjectPasswordDialog] = useState({
-    open: false,
-    project: null,
-    password: '',
-  });
-  const [projectPasswordError, setProjectPasswordError] = useState('');
-  const [showProjectPassword, setShowProjectPassword] = useState(false);
-  const [verifyingProjectPassword, setVerifyingProjectPassword] = useState(false);
-
   // Project history
   const [projectContractHistory, setProjectContractHistory] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [expandedHistorySessions, setExpandedHistorySessions] = useState({});
 
   // History filter states
-  const [historyTimeFilter, setHistoryTimeFilter] = useState('all'); // 'all', '24h', 'week'
-  const [historyTenantFilter, setHistoryTenantFilter] = useState('all'); // 'all' or tenant name
+  const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
+  const [historyTenantFilter, setHistoryTenantFilter] = useState('all');
+
+  // Use the custom hook for project management
+  const {
+    project,
+    loadingProject,
+    projectsList,
+    loadingProjects,
+    showProjectDropdown,
+    setShowProjectDropdown,
+    projectDropdownRef,
+    passwordDialog,
+    setPasswordDialog,
+    passwordError,
+    verifyingPassword,
+    showPassword,
+    setShowPassword,
+    handleSelectProject,
+    handleVerifyPassword,
+    handleClosePasswordDialog,
+  } = useProjectManagement({
+    basePath: '/contract-ocr',
+    onProjectChange: useCallback(() => {
+      setResults(null);
+      setFiles([]);
+      setProjectContractHistory(null);
+    }, []),
+  });
 
   useEffect(() => {
     document.title = `${t('contractOCRProject')} - BW Industrial`;
   }, [t]);
-
-  // Fetch project info if projectUuid is provided
-  useEffect(() => {
-    const fetchProject = async () => {
-      if (!projectUuid) {
-        setProject(null);
-        setProjectContractHistory(null);
-        return;
-      }
-
-      setLoadingProject(true);
-      try {
-        const projectData = await getProject(projectUuid);
-
-        // Check if project is protected
-        if (projectData.is_protected && !projectPasswordDialog.open) {
-          // Check if already verified in sessionStorage
-          const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
-          if (verifiedProjects[projectUuid]) {
-            setProject(projectData);
-          } else {
-            setProjectPasswordDialog({
-              open: true,
-              project: projectData,
-              password: '',
-            });
-            setProjectPasswordError('');
-            setShowProjectPassword(false);
-            setProject(null);
-          }
-        } else if (!projectData.is_protected) {
-          setProject(projectData);
-        }
-      } catch (err) {
-        console.error('Error fetching project:', err);
-        setProject(null);
-      } finally {
-        setLoadingProject(false);
-      }
-    };
-
-    fetchProject();
-  }, [projectUuid]);
 
   // Fetch contract history when project changes
   useEffect(() => {
@@ -125,7 +80,6 @@ export default function ContractOCR() {
         const history = await getProjectContracts(project.uuid);
         setProjectContractHistory(history);
       } catch (err) {
-        // 404 means no contract case yet - that's fine
         if (err.response?.status !== 404) {
           console.error('Error fetching contract history:', err);
         }
@@ -137,102 +91,6 @@ export default function ContractOCR() {
 
     fetchHistory();
   }, [project]);
-
-  // Fetch projects list when dropdown opens
-  useEffect(() => {
-    const fetchProjectsList = async () => {
-      if (showProjectDropdown && projectsList.length === 0) {
-        setLoadingProjects(true);
-        try {
-          const response = await getProjects(0, 100);
-          setProjectsList(response.projects || []);
-        } catch (err) {
-          console.error('Error fetching projects:', err);
-        } finally {
-          setLoadingProjects(false);
-        }
-      }
-    };
-
-    fetchProjectsList();
-  }, [showProjectDropdown, projectsList.length]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target)) {
-        setShowProjectDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Handle project selection
-  const handleSelectProject = (selectedProject) => {
-    setResults(null);
-    setFiles([]);
-
-    if (selectedProject) {
-      if (selectedProject.is_protected) {
-        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
-        if (verifiedProjects[selectedProject.uuid]) {
-          navigate(`/contract-ocr?project=${selectedProject.uuid}`);
-          setShowProjectDropdown(false);
-        } else {
-          setProjectPasswordDialog({
-            open: true,
-            project: selectedProject,
-            password: '',
-          });
-          setProjectPasswordError('');
-          setShowProjectPassword(false);
-          setShowProjectDropdown(false);
-        }
-      } else {
-        navigate(`/contract-ocr?project=${selectedProject.uuid}`);
-        setShowProjectDropdown(false);
-      }
-    } else {
-      navigate('/contract-ocr');
-      setShowProjectDropdown(false);
-    }
-  };
-
-  // Handle project password verification
-  const handleProjectPasswordSubmit = async () => {
-    if (!projectPasswordDialog.password || !projectPasswordDialog.project) return;
-
-    setVerifyingProjectPassword(true);
-    setProjectPasswordError('');
-
-    try {
-      const result = await verifyProjectPassword(
-        projectPasswordDialog.project.uuid,
-        projectPasswordDialog.password
-      );
-
-      if (result.verified) {
-        const verifiedProjects = JSON.parse(sessionStorage.getItem('verifiedProjects') || '{}');
-        verifiedProjects[projectPasswordDialog.project.uuid] = true;
-        sessionStorage.setItem('verifiedProjects', JSON.stringify(verifiedProjects));
-
-        setProject(projectPasswordDialog.project);
-        if (projectUuid !== projectPasswordDialog.project.uuid) {
-          navigate(`/contract-ocr?project=${projectPasswordDialog.project.uuid}`);
-        }
-        setProjectPasswordDialog({ open: false, project: null, password: '' });
-      } else {
-        setProjectPasswordError(t('Incorrect password'));
-      }
-    } catch (err) {
-      console.error('Error verifying project password:', err);
-      setProjectPasswordError(t('Failed to verify password'));
-    } finally {
-      setVerifyingProjectPassword(false);
-    }
-  };
 
   // Toggle history session expansion
   const toggleHistorySession = (sessionId) => {
@@ -273,7 +131,6 @@ export default function ContractOCR() {
     setProcessing(true);
 
     try {
-      // If unit breakdown Excel is provided AND only 1 contract file, use unit processing
       if (unitBreakdownFile && files.length === 1) {
         console.log('Processing with unit breakdown...');
         setProgress({ current: 0, total: 1 });
@@ -287,7 +144,6 @@ export default function ContractOCR() {
           }
         );
 
-        // Transform unit breakdown results to match batch results format
         setResults({
           success: data.success,
           total_files: data.total_units,
@@ -303,7 +159,6 @@ export default function ContractOCR() {
           base_contract: data.base_contract
         });
       } else {
-        // Normal batch processing
         console.log('Processing batch contracts...');
         setProgress({ current: 0, total: files.length });
 
@@ -338,13 +193,11 @@ export default function ContractOCR() {
     }
 
     try {
-      // If unit breakdown mode, use backend endpoint for proper unit column filling
       if (results.unit_breakdown_mode && unitBreakdownFile && files.length === 1) {
         console.log('Exporting with unit breakdown using backend...');
         await exportContractWithUnitsToExcel(files[0], unitBreakdownFile);
         alert('Excel file downloaded successfully with unit information!');
       } else {
-        // Normal client-side export
         exportToExcel(results.results);
       }
     } catch (error) {
@@ -388,7 +241,6 @@ export default function ContractOCR() {
 
   // Filter history based on selected filters
   const filteredContractSessions = (projectContractHistory?.sessions || []).filter(session => {
-    // Time filter
     if (historyTimeFilter !== 'all') {
       const sessionDate = new Date(session.processed_at);
       const now = new Date();
@@ -401,7 +253,6 @@ export default function ContractOCR() {
       }
     }
 
-    // Tenant filter
     if (historyTenantFilter !== 'all') {
       if (!session.tenants || !session.tenants.includes(historyTenantFilter)) return false;
     }
@@ -434,104 +285,18 @@ export default function ContractOCR() {
         </div>
 
         {/* Project Selector */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <div className="flex items-center gap-3">
-              <FolderIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {t('Project')}:
-              </span>
-              <div className="relative" ref={projectDropdownRef}>
-                <button
-                  onClick={() => setShowProjectDropdown(!showProjectDropdown)}
-                  disabled={loadingProject}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#222] border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 transition-colors min-w-[200px]"
-                >
-                  {loadingProject ? (
-                    <span className="text-gray-400">{t('Loading...')}</span>
-                  ) : project ? (
-                    <>
-                      <span className="text-gray-900 dark:text-gray-100 truncate max-w-[150px]">
-                        {project.project_name}
-                      </span>
-                      {project.is_protected && (
-                        <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-gray-500">{t('Standalone Mode')}</span>
-                  )}
-                  <ChevronDownIcon className="h-4 w-4 text-gray-400 ml-auto" />
-                </button>
-
-                {/* Dropdown */}
-                <AnimatePresence>
-                  {showProjectDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute top-full left-0 mt-1 w-72 bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-80 overflow-auto"
-                    >
-                      {/* Standalone option */}
-                      <button
-                        onClick={() => handleSelectProject(null)}
-                        className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                          !project ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                        }`}
-                      >
-                        <span className="text-gray-600 dark:text-gray-400">{t('Standalone Mode')}</span>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">{t('Process without saving to project')}</p>
-                      </button>
-                      <div className="border-t border-gray-200 dark:border-gray-700" />
-
-                      {loadingProjects ? (
-                        <div className="px-4 py-3 text-center text-gray-500">
-                          <div className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2" />
-                          {t('Loading...')}
-                        </div>
-                      ) : projectsList.length === 0 ? (
-                        <div className="px-4 py-3 text-center text-gray-500">
-                          {t('No projects found')}
-                        </div>
-                      ) : (
-                        projectsList.map((p) => (
-                          <button
-                            key={p.uuid}
-                            onClick={() => handleSelectProject(p)}
-                            className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                              project?.uuid === p.uuid ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-900 dark:text-gray-100 truncate">
-                                {p.project_name}
-                              </span>
-                              {p.is_protected && (
-                                <LockClosedIcon className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                              )}
-                            </div>
-                            {p.description && (
-                              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
-                                {p.description}
-                              </p>
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            {project && (
-              <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                {t('Results will be saved to project')}
-              </span>
-            )}
-          </div>
-        </div>
+        <ProjectSelector
+          project={project}
+          loadingProject={loadingProject}
+          projectsList={projectsList}
+          loadingProjects={loadingProjects}
+          showDropdown={showProjectDropdown}
+          onToggleDropdown={() => setShowProjectDropdown(!showProjectDropdown)}
+          dropdownRef={projectDropdownRef}
+          onSelectProject={handleSelectProject}
+          colorTheme="blue"
+          className="mb-6"
+        />
 
         {/* File Upload Section */}
         <div className="mb-8">
@@ -901,107 +666,32 @@ export default function ContractOCR() {
         )}
       </div>
 
-      {/* Project Password Dialog */}
-      <AnimatePresence>
-        {projectPasswordDialog.open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-[#222] rounded-lg shadow-xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-full">
-                  <LockClosedIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    {t('Project Password Required')}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {t('This project is password protected')}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 truncate">
-                  {t('Project')}: <span className="font-medium">{projectPasswordDialog.project?.project_name}</span>
-                </p>
-                <div className="relative">
-                  <input
-                    type={showProjectPassword ? 'text' : 'password'}
-                    value={projectPasswordDialog.password}
-                    onChange={(e) => {
-                      setProjectPasswordDialog(prev => ({ ...prev, password: e.target.value }));
-                      setProjectPasswordError('');
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && !verifyingProjectPassword && handleProjectPasswordSubmit()}
-                    placeholder={t('Enter project password')}
-                    className={`w-full px-4 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      projectPasswordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                    autoFocus
-                    disabled={verifyingProjectPassword}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowProjectPassword(!showProjectPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    {showProjectPassword ? (
-                      <EyeSlashIcon className="h-5 w-5" />
-                    ) : (
-                      <EyeIcon className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-                {projectPasswordError && (
-                  <p className="mt-1 text-sm text-red-500">{projectPasswordError}</p>
-                )}
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setProjectPasswordDialog({ open: false, project: null, password: '' });
-                    setProjectPasswordError('');
-                  }}
-                  disabled={verifyingProjectPassword}
-                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
-                >
-                  {t('Cancel')}
-                </button>
-                <button
-                  onClick={handleProjectPasswordSubmit}
-                  disabled={!projectPasswordDialog.password || verifyingProjectPassword}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {verifyingProjectPassword ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      {t('Verifying...')}
-                    </>
-                  ) : (
-                    t('Unlock')
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Password Dialog */}
+      <PasswordDialog
+        open={passwordDialog.open}
+        onClose={handleClosePasswordDialog}
+        onSubmit={handleVerifyPassword}
+        title={t('Project Password Required')}
+        subtitle={passwordDialog.project?.project_name}
+        description={t('This project is password protected')}
+        password={passwordDialog.password}
+        onPasswordChange={(value) => setPasswordDialog(prev => ({ ...prev, password: value }))}
+        showPassword={showPassword}
+        onToggleShowPassword={() => setShowPassword(!showPassword)}
+        loading={verifyingPassword}
+        error={passwordError}
+        colorTheme="blue"
+      />
 
       {/* Footer */}
-       <motion.footer
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700"
-        >
-          <p>{t('contractOCRSystem')}</p>
-        </motion.footer>
+      <motion.footer
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700"
+      >
+        <p>{t('contractOCRSystem')}</p>
+      </motion.footer>
     </div>
   );
 }

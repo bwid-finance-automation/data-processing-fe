@@ -11,11 +11,100 @@ const resolveBaseUrl = () => {
 
 const AUTH_API_BASE_URL = `${resolveBaseUrl()}/auth`;
 
-// Create auth API client (without auth interceptor to avoid circular dependency)
+// Create auth API client
 const authApiClient = axios.create({
   baseURL: AUTH_API_BASE_URL,
   timeout: 30000, // 30 seconds for auth requests
 });
+
+// Flag to prevent multiple refresh attempts
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Error interceptor with token refresh
+authApiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Skip refresh for login, callback, and refresh endpoints
+    const skipRefreshPaths = ['/login', '/google/callback', '/refresh', '/google/url', '/config'];
+    const shouldSkipRefresh = skipRefreshPaths.some((path) => originalRequest.url?.includes(path));
+
+    if (error.response?.status === 401 && !originalRequest._retry && !shouldSkipRefresh) {
+      if (isRefreshing) {
+        // Wait for the current refresh to complete
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return authApiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        isRefreshing = false;
+        // Clear auth and redirect
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+
+      try {
+        const response = await authApiClient.post('/refresh', {
+          refresh_token: refreshToken,
+        });
+
+        const { access_token, refresh_token } = response.data;
+
+        localStorage.setItem('accessToken', access_token);
+        localStorage.setItem('refreshToken', refresh_token);
+
+        processQueue(null, access_token);
+
+        originalRequest.headers.Authorization = `Bearer ${access_token}`;
+        return authApiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Authentication API functions

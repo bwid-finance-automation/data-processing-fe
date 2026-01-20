@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import ScrollContainer from '../components/common/ScrollContainer';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -209,7 +209,10 @@ const ProjectWorkspace = () => {
     });
   };
 
-  const handleDownloadBankStatement = async (sessionId) => {
+  // Memoized computed values to avoid recalculation on every render
+  const totalCases = useMemo(() => cases.length, [cases]);
+
+  const handleDownloadBankStatement = useCallback(async (sessionId) => {
     try {
       const { blob, filename } = await downloadBankStatementResults(sessionId);
       const url = window.URL.createObjectURL(blob);
@@ -223,31 +226,32 @@ const ProjectWorkspace = () => {
     } catch (err) {
       console.error('Error downloading bank statement:', err);
     }
-  };
+  }, []);
 
-  const handleNavigateToBankParser = () => {
+  // Navigation handlers memoized with useCallback since they're passed to child components
+  const handleNavigateToBankParser = useCallback(() => {
     navigate(`/bank-statement-parser?project=${uuid}`);
-  };
+  }, [navigate, uuid]);
 
-  const handleNavigateToContractOCR = () => {
+  const handleNavigateToContractOCR = useCallback(() => {
     navigate(`/contract-ocr?project=${uuid}`);
-  };
+  }, [navigate, uuid]);
 
-  const handleNavigateToGlaVariance = () => {
+  const handleNavigateToGlaVariance = useCallback(() => {
     navigate(`/gla-variance-analysis?project=${uuid}`);
-  };
+  }, [navigate, uuid]);
 
-  const handleNavigateToVarianceAnalysis = () => {
+  const handleNavigateToVarianceAnalysis = useCallback(() => {
     navigate(`/variance-analysis?project=${uuid}`);
-  };
+  }, [navigate, uuid]);
 
-  const handleNavigateToUtilityBilling = () => {
+  const handleNavigateToUtilityBilling = useCallback(() => {
     navigate(`/utility-billing?project=${uuid}`);
-  };
+  }, [navigate, uuid]);
 
-  const handleNavigateToExcelComparison = () => {
+  const handleNavigateToExcelComparison = useCallback(() => {
     navigate(`/excel-comparison?project=${uuid}`);
-  };
+  }, [navigate, uuid]);
 
   // Loading state
   if (loading) {
@@ -419,7 +423,7 @@ const ProjectWorkspace = () => {
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">{t('Total Cases')}</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {cases.length}
+                        {totalCases}
                       </p>
                     </div>
                   </div>
