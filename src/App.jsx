@@ -25,6 +25,7 @@ import ContractOCR from "@pages/ContractOCR";
 import UtilityBilling from "@pages/UtilityBilling";
 import BankStatementParser from "@pages/BankStatementParser";
 import BankStatementSessionDetail from "@pages/BankStatementSessionDetail";
+import CashReport from "@pages/CashReport";
 import AIUsageDashboard from "@pages/AIUsageDashboard";
 import AdminUsers from "@pages/AdminUsers";
 import AdminDashboard from "@pages/admin/AdminDashboard";
@@ -233,6 +234,19 @@ function UserRoutes() {
                 <PageWrapper>
                   <FeatureGate featureKey="bankStatementOcr">
                     <BankStatementSessionDetail />
+                  </FeatureGate>
+                </PageWrapper>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/cash-report"
+            element={
+              <ProtectedRoute>
+                <PageWrapper>
+                  <FeatureGate featureKey="cashReport">
+                    <CashReport />
                   </FeatureGate>
                 </PageWrapper>
               </ProtectedRoute>

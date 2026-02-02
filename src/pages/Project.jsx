@@ -21,6 +21,7 @@ export default function Project() {
       { id: 3, name: t("contractOCRProject"), description: t("contractOCRDesc"), link: "/contract-ocr" },
       { id: 4, name: t("utilityBillingProject"), description: t("utilityBillingDesc"), link: "/utility-billing" },
       { id: 5, name: t("bankStatementParserProject"), description: t("bankStatementParserDesc"), link: "/bank-statement-parser" },
+      { id: 8, name: t("cashReportProject") || "Cash Report", description: t("cashReportDesc") || "Generate and manage weekly cash reports with movement classification and reconciliation", link: "/cash-report" },
     ],
   };
 

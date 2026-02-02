@@ -29,6 +29,14 @@ const defaultFeatures = {
     enabled: true,
     disabledMessage: "Utility Billing is temporarily unavailable. Please contact Admin for assistance.",
   },
+  cashReport: {
+    enabled: true,
+    disabledMessage: "Cash Report is temporarily unavailable. Please contact Admin for assistance.",
+  },
+  ntmEbitdaAnalysis: {
+    enabled: true,
+    disabledMessage: "NTM EBITDA Analysis is temporarily unavailable. Please contact Admin for assistance.",
+  },
 };
 
 const SettingsProvider = ({ children }) => {
