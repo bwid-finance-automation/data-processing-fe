@@ -12,6 +12,8 @@ import {
   BoltIcon,
   PencilSquareIcon,
   ExclamationTriangleIcon,
+  DocumentChartBarIcon,
+  PresentationChartLineIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "@configs/AuthProvider";
 import { useSettings } from "@configs/SettingsProvider";
@@ -51,6 +53,14 @@ export default function AdminCases() {
     utilityBilling: {
       enabled: true,
       disabledMessage: "Utility Billing is temporarily unavailable. Please contact Admin for assistance.",
+    },
+    cashReport: {
+      enabled: true,
+      disabledMessage: "Cash Report is temporarily unavailable. Please contact Admin for assistance.",
+    },
+    ntmEbitdaAnalysis: {
+      enabled: true,
+      disabledMessage: "NTM EBITDA Analysis is temporarily unavailable. Please contact Admin for assistance.",
     },
   });
 
@@ -118,6 +128,8 @@ export default function AdminCases() {
     { key: "glaAnalysis", label: "GLA Analysis", icon: TableCellsIcon },
     { key: "excelComparison", label: "Excel Comparison", icon: DocumentDuplicateIcon },
     { key: "utilityBilling", label: "Utility Billing", icon: BoltIcon },
+    { key: "cashReport", label: "Cash Report", icon: DocumentChartBarIcon },
+    { key: "ntmEbitdaAnalysis", label: "NTM EBITDA Analysis", icon: PresentationChartLineIcon },
   ];
 
   // Count enabled/disabled features

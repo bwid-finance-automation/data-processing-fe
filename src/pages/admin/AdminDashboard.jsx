@@ -276,6 +276,9 @@ export default function AdminDashboard() {
                        log.task_type === 'contract_ocr' ? t('Contract OCR') :
                        log.task_type === 'analysis' ? t('Variance Analysis') :
                        log.task_type === 'gla' ? t('GLA Analysis') :
+                       log.task_type === 'classification' ? t('Cash Report Classification') :
+                       log.task_type === 'cash_report' ? t('Cash Report') :
+                       log.task_type === 'ntm_ebitda' ? t('NTM EBITDA Analysis') :
                        log.task_type}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">

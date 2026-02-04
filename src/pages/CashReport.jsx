@@ -780,7 +780,7 @@ const CashReport = () => {
                           isComplete={uploadComplete}
                           isError={uploadError}
                           errorMessage={uploadErrorMessage}
-                          isActive={true}
+                          isActive={uploading}
                         />
                       </div>
                     </div>
@@ -797,7 +797,7 @@ const CashReport = () => {
                     isComplete={uploadComplete}
                     isError={uploadError}
                     errorMessage={uploadErrorMessage}
-                    isActive={true}
+                    isActive={uploading}
                   />
                 </div>
               )}
