@@ -75,7 +75,8 @@ export default function AdminCases() {
       setError(null);
       const response = await settingsApi.getFeatureToggles();
       if (response.data) {
-        setCaseFeatures(response.data);
+        // Merge with defaults so new features don't crash if DB is outdated
+        setCaseFeatures(prev => ({ ...prev, ...response.data }));
       }
     } catch (err) {
       console.error("Failed to load feature toggles:", err);

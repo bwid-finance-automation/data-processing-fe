@@ -51,7 +51,8 @@ const SettingsProvider = ({ children }) => {
       setError(null);
       const response = await settingsApi.getFeatureToggles();
       if (response.data) {
-        setFeatures(response.data);
+        // Merge with defaults so new features work even if DB hasn't been updated yet
+        setFeatures(prev => ({ ...prev, ...response.data }));
       }
     } catch (err) {
       console.error("Failed to load feature settings:", err);
