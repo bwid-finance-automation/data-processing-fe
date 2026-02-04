@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { applyAuthInterceptors } from '@utils/auth-manager';
 
 // Settings API base URL
 const resolveBaseUrl = () => {
@@ -16,6 +17,9 @@ const settingsApiClient = axios.create({
   baseURL: SETTINGS_API_BASE_URL,
   timeout: 30000,
 });
+
+// Apply centralized auth interceptors (token injection + 401 refresh + auto-logout)
+applyAuthInterceptors(settingsApiClient);
 
 /**
  * System Settings API functions

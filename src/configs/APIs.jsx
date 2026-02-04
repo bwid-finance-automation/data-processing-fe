@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { applyAuthInterceptors } from '@utils/auth-manager';
 
 // Resolve base URL while preventing mixed-content issues in production
 const resolveBaseUrl = () => {
@@ -83,79 +84,11 @@ export const authApiClient = axios.create({
   timeout: 30000, // 30 seconds for auth
 });
 
-// Request interceptor - adds auth token to requests
-const requestInterceptor = (config) => {
-  const token = localStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-};
-
-// Response interceptor
-const responseInterceptor = (response) => {
-  return response;
-};
-
-// Error interceptor with token refresh
-const createErrorInterceptor = (client) => async (error) => {
-  const originalRequest = error.config;
-
-  // If 401 and not already retrying
-  if (error.response?.status === 401 && !originalRequest._retry) {
-    originalRequest._retry = true;
-
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (refreshToken) {
-      try {
-        // Try to refresh the token
-        const response = await authApiClient.post('/refresh', {
-          refresh_token: refreshToken,
-        });
-
-        const { access_token, refresh_token } = response.data;
-
-        // Store new tokens
-        localStorage.setItem('accessToken', access_token);
-        localStorage.setItem('refreshToken', refresh_token);
-
-        // Update the failed request with new token
-        originalRequest.headers.Authorization = `Bearer ${access_token}`;
-
-        // Retry the original request
-        return client(originalRequest);
-      } catch (refreshError) {
-        // Refresh failed - clear tokens and redirect to login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-
-        // Only redirect if not already on login page
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
-
-        return Promise.reject(refreshError);
-      }
-    }
-  }
-
-  console.error('API Error:', error);
-  return Promise.reject(error);
-};
-
-// Apply interceptors to all clients
-apiClient.interceptors.request.use(requestInterceptor);
-apiClient.interceptors.response.use(responseInterceptor, createErrorInterceptor(apiClient));
-
-fpaApiClient.interceptors.request.use(requestInterceptor);
-fpaApiClient.interceptors.response.use(responseInterceptor, createErrorInterceptor(fpaApiClient));
-
-projectApiClient.interceptors.request.use(requestInterceptor);
-projectApiClient.interceptors.response.use(responseInterceptor, createErrorInterceptor(projectApiClient));
-
-aiUsageApiClient.interceptors.request.use(requestInterceptor);
-aiUsageApiClient.interceptors.response.use(responseInterceptor, createErrorInterceptor(aiUsageApiClient));
+// Apply centralized auth interceptors (token injection + 401 refresh + auto-logout)
+applyAuthInterceptors(apiClient);
+applyAuthInterceptors(fpaApiClient);
+applyAuthInterceptors(projectApiClient);
+applyAuthInterceptors(aiUsageApiClient);
 
 export default {
   apiClient,

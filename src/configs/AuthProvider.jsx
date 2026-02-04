@@ -143,6 +143,26 @@ const AuthProvider = ({ children }) => {
     }
   }, [auth.accessToken, auth.refreshToken, clearAuth]);
 
+  // Listen for session-expired events from axios interceptors (auto-logout)
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setAuth({
+        accessToken: null,
+        refreshToken: null,
+        user: null,
+        isAuthenticated: false,
+      });
+      setError(null);
+      // Redirect to login if not already there
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    };
+
+    window.addEventListener("auth:session-expired", handleSessionExpired);
+    return () => window.removeEventListener("auth:session-expired", handleSessionExpired);
+  }, []);
+
   // Verify session on mount
   useEffect(() => {
     const verifySession = async () => {
