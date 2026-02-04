@@ -212,10 +212,9 @@ const AIUsageDashboard = () => {
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
                 >
                   <option value="">{t('All Cases')}</option>
-                  <option value="ocr">{t('Bank Statement')}</option>
-                  <option value="contract_ocr">{t('Contract OCR')}</option>
+                  <option value="ocr">{t('Bank Statement / Contract OCR')}</option>
+                  <option value="classification">{t('Cash Report')}</option>
                   <option value="analysis">{t('Variance Analysis')}</option>
-                  <option value="gla">{t('GLA Variance')}</option>
                 </select>
               </div>
               <div>
@@ -404,9 +403,8 @@ const AIUsageDashboard = () => {
                         <div className="flex items-center gap-3">
                           <div className={`w-3 h-3 rounded-full ${
                             taskType.task_type === 'ocr' ? 'bg-indigo-500' :
-                            taskType.task_type === 'contract_ocr' ? 'bg-teal-500' :
-                            taskType.task_type === 'analysis' ? 'bg-amber-500' :
-                            taskType.task_type === 'gla' ? 'bg-pink-500' : 'bg-gray-500'
+                            taskType.task_type === 'classification' ? 'bg-teal-500' :
+                            taskType.task_type === 'analysis' ? 'bg-amber-500' : 'bg-gray-500'
                           }`} />
                           <span className="text-gray-700 dark:text-gray-300">{formatCaseName(taskType.task_type)}</span>
                         </div>

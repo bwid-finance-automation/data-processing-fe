@@ -180,9 +180,10 @@ export const formatCost = (cost) => {
  */
 export const formatCaseName = (taskType) => {
   const caseNames = {
-    'ocr': 'Bank Statement',
+    'ocr': 'Bank Statement / Contract OCR',
     'parsing': 'Bank Statement',
     'contract_ocr': 'Contract OCR',
+    'classification': 'Cash Report',
     'analysis': 'Variance Analysis',
     'gla': 'GLA Variance',
     'chat': 'Chat',

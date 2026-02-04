@@ -645,8 +645,25 @@ const CashReport = () => {
         )}
 
         <div className="space-y-6">
+          {/* Loading Sessions */}
+          {!hasSession && loadingSessions && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-8"
+            >
+              <div className="flex flex-col items-center justify-center gap-4 py-6">
+                <ArrowPathIcon className="w-8 h-8 animate-spin text-emerald-500" />
+                <p className="text-gray-500 dark:text-gray-400 font-medium">
+                  {t('Loading session...')}
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           {/* No Session - Show Create Button */}
-          {!hasSession && (
+          {!hasSession && !loadingSessions && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -686,9 +703,6 @@ const CashReport = () => {
                 {/* Header Upload */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                      2
-                    </div>
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                       {t('Upload Bank Statements')}
                     </h2>
@@ -802,6 +816,84 @@ const CashReport = () => {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Uploaded Files List */}
+          {hasSession && session?.uploaded_files?.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden"
+            >
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {t('Uploaded Files')}
+                  </h2>
+                  <span className="ml-auto text-sm text-gray-400 dark:text-gray-500">
+                    {session.uploaded_files.length} {t('file(s)')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {session.uploaded_files.map((file, idx) => (
+                  <div
+                    key={`${file.filename}-${idx}`}
+                    className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                  >
+                    {/* File icon */}
+                    <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                      <DocumentTextIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+
+                    {/* File info */}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {file.filename}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        {file.uploaded_at
+                          ? new Date(file.uploaded_at).toLocaleString('vi-VN', {
+                              day: '2-digit', month: '2-digit', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit',
+                            })
+                          : ''}
+                      </p>
+                    </div>
+
+                    {/* Transaction count */}
+                    {file.transactions_count != null && (
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {file.transactions_count.toLocaleString('vi-VN')}
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">{t('transactions')}</p>
+                      </div>
+                    )}
+
+                    {/* File size */}
+                    {file.file_size != null && (
+                      <div className="flex-shrink-0 w-16 text-right">
+                        <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+                          {file.file_size >= 1024 * 1024
+                            ? `${(file.file_size / (1024 * 1024)).toFixed(1)} MB`
+                            : file.file_size >= 1024
+                            ? `${(file.file_size / 1024).toFixed(0)} KB`
+                            : `${file.file_size} B`}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Success indicator */}
+                    <div className="flex-shrink-0">
+                      <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
           )}
 
           {/* Error Display */}

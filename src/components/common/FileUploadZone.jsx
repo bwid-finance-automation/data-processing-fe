@@ -169,22 +169,35 @@ const FileUploadZone = memo(function FileUploadZone({
 
       {/* File List */}
       {showFileList && (
-        <div className="mt-3 h-[120px] overflow-y-auto pr-1 rounded-lg border border-dashed border-gray-200 dark:border-gray-700">
+        <div className="mt-3 h-[120px] overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
           {hasFiles ? (
-            <div className="space-y-0.5 p-1.5">
+            <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
               {selectedFiles.map((file, index) => (
                 <div
                   key={`${file.name}-${index}`}
-                  className="flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 group"
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-white dark:hover:bg-gray-800 transition-colors group"
                 >
-                  <p className="text-sm text-gray-700 dark:text-gray-300 truncate min-w-0">
-                    {file.name}
-                    <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">{formatFileSize(file.size)}</span>
-                  </p>
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${colors.bg} flex items-center justify-center`}>
+                    <CloudArrowUpIcon className={`w-4 h-4 ${
+                      colorTheme === 'emerald' ? 'text-emerald-500' :
+                      colorTheme === 'green' ? 'text-green-500' :
+                      colorTheme === 'indigo' ? 'text-indigo-500' :
+                      colorTheme === 'purple' ? 'text-purple-500' :
+                      'text-blue-500'
+                    }`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      {formatFileSize(file.size)}
+                    </p>
+                  </div>
                   {onRemoveFile && (
                     <button
                       onClick={() => onRemoveFile(index)}
-                      className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                      className="flex-shrink-0 p-1.5 rounded-lg text-red-300 dark:text-red-400/50 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
                     >
                       <XMarkIcon className="w-4 h-4" />
                     </button>
