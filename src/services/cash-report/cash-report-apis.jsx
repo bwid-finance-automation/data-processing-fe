@@ -182,6 +182,17 @@ export const listAutomationSessions = async () => {
  * @param {number} limit - Number of rows to preview (default: 20)
  * @returns {Promise} Preview data
  */
+/**
+ * Stream upload progress events via SSE
+ * @param {string} sessionId - Session ID
+ * @returns {EventSource} SSE connection
+ */
+export const streamUploadProgress = (sessionId) => {
+  return new EventSource(
+    `${FINANCE_API_BASE_URL}/cash-report/upload-progress/${sessionId}`
+  );
+};
+
 export const previewMovementData = async (sessionId, limit = 20) => {
   try {
     const response = await apiClient.get(

@@ -168,38 +168,35 @@ const FileUploadZone = memo(function FileUploadZone({
       </div>
 
       {/* File List */}
-      {showFileList && hasFiles && (
-        <div className="mt-3 space-y-2">
-          {selectedFiles.map((file, index) => (
-            <div
-              key={`${file.name}-${index}`}
-              className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatFileSize(file.size)}
-                  </p>
-                </div>
-              </div>
-              {onRemoveFile && (
-                <button
-                  onClick={() => onRemoveFile(index)}
-                  className="p-1 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+      {showFileList && (
+        <div className="mt-3 h-[120px] overflow-y-auto pr-1 rounded-lg border border-dashed border-gray-200 dark:border-gray-700">
+          {hasFiles ? (
+            <div className="space-y-0.5 p-1.5">
+              {selectedFiles.map((file, index) => (
+                <div
+                  key={`${file.name}-${index}`}
+                  className="flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 group"
                 >
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              )}
+                  <p className="text-sm text-gray-700 dark:text-gray-300 truncate min-w-0">
+                    {file.name}
+                    <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">{formatFileSize(file.size)}</span>
+                  </p>
+                  {onRemoveFile && (
+                    <button
+                      onClick={() => onRemoveFile(index)}
+                      className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                    >
+                      <XMarkIcon className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <div className="h-full flex items-center justify-center text-gray-300 dark:text-gray-600">
+              <p className="text-xs">{t('Uploaded files will appear here')}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
