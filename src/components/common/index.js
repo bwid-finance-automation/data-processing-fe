@@ -13,3 +13,4 @@ export { default as ProjectSelector } from './ProjectSelector';
 export { default as ScrollContainer } from './ScrollContainer';
 export { default as Skeleton } from './Skeleton';
 export { default as StatCard } from './StatCard';
+export { default as ActionMenu } from './ActionMenu';

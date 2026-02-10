@@ -101,18 +101,23 @@ export const getAutomationSessionStatus = async (sessionId) => {
 /**
  * Download session result
  * @param {string} sessionId - Session ID
+ * @param {string} [step] - Optional step name: "settlement" or "open_new".
+ *   If omitted, downloads the latest version.
  * @returns {Promise<{blob: Blob, filename: string}>} Blob and filename for download
  */
-export const downloadAutomationResult = async (sessionId) => {
+export const downloadAutomationResult = async (sessionId, step) => {
   try {
+    const params = step ? { step } : {};
     const response = await apiClient.get(
       `${FINANCE_API_BASE_URL}/cash-report/download/${sessionId}`,
       {
         responseType: 'blob',
+        params,
       }
     );
     const contentDisposition = response.headers['content-disposition'];
-    let filename = `Cash_Report_${sessionId.substring(0, 8)}.xlsx`;
+    const suffix = step ? `_${step}` : '';
+    let filename = `Cash_Report_${sessionId.substring(0, 8)}${suffix}.xlsx`;
     if (contentDisposition) {
       const match = contentDisposition.match(/filename=(.+)/);
       if (match) {
@@ -190,6 +195,189 @@ export const listAutomationSessions = async () => {
 export const streamUploadProgress = (sessionId) => {
   return new EventSource(
     `${FINANCE_API_BASE_URL}/cash-report/upload-progress/${sessionId}`
+  );
+};
+
+/**
+ * Stream settlement progress events via SSE
+ * @param {string} sessionId - Session ID
+ * @returns {EventSource} SSE connection
+ */
+export const streamSettlementProgress = (sessionId) => {
+  return new EventSource(
+    `${FINANCE_API_BASE_URL}/cash-report/settlement-progress/${sessionId}`
+  );
+};
+
+/**
+ * Run open-new (mở mới) automation on Movement data
+ * Detects transactions that transfer money FROM current account TO saving account
+ * and creates counter entries with Nature = "Internal transfer in"
+ * @param {string} sessionId - Session ID
+ * @param {File[]} lookupFiles - Optional lookup files (VTB Saving style Excel) for account matching
+ * @returns {Promise} Open-new result with counter entries created
+ */
+export const runOpenNewAutomation = async (sessionId, lookupFiles = []) => {
+  try {
+    const formData = new FormData();
+    if (lookupFiles && lookupFiles.length > 0) {
+      lookupFiles.forEach((file) => {
+        formData.append('lookup_files', file);
+      });
+    }
+
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/cash-report/run-open-new/${sessionId}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error running open-new automation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Stream open-new automation progress events via SSE
+ * @param {string} sessionId - Session ID
+ * @returns {EventSource} SSE connection
+ */
+export const streamOpenNewProgress = (sessionId) => {
+  return new EventSource(
+    `${FINANCE_API_BASE_URL}/cash-report/open-new-progress/${sessionId}`
+  );
+};
+
+/**
+ * Upload files and get classification preview (does NOT write to Excel)
+ * Call confirmClassifications() after user reviews the results
+ * @param {string} sessionId - Session ID
+ * @param {File[]} files - Parsed bank statement Excel files
+ * @param {boolean} filterByDate - Filter by session date range
+ * @returns {Promise} Preview with classified transactions and stats
+ */
+export const uploadAndPreview = async (sessionId, files, filterByDate = true) => {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+  formData.append('filter_by_date', filterByDate);
+
+  try {
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/cash-report/upload-preview/${sessionId}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error uploading preview:', error);
+    throw error;
+  }
+};
+
+/**
+ * Confirm and write pending classifications to Excel
+ * @param {string} sessionId - Session ID
+ * @param {Array<{index: number, nature: string}>} modifications - Optional overrides
+ * @returns {Promise} Write result
+ */
+export const confirmClassifications = async (sessionId, modifications = null) => {
+  const formData = new FormData();
+  if (modifications && modifications.length > 0) {
+    formData.append('modifications', JSON.stringify(modifications));
+  }
+
+  try {
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/cash-report/confirm-upload/${sessionId}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error confirming classifications:', error);
+    throw error;
+  }
+};
+
+/**
+ * Run test automation (settlement + open-new) using pre-classified test template.
+ * No AI calls needed. Creates a temporary test session.
+ * @param {File[]} lookupFiles - Optional lookup files for open-new account matching
+ * @returns {Promise} Combined settlement + open-new results with test_session_id for download
+ */
+export const runTestAutomation = async (lookupFiles = []) => {
+  try {
+    const formData = new FormData();
+    if (lookupFiles && lookupFiles.length > 0) {
+      lookupFiles.forEach((file) => {
+        formData.append('lookup_files', file);
+      });
+    }
+
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/cash-report/run-test`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error running test automation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Download test automation result file
+ * @param {string} testSessionId - Test session ID from runTestAutomation result
+ * @returns {Promise<{blob: Blob, filename: string}>} Blob and filename
+ */
+export const downloadTestResult = async (testSessionId) => {
+  try {
+    const response = await apiClient.get(
+      `${FINANCE_API_BASE_URL}/cash-report/download-test/${testSessionId}`,
+      { responseType: 'blob' }
+    );
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = `Cash_Report_Test_${testSessionId}.xlsx`;
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename=(.+)/);
+      if (match) {
+        filename = match[1].replace(/"/g, '');
+      }
+    }
+    return { blob: response.data, filename };
+  } catch (error) {
+    console.error('Error downloading test result:', error);
+    throw error;
+  }
+};
+
+/**
+ * Stream test automation progress events via SSE
+ * @returns {EventSource} SSE connection
+ */
+export const streamTestProgress = () => {
+  return new EventSource(
+    `${FINANCE_API_BASE_URL}/cash-report/test-progress`
   );
 };
 

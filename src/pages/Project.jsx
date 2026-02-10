@@ -1,140 +1,263 @@
 import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FolderIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
-import Breadcrumb from "@components/common/Breadcrumb";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ArrowsRightLeftIcon,
+  BanknotesIcon,
+  BoltIcon,
+  ChartBarIcon,
+  DocumentMagnifyingGlassIcon,
+  FolderIcon,
+  MagnifyingGlassIcon,
+  PresentationChartLineIcon,
+  TableCellsIcon,
+} from "@heroicons/react/24/outline";
+import { ChevronRightIcon } from "@heroicons/react/24/solid";
 
 export default function Project() {
   const { departmentId } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
 
+  const safeT = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
+
   const projectsByDepartment = {
     1: [
-      { id: 1, name: t("ExcelComparision"), description: t("excelComparisionDesc"), link: "/excel-comparison" },
-      { id: 6, name: t("glaVarianceAnalysis") || "GLA Variance Analysis", description: t("glaVarianceAnalysisDesc") || "Compare Gross Leasable Area between periods to track Handover and Committed GLA changes", link: "/gla-variance-analysis" },
-      { id: 7, name: t("ntmEbitdaAnalysis") || "NTM EBITDA Variance Analysis", description: t("ntmEbitdaAnalysisDesc") || "Analyze NTM EBITDA variance between periods with AI-powered commentary", link: "/ntm-ebitda-analysis" },
+      {
+        id: 1,
+        name: safeT("ExcelComparision", "Excel Comparison"),
+        description: safeT("excelComparisionDesc", "Compare budget, forecast, and actual financial data"),
+        category: safeT("comparisonCategory", "Comparison"),
+        link: "/excel-comparison",
+        Icon: TableCellsIcon,
+        gradient: "from-blue-600 to-cyan-500",
+        shadow: "shadow-blue-500/20",
+      },
+      {
+        id: 6,
+        name: safeT("glaVarianceAnalysis", "GLA Variance Analysis"),
+        description: safeT(
+          "glaVarianceAnalysisDesc",
+          "Compare Gross Leasable Area between periods to track Handover and Committed GLA changes"
+        ),
+        category: safeT("areaAnalysisCategory", "Area Analysis"),
+        link: "/gla-variance-analysis",
+        Icon: ChartBarIcon,
+        gradient: "from-indigo-600 to-blue-500",
+        shadow: "shadow-indigo-500/20",
+      },
+      {
+        id: 7,
+        name: safeT("ntmEbitdaAnalysis", "NTM EBITDA Variance Analysis"),
+        description: safeT("ntmEbitdaAnalysisDesc", "Analyze NTM EBITDA variance between periods with AI-powered commentary"),
+        category: safeT("forecastingCategory", "Forecasting"),
+        link: "/ntm-ebitda-analysis",
+        Icon: PresentationChartLineIcon,
+        gradient: "from-violet-600 to-fuchsia-500",
+        shadow: "shadow-violet-500/20",
+      },
     ],
     2: [
-      { id: 2, name: t("varianceAnalysisProject"), description: t("varianceAnalysisDesc"), link: "/variance-analysis" },
-      { id: 3, name: t("contractOCRProject"), description: t("contractOCRDesc"), link: "/contract-ocr" },
-      { id: 4, name: t("utilityBillingProject"), description: t("utilityBillingDesc"), link: "/utility-billing" },
-      { id: 5, name: t("bankStatementParserProject"), description: t("bankStatementParserDesc"), link: "/bank-statement-parser" },
-      { id: 8, name: t("cashReportProject") || "Cash Report", description: t("cashReportDesc") || "Generate and manage weekly cash reports with movement classification and reconciliation", link: "/cash-report" },
+      {
+        id: 2,
+        name: safeT("varianceAnalysisProject", "Variance Analysis"),
+        description: safeT("varianceAnalysisDesc", "Automated variance analysis and reporting system"),
+        category: safeT("analysisCategory", "Analysis"),
+        link: "/variance-analysis",
+        Icon: ArrowsRightLeftIcon,
+        gradient: "from-blue-600 to-cyan-500",
+        shadow: "shadow-blue-500/20",
+      },
+      {
+        id: 3,
+        name: safeT("contractOCRProject", "Contract OCR System"),
+        description: safeT("contractOCRDesc", "Extract information from contracts using AI-powered OCR"),
+        category: safeT("documentAiCategory", "Document AI"),
+        link: "/contract-ocr",
+        Icon: DocumentMagnifyingGlassIcon,
+        gradient: "from-amber-600 to-orange-500",
+        shadow: "shadow-amber-500/20",
+      },
+      {
+        id: 4,
+        name: safeT("utilityBillingProject", "Utility Billing Automation"),
+        description: safeT("utilityBillingDesc", "Process utility billing data and generate ERP-ready invoices"),
+        category: safeT("automationCategory", "Automation"),
+        link: "/utility-billing",
+        Icon: BoltIcon,
+        gradient: "from-cyan-600 to-teal-500",
+        shadow: "shadow-cyan-500/20",
+      },
+      {
+        id: 5,
+        name: safeT("bankStatementParserProject", "Bank Statement Parser"),
+        description: safeT("bankStatementParserDesc", "Extract and structure bank statement data quickly and accurately"),
+        category: safeT("extractionCategory", "Extraction"),
+        link: "/bank-statement-parser",
+        Icon: BanknotesIcon,
+        gradient: "from-emerald-600 to-lime-500",
+        shadow: "shadow-emerald-500/20",
+      },
+      {
+        id: 8,
+        name: safeT("cashReportProject", "Cash Report"),
+        description: safeT(
+          "cashReportDesc",
+          "Generate and manage weekly cash reports with movement classification and reconciliation"
+        ),
+        category: safeT("treasuryCategory", "Treasury"),
+        link: "/cash-report",
+        Icon: BanknotesIcon,
+        gradient: "from-rose-600 to-orange-500",
+        shadow: "shadow-rose-500/20",
+      },
     ],
   };
 
   const departmentNames = {
-    1: t("fpaRDept"),
-    2: t("financeAccountingDept"),
+    1: safeT("fpaRDept", "FP&A"),
+    2: safeT("financeAccountingDept", "Finance Accounting"),
   };
 
+  const departmentName = departmentNames[departmentId] || safeT("departmentLabel", "Department");
   const projects = projectsByDepartment[departmentId] || [];
-  const departmentName = departmentNames[departmentId] || "Unknown";
+  const projectsLabel = safeT("projects", "Projects");
+  const categoriesLabel = safeT("categoriesLabel", "Categories");
+
+  const categories = [...new Set(projects.map((project) => project.category))];
+  const filteredProjects = projects;
 
   useEffect(() => {
     document.title = `${departmentName} - BW Industrial`;
   }, [departmentName]);
 
-  const breadcrumbItems = [
-    { label: t("home") || "Home", href: "/" },
-    { label: t("departments") || "Departments", href: "/department" },
-    { label: departmentName, icon: FolderIcon },
-  ];
-
   return (
-    <div className="min-h-screen bg-white dark:bg-[#181818] py-8 px-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Breadcrumb Navigation */}
-        <Breadcrumb items={breadcrumbItems} className="mb-6" />
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 selection:bg-indigo-100 dark:selection:bg-indigo-800/40 selection:text-indigo-900 dark:selection:text-indigo-100">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-indigo-500/5 dark:bg-indigo-400/10 blur-[120px]" />
+        <div className="absolute top-[20%] -right-[5%] w-[30%] h-[30%] rounded-full bg-blue-500/5 dark:bg-blue-400/10 blur-[100px]" />
+      </div>
 
-        <motion.button
-          onClick={() => navigate("/department")}
-          whileHover={{ x: -5 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 mb-6 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-[#222] dark:hover:text-[#f5efe6] bg-white dark:bg-[#222] rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all"
-        >
-          <span className="text-lg font-bold">←</span>
-          <span className="font-medium">{t("backButton")}</span>
-        </motion.button>
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12">
+        <header className="mb-8 sm:mb-10">
+          <nav className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 mb-6">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            >
+              {safeT("workspaceLabel", "Workspace")}
+            </button>
+            <ChevronRightIcon className="h-4 w-4" />
+            <button
+              type="button"
+              onClick={() => navigate("/department")}
+              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            >
+              {safeT("departments", "Departments")}
+            </button>
+            <ChevronRightIcon className="h-4 w-4" />
+            <span className="text-slate-900 dark:text-white truncate">{departmentName}</span>
+          </nav>
 
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-3xl font-bold text-[#222] dark:text-[#f5efe6] mb-2">
-            {t("projectsFor")} {departmentName}
-          </h1>
-        </motion.div>
-
-        {projects.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-16"
-          >
-            <div className="text-6xl mb-4">📂</div>
-            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              {t("noProjects")}
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400">
-              {t("noProjectsDesc") || "No projects available for this department"}
-            </p>
-          </motion.div>
-        ) : (
-          <div className="space-y-4">
-            {projects.map((project, index) => (
-              <motion.div
-                key={project.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.02, x: 5 }}
-                onClick={() => project.link && navigate(project.link)}
-                className={`group relative p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-[#f7f6f3] dark:bg-[#222] hover:shadow-xl transition-all overflow-hidden ${
-                  project.link ? 'cursor-pointer hover:border-blue-400 dark:hover:border-blue-600' : ''
-                }`}
+          <div className="flex flex-col lg:flex-row lg:items-end gap-4 lg:gap-8">
+            <div className="min-w-0">
+              <button
+                type="button"
+                onClick={() => navigate("/department")}
+                className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
               >
-                {/* Gradient overlay on hover */}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <ArrowLeftIcon className="h-4 w-4" />
+                {safeT("backButton", "Back")}
+              </button>
 
-                <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-3">
-                    <h3 className="text-xl font-semibold text-[#222] dark:text-[#f5efe6]">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                {safeT("projectsFor", "Projects -")}{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-500">
+                  {departmentName}
+                </span>
+              </h1>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {[
+                { label: projectsLabel, value: String(projects.length).padStart(2, "0"), Icon: FolderIcon },
+                { label: categoriesLabel, value: String(categories.length).padStart(2, "0"), Icon: ChartBarIcon },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="flex items-center gap-2.5 px-4 py-2 bg-white/90 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm backdrop-blur-sm"
+                >
+                  <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
+                    <stat.Icon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div className="leading-tight">
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+                      {stat.label}
+                    </p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">{stat.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </header>
+
+        {filteredProjects.length === 0 ? (
+          <div className="text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 py-16 px-6 bg-white/80 dark:bg-slate-900/70">
+            <div className="mx-auto mb-4 h-16 w-16 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+              <MagnifyingGlassIcon className="h-8 w-8 text-slate-400 dark:text-slate-500" />
+            </div>
+            <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-200 mb-2">
+              {safeT("noProjects", "No projects yet")}
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400">
+              {safeT("noProjectsMatch", "No projects available for this department.")}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {filteredProjects.map((project) => (
+              <div
+                key={project.id}
+                onClick={() => project.link && navigate(project.link)}
+                className="group relative cursor-pointer"
+              >
+                <div className="relative h-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] p-6 shadow-sm transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-xl group-hover:border-indigo-500/20 flex flex-col justify-between min-h-[180px]">
+
+                  {/* Hiệu ứng nền Glow khi hover */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${project.gradient} opacity-0 group-hover:opacity-[0.03] transition-opacity duration-500 rounded-[1.5rem]`} />
+
+                  {/* Phần trên: Tiêu đề & Danh mục */}
+                  <div className="flex justify-between items-start gap-4 mb-4">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                       {project.name}
                     </h3>
-                    {project.link && (
-                      <motion.span
-                        className="text-blue-600 dark:text-blue-400 text-lg"
-                        animate={{ x: [0, 5, 0] }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      >
-                        →
-                      </motion.span>
-                    )}
+                    <span className="shrink-0 inline-flex items-center px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-800 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700">
+                      {project.category}
+                    </span>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-                    {project.description}
-                  </p>
-                  {project.link && (
-                    <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 font-medium">
-                      <span>{t("clickToOpen")}</span>
-                      <motion.svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        animate={{ x: [0, 3, 0] }}
-                        transition={{ duration: 1, repeat: Infinity }}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </motion.svg>
+
+                  {/* Phần dưới: Nút Action & Icon */}
+                  <div className="flex items-end justify-between mt-4">
+                    {/* Nút "Open Tool" dạng viên thuốc (Pill) */}
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300">
+                      {safeT("openTool", "Open Tool")}
+                      <ArrowRightIcon className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
                     </div>
-                  )}
+
+                    {/* Icon nằm góc dưới bên phải với nền Gradient */}
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${project.gradient} ${project.shadow} text-white transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 shadow-md`}>
+                      <project.Icon className="h-5 w-5" />
+                    </div>
+                  </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         )}
