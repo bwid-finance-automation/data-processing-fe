@@ -65,6 +65,36 @@ export const uploadBankStatements = async (sessionId, files, filterByDate = true
 };
 
 /**
+ * Upload Movement Netsuite & Manual file to a session
+ * Pre-classified transactions (no AI needed). Filters out "Automation" rows.
+ * @param {string} sessionId - Session ID
+ * @param {File} file - Movement NS/Manual Excel file
+ * @param {boolean} filterByDate - Filter transactions by session date range (default: true)
+ * @returns {Promise} Upload result with transaction counts
+ */
+export const uploadMovementFile = async (sessionId, file, filterByDate = true) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('filter_by_date', filterByDate);
+
+  try {
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/cash-report/upload-movement/${sessionId}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error uploading Movement file:', error);
+    throw error;
+  }
+};
+
+/**
  * Run settlement (tất toán) automation on Movement data
  * @param {string} sessionId - Session ID
  * @returns {Promise} Settlement result with counter entries created

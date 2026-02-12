@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 import {
   DocumentTextIcon,
   CloudArrowUpIcon,
@@ -31,6 +32,7 @@ import useSSEProgress from '../hooks/useSSEProgress';
 import {
   initAutomationSession,
   uploadBankStatements,
+  uploadMovementFile,
   runSettlementAutomation,
   runOpenNewAutomation,
   getAutomationSessionStatus,
@@ -49,6 +51,7 @@ const CashReport = () => {
 
   // SSE progress hooks (replaces ~20 individual state variables)
   const uploadSSE = useSSEProgress();
+  const movementSSE = useSSEProgress();
   const settlementSSE = useSSEProgress();
   const openNewSSE = useSSEProgress();
 
@@ -64,10 +67,12 @@ const CashReport = () => {
 
   // File upload state
   const [files, setFiles] = useState([]);
+  const [movementFile, setMovementFile] = useState(null);
 
   // Loading states
   const [initializing, setInitializing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingMovement, setUploadingMovement] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -472,7 +477,53 @@ const CashReport = () => {
     }
   };
 
-  const handleFilesSelected = useCallback((selectedFiles) => {
+  // Read Excel header row from file
+  const readExcelHeaders = useCallback((file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array', sheetRows: 2 });
+          resolve({ sheetNames: wb.SheetNames, sheets: wb.Sheets });
+        } catch {
+          reject(new Error('Cannot read Excel file'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsArrayBuffer(file);
+    });
+  }, []);
+
+  const handleFilesSelected = useCallback(async (selectedFiles) => {
+    const validExts = ['.xlsx', '.xls'];
+    const invalidFiles = selectedFiles.filter(f => !validExts.some(ext => f.name.toLowerCase().endsWith(ext)));
+    if (invalidFiles.length > 0) {
+      toast.error(t('Upload parsed bank statement Excel files (.xlsx, .xls)'));
+      return;
+    }
+
+    // Validate file content - check it's a bank statement, not a movement file
+    for (const file of selectedFiles) {
+      try {
+        const { sheetNames, sheets } = await readExcelHeaders(file);
+        const firstSheet = sheets[sheetNames[0]];
+        const cellA1 = firstSheet?.['A1']?.v?.toString().toLowerCase() || '';
+
+        if (cellA1.includes('source')) {
+          toast.error(t('It is a Movement NS/Manual file. Please upload it to \"Upload Movement NS/Manual\"'));
+          return;
+        }
+
+        if (!sheetNames.includes('Template details')) {
+          toast.error(t('It is not a valid parsed bank statement file'));
+          return;
+        }
+      } catch {
+        toast.error(t('Cannot read file. Please upload a valid Excel file'));
+        return;
+      }
+    }
+
     const uploadedNames = new Set(
       (session?.uploaded_files || []).map(f => f.filename)
     );
@@ -495,11 +546,113 @@ const CashReport = () => {
     if (newFiles.length > 0) {
       setFiles(prev => [...prev, ...newFiles]);
     }
-  }, [t, files, session?.uploaded_files]);
+  }, [t, files, session?.uploaded_files, readExcelHeaders]);
 
   const handleRemoveFile = useCallback((index) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
   }, []);
+
+  // Movement NS/Manual file handlers
+  const handleMovementFileSelected = useCallback(async (selectedFiles) => {
+    if (selectedFiles.length > 0) {
+      const file = selectedFiles[0];
+      const validExts = ['.xlsx', '.xls'];
+      if (!validExts.some(ext => file.name.toLowerCase().endsWith(ext))) {
+        toast.error(t('Upload pre-classified Movement file (.xlsx, .xls)'));
+        return;
+      }
+
+      // Validate file content - check it's a movement file, not a bank statement
+      try {
+        const { sheetNames, sheets } = await readExcelHeaders(file);
+
+        if (sheetNames.includes('Template details')) {
+          toast.error(t('It is a Bank Statement file. Please upload it to \"Upload Bank Statements\"'));
+          return;
+        }
+
+        const firstSheet = sheets[sheetNames[0]];
+        const cellA1 = firstSheet?.['A1']?.v?.toString().toLowerCase() || '';
+        if (!cellA1.includes('source')) {
+          toast.error(t('It is not a valid Movement file'));
+          return;
+        }
+      } catch {
+        toast.error(t('Cannot read file. Please upload a valid Excel file'));
+        return;
+      }
+
+      setMovementFile(file);
+    }
+  }, [t, readExcelHeaders]);
+
+  const handleRemoveMovementFile = useCallback(() => {
+    setMovementFile(null);
+  }, []);
+
+  const handleUploadMovement = async () => {
+    if (!session?.session_id || !movementFile) {
+      toast.error(t('Please select a Movement file to upload'));
+      return;
+    }
+
+    setUploadingMovement(true);
+    setError(null);
+    setShowProgress(true);
+
+    // Reset settlement & open-new state if re-uploading
+    settlementSSE.resetAll();
+    openNewSSE.resetAll();
+
+    // Start SSE stream for upload progress
+    movementSSE.startUploadStream(() => streamUploadProgress(session.session_id));
+
+    try {
+      const result = await uploadMovementFile(session.session_id, movementFile, true);
+      const added = result.total_transactions_added || 0;
+      const skipped = result.total_transactions_skipped || 0;
+      const found = result.total_transactions_found || 0;
+
+      if (!movementSSE.isComplete) {
+        movementSSE.setIsComplete(true);
+        movementSSE.setSteps((prev) => {
+          if (prev.length === 0 || prev[prev.length - 1]?.type !== 'complete') {
+            return [...prev, {
+              type: 'complete',
+              step: 'done',
+              message: added > 0
+                ? `Upload complete! ${added} NS/Manual transactions processed (from ${found} found).`
+                : 'Upload complete',
+              percentage: 100,
+            }];
+          }
+          return prev;
+        });
+      }
+
+      if (added > 0) {
+        if (skipped > 0) {
+          toast.success(t('Uploaded {{added}} NS/Manual transactions ({{skipped}} skipped — outside period)', { added, skipped }));
+        } else {
+          toast.success(t('Uploaded {{count}} NS/Manual transactions', { count: added }));
+        }
+      } else {
+        toast.warning(result.message || t('No valid NS/Manual transactions found'));
+      }
+
+      setMovementFile(null);
+      await loadSessionStatus(session.session_id);
+    } catch (err) {
+      console.error('Error uploading Movement file:', err);
+      const msg = err.response?.data?.detail || t('Failed to upload Movement file');
+      setError(msg);
+      movementSSE.setError(msg);
+      toast.error(t('Failed to upload Movement file'));
+    } finally {
+      setUploadingMovement(false);
+      movementSSE.close();
+    }
+  };
 
   const handleLookupFilesSelected = useCallback((selectedFiles) => {
     const pendingKeys = new Set(lookupFiles.map((file) => `${file.name}__${file.size}`));
@@ -874,21 +1027,19 @@ const CashReport = () => {
           {hasSession && (
             <div className="flex flex-col lg:flex-row lg:items-stretch gap-0 relative">
 
-              {/* LEFT: Upload Card */}
+              {/* Upload Card */}
               <motion.div
                 layout
-                className="flex-1 w-full min-w-0 min-h-[500px] bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-6 relative z-10"
+                className="flex-1 w-full min-w-0 bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 relative z-10"
               >
-                {/* Header Upload */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {t('Upload Bank Statements')}
-                    </h2>
-                  </div>
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 pb-0">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {t('Upload Files')}
+                  </h2>
 
                   {/* Toggle Progress Panel */}
-                  {(uploadSSE.steps.length > 0 || uploading || hasSettlementStarted || hasOpenNewStarted) && (
+                  {(uploadSSE.steps.length > 0 || movementSSE.steps.length > 0 || uploading || uploadingMovement || hasSettlementStarted || hasOpenNewStarted) && (
                     <button
                       onClick={() => setShowProgress(!showProgress)}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
@@ -906,7 +1057,7 @@ const CashReport = () => {
                         <>
                           <ChevronLeftIcon className="w-4 h-4" />
                           <span>{t('Show Progress')}</span>
-                          {(uploading || settlementSSE.isRunning || openNewSSE.isRunning) && (
+                          {(uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning) && (
                             <span className="relative flex h-2.5 w-2.5 ml-1">
                               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
@@ -918,40 +1069,99 @@ const CashReport = () => {
                   )}
                 </div>
 
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  {t('Upload parsed bank statement Excel files (output from Bank Statement Parser)')}
-                </p>
+                {/* Two Upload Zones Side by Side */}
+                <div className="flex flex-col md:flex-row gap-0 p-6">
 
-                <FileUploadZone
-                  onFilesSelected={handleFilesSelected}
-                  accept=".xlsx,.xls"
-                  multiple={true}
-                  selectedFiles={files}
-                  onRemoveFile={handleRemoveFile}
-                  colorTheme="emerald"
-                  label={t('Drop Excel files here')}
-                  hint={t('Parsed bank statements (.xlsx)')}
-                />
+                  {/* LEFT: Bank Statements */}
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                      {t('Upload Bank Statements')}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      {t('Upload parsed bank statement Excel files (output from Bank Statement Parser)')}
+                    </p>
 
-                <button
-                  onClick={() => {
-                    handleUpload();
-                  }}
-                  disabled={uploading || files.length === 0}
-                  className="mt-4 w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {uploading ? (
-                    <>
-                      <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                      {t('Uploading...')}
-                    </>
-                  ) : (
-                    <>
-                      <CloudArrowUpIcon className="w-5 h-5" />
-                      {t('Upload {{count}} file(s)', { count: files.length })}
-                    </>
-                  )}
-                </button>
+                    <div className="flex-1">
+                      <FileUploadZone
+                        onFilesSelected={handleFilesSelected}
+                        accept=".xlsx,.xls"
+                        multiple={true}
+                        disabled={uploading || uploadingMovement}
+                        selectedFiles={files}
+                        onRemoveFile={handleRemoveFile}
+                        colorTheme="emerald"
+                        label={t('Drop Excel files here')}
+                        hint={t('Parsed bank statements (.xlsx)')}
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        handleUpload();
+                      }}
+                      disabled={uploading || uploadingMovement || files.length === 0}
+                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {uploading ? (
+                        <>
+                          <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                          {t('Uploading...')}
+                        </>
+                      ) : (
+                        <>
+                          <CloudArrowUpIcon className="w-5 h-5" />
+                          {t('Upload {{count}} file(s)', { count: files.length })}
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Vertical Divider */}
+                  <div className="hidden md:block w-px bg-gray-200 dark:bg-gray-700 mx-6" />
+                  <div className="md:hidden h-px bg-gray-200 dark:bg-gray-700 my-6" />
+
+                  {/* RIGHT: Movement NS/Manual */}
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                      {t('Upload Movement NS/Manual')}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      {t('Upload pre-classified Movement file from NetSuite or manual entries')}
+                    </p>
+
+                    <div className="flex-1">
+                      <FileUploadZone
+                        onFilesSelected={handleMovementFileSelected}
+                        accept=".xlsx,.xls"
+                        multiple={false}
+                        selectedFiles={movementFile ? [movementFile] : []}
+                        onRemoveFile={handleRemoveMovementFile}
+                        colorTheme="purple"
+                        label={t('Drop Movement file here')}
+                        hint={t('Movement Netsuite & Manual (.xlsx)')}
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleUploadMovement}
+                      disabled={uploadingMovement || uploading || !movementFile}
+                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-violet-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {uploadingMovement ? (
+                        <>
+                          <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                          {t('Uploading NS/Manual...')}
+                        </>
+                      ) : (
+                        <>
+                          <CloudArrowUpIcon className="w-5 h-5" />
+                          {t('Upload Movement File')}
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                </div>
               </motion.div>
 
               {/* RIGHT: Sliding Progress Panel (Desktop) */}
@@ -966,7 +1176,7 @@ const CashReport = () => {
                   >
                     <div className="absolute inset-0 w-[380px] overflow-y-auto">
                         <div className="flex flex-col p-4 gap-4">
-                            {/* Section 1: Upload Progress */}
+                            {/* Section 1: Bank Statement Upload Progress */}
                             <UploadProgressPanel
                                 isVisible={true}
                                 steps={uploadSSE.steps}
@@ -975,6 +1185,28 @@ const CashReport = () => {
                                 errorMessage={uploadSSE.error}
                                 isActive={uploading}
                             />
+
+                            {/* Section 1b: Movement NS/Manual Upload Progress */}
+                            {(movementSSE.steps.length > 0 || uploadingMovement) && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="border-t border-gray-100 dark:border-gray-800 pt-4"
+                                >
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <DocumentChartBarIcon className={`w-5 h-5 ${uploadingMovement ? 'text-purple-500 animate-pulse' : 'text-emerald-500'}`} />
+                                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{t('Movement NS/Manual')}</h3>
+                                    </div>
+                                    <UploadProgressPanel
+                                        isVisible={true}
+                                        steps={movementSSE.steps}
+                                        isComplete={movementSSE.isComplete}
+                                        isError={!!movementSSE.error}
+                                        errorMessage={movementSSE.error}
+                                        isActive={uploadingMovement}
+                                    />
+                                </motion.div>
+                            )}
 
                             {/* Section 2: Settlement Progress */}
                             {hasSettlementStarted && (
