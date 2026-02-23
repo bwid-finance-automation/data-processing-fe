@@ -6,7 +6,11 @@ import { apiClient, FINANCE_API_BASE_URL } from '../../configs/APIs';
  * @param {string} config.openingDate - Report period start date (YYYY-MM-DD)
  * @param {string} config.endingDate - Report period end date (YYYY-MM-DD)
  * @param {string} config.periodName - Period name (e.g., "W3-4Jan26")
- * @returns {Promise} Session info with session_id
+ * @param {File|null} config.templateFile - Optional user-uploaded .xlsx template.
+ *   When provided, the system uses this file as the base and immediately runs:
+ *   (1) update Summary dates/FX/period, (2) copy Cash Balance → Prior Period,
+ *   (3) clear Movement sheet.
+ * @returns {Promise} Session info with session_id and movement_prepared flag
  */
 export const initAutomationSession = async (config) => {
   const formData = new FormData();
@@ -14,6 +18,9 @@ export const initAutomationSession = async (config) => {
   formData.append('ending_date', config.endingDate);
   if (config.periodName) {
     formData.append('period_name', config.periodName);
+  }
+  if (config.templateFile) {
+    formData.append('template_file', config.templateFile);
   }
 
   try {
@@ -284,6 +291,51 @@ export const streamOpenNewProgress = (sessionId) => {
 };
 
 /**
+ * Dry-run settlement: detect + lookup without writing to Excel.
+ * Returns candidate preview data (what would happen if you run settlement).
+ * @param {string} sessionId - Session ID
+ * @returns {Promise} Preview data with candidates list
+ */
+export const previewSettlement = async (sessionId) => {
+  try {
+    const response = await apiClient.get(
+      `${FINANCE_API_BASE_URL}/cash-report/preview-settlement/${sessionId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error previewing settlement:', error);
+    throw error;
+  }
+};
+
+/**
+ * Dry-run open-new: detect + lookup without writing to Excel.
+ * Returns candidate preview data (what would happen if you run open-new).
+ * @param {string} sessionId - Session ID
+ * @param {File[]} lookupFiles - Optional lookup files for account matching
+ * @returns {Promise} Preview data with candidates list
+ */
+export const previewOpenNew = async (sessionId, lookupFiles = []) => {
+  try {
+    const formData = new FormData();
+    if (lookupFiles && lookupFiles.length > 0) {
+      lookupFiles.forEach((file) => {
+        formData.append('lookup_files', file);
+      });
+    }
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/cash-report/preview-open-new/${sessionId}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error previewing open-new:', error);
+    throw error;
+  }
+};
+
+/**
  * Upload files and get classification preview (does NOT write to Excel)
  * Call confirmClassifications() after user reviews the results
  * @param {string} sessionId - Session ID
@@ -420,6 +472,43 @@ export const previewMovementData = async (sessionId, limit = 20) => {
     return response.data;
   } catch (error) {
     console.error('Error previewing data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Generate a Movement Data Export file from a Movement Data Upload file.
+ * The upload file has 7 columns (no header): Source, Bank, Account, Date, Description, Debit, Credit.
+ * The generated export file has 16 columns (with header) ready for Upload Movement Data.
+ * @param {File} file - Movement Data Upload .xlsx file
+ * @param {string} periodName - Period name to fill the Period column (e.g. "W3-4Jan26")
+ * @returns {Promise<{blob: Blob, filename: string}>} Generated export file blob and filename
+ */
+export const generateMovementData = async (file, periodName = '') => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (periodName) {
+    formData.append('period_name', periodName);
+  }
+
+  try {
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/cash-report/generate-movement-data`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        responseType: 'blob',
+      }
+    );
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = file.name.replace(/\.[^.]+$/, '') + '_Export.xlsx';
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename=(.+)/);
+      if (match) filename = match[1].replace(/"/g, '');
+    }
+    return { blob: response.data, filename };
+  } catch (error) {
+    console.error('Error generating movement data:', error);
     throw error;
   }
 };

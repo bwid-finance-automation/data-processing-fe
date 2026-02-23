@@ -24,6 +24,9 @@ import {
   DocumentPlusIcon,
   SparklesIcon,
   TableCellsIcon,
+  ExclamationCircleIcon,
+  EyeIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb, FileUploadZone, ActionMenu } from '@components/common';
@@ -40,10 +43,12 @@ import {
   resetAutomationSession,
   deleteAutomationSession,
   listAutomationSessions,
-  previewMovementData,
   streamUploadProgress,
   streamSettlementProgress,
   streamOpenNewProgress,
+  generateMovementData,
+  previewSettlement,
+  previewOpenNew,
 } from '../services/cash-report/cash-report-apis';
 
 const CashReport = () => {
@@ -64,6 +69,7 @@ const CashReport = () => {
   const [openingDate, setOpeningDate] = useState('');
   const [endingDate, setEndingDate] = useState('');
   const [periodName, setPeriodName] = useState('');
+  const [templateFile, setTemplateFile] = useState(null);
 
   // File upload state
   const [files, setFiles] = useState([]);
@@ -78,19 +84,29 @@ const CashReport = () => {
   const [deleting, setDeleting] = useState(false);
   const [resetSlow, setResetSlow] = useState(false);
 
-  // Preview state
-  const [previewData, setPreviewData] = useState(null);
-  const [showPreview, setShowPreview] = useState(false);
-  const [loadingPreview, setLoadingPreview] = useState(false);
+  // Generate Movement Data state
+  const [generateFile, setGenerateFile] = useState(null);
+  const [generating, setGenerating] = useState(false);
 
   // UI state
   const [showProgress, setShowProgress] = useState(false);
   const [showLookupFiles, setShowLookupFiles] = useState(true);
   const [showUploadedFiles, setShowUploadedFiles] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [automationTab, setAutomationTab] = useState('settlement'); // 'settlement' | 'open_new'
 
-  // Error state
-  const [error, setError] = useState(null);
+  // Per-module error state (#9)
+  const [uploadError, setUploadError] = useState(null);
+  const [movementError, setMovementError] = useState(null);
+  const [settlementError, setSettlementError] = useState(null);
+  const [openNewError, setOpenNewError] = useState(null);
+
+  // Preview modal state (#11)
+  const [settlementPreview, setSettlementPreview] = useState(null);    // null | preview data object
+  const [openNewPreview, setOpenNewPreview] = useState(null);          // null | preview data object
+  const [previewingSettlement, setPreviewingSettlement] = useState(false);
+  const [previewingOpenNew, setPreviewingOpenNew] = useState(false);
 
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState({
@@ -119,20 +135,13 @@ const CashReport = () => {
     const end = new Date(endDate);
 
     const startDay = start.getDate();
-    const endDay = end.getDate();
-    const startMonth = start.toLocaleString('en-US', { month: 'short' });
-    const endMonth = end.toLocaleString('en-US', { month: 'short' });
+    const month = start.toLocaleString('en-US', { month: 'short' });
     const year = end.getFullYear().toString().slice(-2);
 
-    // Calculate week number (1-4, capped at 4 for days 22-31)
-    const weekOfMonth = Math.min(Math.ceil(startDay / 7), 4);
-    const endWeekOfMonth = Math.min(Math.ceil(endDay / 7), 4);
+    // 1-15 → W1-2, 16-end of month → W3-4
+    const weekRange = startDay <= 15 ? 'W1-2' : 'W3-4';
 
-    if (start.getMonth() === end.getMonth()) {
-      return `W${weekOfMonth}-${endWeekOfMonth}${startMonth}${year}`;
-    } else {
-      return `W${weekOfMonth}${startMonth}-${endWeekOfMonth}${endMonth}${year}`;
-    }
+    return `${weekRange}${month}${year}`;
   };
 
   // Format date using current i18n locale
@@ -150,6 +159,16 @@ const CashReport = () => {
   useEffect(() => {
     loadSessions();
   }, []);
+
+  // Close export dropdown on outside click (#2)
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handler = (e) => {
+      if (!e.target.closest('[data-export-menu]')) setShowExportMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showExportMenu]);
 
   const loadSessions = async () => {
     setLoadingSessions(true);
@@ -208,8 +227,12 @@ const CashReport = () => {
       return;
     }
 
+    if (templateFile && !templateFile.name.endsWith('.xlsx')) {
+      toast.error(t('Template file must be an .xlsx file'));
+      return;
+    }
+
     setInitializing(true);
-    setError(null);
     const autoPeriodName = generatePeriodName(openingDate, endingDate);
 
     try {
@@ -217,20 +240,23 @@ const CashReport = () => {
         openingDate,
         endingDate,
         periodName: autoPeriodName,
+        templateFile: templateFile || null,
       });
 
       setSession(result);
       setShowCreateModal(false);
+      setTemplateFile(null);
       if (result.is_existing) {
         toast.info(t('Using existing session'));
+      } else if (result.movement_prepared) {
+        toast.success(t('Session created — Summary updated, Cash Balance copied, Movement cleared'));
       } else {
         toast.success(t('Session created successfully'));
       }
       await loadSessions();
     } catch (err) {
       console.error('Error initializing session:', err);
-      setError(err.response?.data?.detail || t('Failed to create session'));
-      toast.error(t('Failed to create session'));
+      toast.error(err.response?.data?.detail || t('Failed to create session'));
     } finally {
       setInitializing(false);
     }
@@ -243,7 +269,7 @@ const CashReport = () => {
     }
 
     setUploading(true);
-    setError(null);
+    setUploadError(null);
     setShowProgress(true);
 
     // Reset settlement & open-new state if re-uploading
@@ -266,8 +292,8 @@ const CashReport = () => {
               type: 'complete',
               step: 'done',
               message: added > 0
-                ? `Upload complete! ${added} transactions processed.`
-                : 'Upload complete',
+                ? t('Upload complete! {{count}} transactions processed.', { count: added })
+                : t('Upload complete'),
               percentage: 100,
             }];
           }
@@ -292,7 +318,7 @@ const CashReport = () => {
     } catch (err) {
       console.error('Error uploading:', err);
       const msg = err.response?.data?.detail || t('Failed to upload files');
-      setError(msg);
+      setUploadError(msg);
       uploadSSE.setError(msg);
       toast.error(t('Failed to upload files'));
     } finally {
@@ -321,7 +347,7 @@ const CashReport = () => {
   const handleRunSettlement = async () => {
     if (!session?.session_id) return;
 
-    setError(null);
+    setSettlementError(null);
     setShowProgress(true);
 
     // Start SSE workflow stream
@@ -334,7 +360,7 @@ const CashReport = () => {
       console.error('Error running settlement:', err);
       const msg = err.response?.data?.detail || t('Failed to run settlement');
       settlementSSE.setError(msg);
-      setError(msg);
+      setSettlementError(msg);
       settlementSSE.close();
     } finally {
       settlementSSE.setIsRunning(false);
@@ -344,7 +370,7 @@ const CashReport = () => {
   const handleRunOpenNew = async () => {
     if (!session?.session_id) return;
 
-    setError(null);
+    setOpenNewError(null);
     setShowProgress(true);
 
     // Start SSE workflow stream
@@ -358,11 +384,56 @@ const CashReport = () => {
       console.error('Error running open-new:', err);
       const msg = err.response?.data?.detail || t('Failed to run open-new automation');
       openNewSSE.setError(msg);
-      setError(msg);
+      setOpenNewError(msg);
       openNewSSE.close();
     } finally {
       openNewSSE.setIsRunning(false);
     }
+  };
+
+  const handlePreviewSettlement = async () => {
+    if (!session?.session_id) return;
+    setPreviewingSettlement(true);
+    try {
+      const result = await previewSettlement(session.session_id);
+      setSettlementPreview(result);
+    } catch (err) {
+      console.error('Error previewing settlement:', err);
+      toast.error(t('Failed to load settlement preview'));
+    } finally {
+      setPreviewingSettlement(false);
+    }
+  };
+
+  const handlePreviewOpenNew = async () => {
+    if (!session?.session_id) return;
+    setPreviewingOpenNew(true);
+    try {
+      const result = await previewOpenNew(session.session_id, lookupFiles);
+      setOpenNewPreview(result);
+    } catch (err) {
+      console.error('Error previewing open-new:', err);
+      toast.error(t('Failed to load open-new preview'));
+    } finally {
+      setPreviewingOpenNew(false);
+    }
+  };
+
+  /**
+   * Download a preview or run-result as a JSON audit log file
+   */
+  const handleDownloadAuditLog = (data, prefix) => {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${prefix}_audit_log.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    toast.success(t('Audit log downloaded'));
   };
 
   const handleDownload = async (step) => {
@@ -411,6 +482,10 @@ const CashReport = () => {
           settlementSSE.resetAll();
           openNewSSE.resetAll();
           setLookupFiles([]);
+          setUploadError(null);
+          setMovementError(null);
+          setSettlementError(null);
+          setOpenNewError(null);
 
           await loadSessionStatus(session.session_id);
         } catch (err) {
@@ -445,6 +520,10 @@ const CashReport = () => {
           settlementSSE.resetAll();
           openNewSSE.resetAll();
           setLookupFiles([]);
+          setUploadError(null);
+          setMovementError(null);
+          setSettlementError(null);
+          setOpenNewError(null);
 
           setSession(null);
           setOpeningDate('');
@@ -461,19 +540,30 @@ const CashReport = () => {
     });
   };
 
-  const handleLoadPreview = async () => {
-    if (!session?.session_id) return;
-
-    setLoadingPreview(true);
+  const handleGenerateMovementData = async () => {
+    if (!generateFile) {
+      toast.error(t('Please select a Movement Data Upload file'));
+      return;
+    }
+    setGenerating(true);
     try {
-      const result = await previewMovementData(session.session_id, 20);
-      setPreviewData(result.preview_rows || []);
-      setShowPreview(true);
+      const periodLabel = session?.config?.period_name || periodName || '';
+      const { blob, filename } = await generateMovementData(generateFile, periodLabel);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success(t('Movement Data Export generated successfully'));
+      setGenerateFile(null);
     } catch (err) {
-      console.error('Error loading preview:', err);
-      toast.error(t('Failed to load preview'));
+      console.error('Error generating movement data:', err);
+      toast.error(t('Failed to generate Movement Data Export'));
     } finally {
-      setLoadingPreview(false);
+      setGenerating(false);
     }
   };
 
@@ -510,7 +600,9 @@ const CashReport = () => {
         const cellA1 = firstSheet?.['A1']?.v?.toString().toLowerCase() || '';
 
         if (cellA1.includes('source')) {
-          toast.error(t('It is a Movement NS/Manual file. Please upload it to \"Upload Movement NS/Manual\"'));
+          // Auto-redirect: set as movement file and inform user (#5)
+          setMovementFile(file);
+          toast.info(t('Moved to Movement Data upload zone'));
           return;
         }
 
@@ -552,7 +644,7 @@ const CashReport = () => {
     setFiles(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  // Movement NS/Manual file handlers
+  // Movement Data file handlers
   const handleMovementFileSelected = useCallback(async (selectedFiles) => {
     if (selectedFiles.length > 0) {
       const file = selectedFiles[0];
@@ -567,7 +659,14 @@ const CashReport = () => {
         const { sheetNames, sheets } = await readExcelHeaders(file);
 
         if (sheetNames.includes('Template details')) {
-          toast.error(t('It is a Bank Statement file. Please upload it to \"Upload Bank Statements\"'));
+          // Auto-redirect: add to bank statements queue and inform user (#5)
+          const uploadedNames = new Set((session?.uploaded_files || []).map(f => f.filename));
+          if (!uploadedNames.has(file.name)) {
+            setFiles(prev => [...prev, file]);
+            toast.info(t('Moved to Bank Statements upload zone'));
+          } else {
+            toast.warning(t('This file was already uploaded'));
+          }
           return;
         }
 
@@ -597,7 +696,7 @@ const CashReport = () => {
     }
 
     setUploadingMovement(true);
-    setError(null);
+    setMovementError(null);
     setShowProgress(true);
 
     // Reset settlement & open-new state if re-uploading
@@ -621,8 +720,8 @@ const CashReport = () => {
               type: 'complete',
               step: 'done',
               message: added > 0
-                ? `Upload complete! ${added} NS/Manual transactions processed (from ${found} found).`
-                : 'Upload complete',
+                ? t('Upload complete! {{count}} Movement transactions processed (from {{found}} found).', { count: added, found })
+                : t('Upload complete'),
               percentage: 100,
             }];
           }
@@ -632,12 +731,12 @@ const CashReport = () => {
 
       if (added > 0) {
         if (skipped > 0) {
-          toast.success(t('Uploaded {{added}} NS/Manual transactions ({{skipped}} skipped — outside period)', { added, skipped }));
+          toast.success(t('Uploaded {{added}} Movement transactions ({{skipped}} skipped — outside period)', { added, skipped }));
         } else {
-          toast.success(t('Uploaded {{count}} NS/Manual transactions', { count: added }));
+          toast.success(t('Uploaded {{count}} Movement transactions', { count: added }));
         }
       } else {
-        toast.warning(result.message || t('No valid NS/Manual transactions found'));
+        toast.warning(result.message || t('No valid Movement transactions found'));
       }
 
       setMovementFile(null);
@@ -645,7 +744,7 @@ const CashReport = () => {
     } catch (err) {
       console.error('Error uploading Movement file:', err);
       const msg = err.response?.data?.detail || t('Failed to upload Movement file');
-      setError(msg);
+      setMovementError(msg);
       movementSSE.setError(msg);
       toast.error(t('Failed to upload Movement file'));
     } finally {
@@ -687,16 +786,27 @@ const CashReport = () => {
   const hasSettlementStarted = settlementSSE.isRunning || settlementSSE.currentStep || settlementSSE.result || settlementSSE.error;
   const hasOpenNewStarted = openNewSSE.isRunning || openNewSSE.currentStep || openNewSSE.result || openNewSSE.error;
 
+  // Dynamic session sub-state badge (#1)
+  const sessionBadge = (() => {
+    if (uploading || uploadingMovement) return { label: t('Uploading'), color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' };
+    if (settlementSSE.isRunning) return { label: t('Settlement running'), color: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400' };
+    if (openNewSSE.isRunning) return { label: t('Open-new running'), color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' };
+    if (resetting) return { label: t('Resetting'), color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' };
+    if (settlementSSE.result || openNewSSE.result) return { label: t('Completed'), color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' };
+    if (settlementError || openNewError || uploadError || movementError) return { label: t('Error'), color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' };
+    if (movementRows > 0) return { label: t('Ready'), color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' };
+    return { label: t('Draft'), color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' };
+  })();
+
+  // Export dropdown options
+  const exportOptions = [
+    { label: t('Latest (full file)'), step: undefined },
+    ...(settlementSSE.result ? [{ label: t('After Settlement'), step: 'settlement' }] : []),
+    ...(openNewSSE.result ? [{ label: t('After Open-new'), step: 'open_new' }] : []),
+  ];
+
   // Action menu items for overflow dropdown
   const actionMenuItems = [
-    {
-      icon: DocumentTextIcon,
-      label: t('Preview'),
-      onClick: handleLoadPreview,
-      disabled: loadingPreview,
-      loading: loadingPreview,
-    },
-    { type: 'divider' },
     {
       icon: ArrowPathIcon,
       label: t('Reset Session'),
@@ -739,196 +849,354 @@ const CashReport = () => {
           </div>
         </div>
 
-        {/* Modern Master Control Panel */}
+        {/* Page Body: two-column grid when session active */}
+        <div className={hasSession ? 'grid grid-cols-1 lg:grid-cols-10 gap-6 items-stretch' : ''}>
+
+        {/* ── LEFT MAIN: Master Control Panel (col-span-7) ── */}
         {hasSession && (
-          <div className="mb-8 bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="lg:col-span-7 lg:order-1 h-full">
+            <div className="h-full bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
             {loadingSessions ? (
               <div className="flex items-center justify-center py-12">
                 <ArrowPathIcon className="w-6 h-6 animate-spin text-gray-400" />
               </div>
             ) : (
               <div>
-                <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:items-start gap-8">
-
-                  {/* LEFT: Context & Stats */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-4 mb-1">
-                      <div>
-                        <div className="flex items-center gap-3 mb-1">
-                          <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-                            {session?.config?.period_name || '—'}
-                          </h2>
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider">
-                            Active
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-                          <CalendarIcon className="w-4 h-4" />
-                          <span>
-                            {formatDate(session?.config?.opening_date)} — {formatDate(session?.config?.ending_date)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Stats Row */}
-                    <div className="flex items-center gap-6 mt-6">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('Transactions')}</span>
-                        <span className="text-2xl font-semibold text-gray-900 dark:text-white">{movementRows}</span>
-                      </div>
-
-                    </div>
+                {/* ── Top Bar ── */}
+                <div className="px-6 lg:px-8 pt-6 pb-4 flex items-center justify-between gap-4 flex-wrap">
+                  {/* Left: period name + badge */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight truncate">
+                      {session?.config?.period_name || '—'}
+                    </h2>
+                    <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${sessionBadge.color}`}>
+                      {sessionBadge.label}
+                    </span>
                   </div>
 
-                  {/* RIGHT: Action Center */}
-                  <div className="flex flex-col items-stretch lg:items-end gap-4">
+                  {/* Right: resetting hint + Export + ActionMenu */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {resetting && (
+                      <span className="text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
+                        {resetSlow ? t('Cleaning up...') : t('Resetting...')}
+                      </span>
+                    )}
 
-                    {/* Utility Toolbar — Export + Overflow Menu */}
-                    <div className="flex items-center justify-end gap-2">
-                      {resetting && (
-                        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse px-2">
-                          {resetSlow ? t('Cleaning up...') : t('Resetting...')}
-                        </span>
-                      )}
+                    {/* Export dropdown */}
+                    <div className="relative" data-export-menu>
                       <button
-                        onClick={handleDownload}
+                        onClick={() => setShowExportMenu(prev => !prev)}
                         disabled={downloading}
-                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+                        aria-label={t('Export options')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
                       >
                         {downloading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
                         {t('Export')}
+                        <ChevronDownIcon className={`w-3 h-3 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
                       </button>
-                      <ActionMenu items={actionMenuItems} />
+                      <AnimatePresence>
+                        {showExportMenu && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                            transition={{ duration: 0.12 }}
+                            className="absolute right-0 mt-1 w-52 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 overflow-hidden"
+                          >
+                            {exportOptions.map((opt, i) => (
+                              <button
+                                key={i}
+                                onClick={() => { handleDownload(opt.step); setShowExportMenu(false); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+                              >
+                                <ArrowDownTrayIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                {opt.label}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
-                    {/* Primary Actions */}
-                    {movementRows > 0 && (
-                      <div className="flex flex-col items-stretch lg:items-end gap-3">
-                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-                          {/* Settlement */}
-                          <button
-                            onClick={handleRunSettlement}
-                            disabled={settlementSSE.isRunning || openNewSSE.isRunning}
-                            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
-                          >
-                            {settlementSSE.isRunning ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <ArrowsRightLeftIcon className="w-5 h-5" />}
-                            <span>{t('Settlement')}</span>
-                          </button>
+                    <ActionMenu items={actionMenuItems} />
+                  </div>
+                </div>
 
-                          <span className="text-xs text-gray-400 font-medium uppercase">Or</span>
+                {/* ── Info Strip ── */}
+                <div className="px-6 lg:px-8 pb-5 flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                    <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
+                    <span>{formatDate(session?.config?.opening_date)} — {formatDate(session?.config?.ending_date)}</span>
+                  </div>
+                  <div className="h-3.5 w-px bg-gray-200 dark:bg-gray-700" />
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">{t('Transactions')}</span>
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">{movementRows.toLocaleString()}</span>
+                  </div>
+                </div>
 
-                          {/* Open New Group */}
-                          <div className="w-full sm:w-auto flex flex-wrap items-center gap-2 bg-gray-50 dark:bg-gray-800 p-2 rounded-xl border border-gray-200 dark:border-gray-700">
-                            <label
-                              className="relative flex items-center justify-center gap-2 px-3 py-2 rounded-lg cursor-pointer border border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
-                              title={t('Upload Lookup Files')}
+                {/* ── Primary Actions ── */}
+                {movementRows > 0 && (
+                  <div className="px-6 lg:px-8 pb-6">
+                    <div className="relative py-6 px-4 rounded-[2rem] bg-gradient-to-b from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#111] border border-gray-200/60 dark:border-gray-800/60 flex flex-col items-center gap-4">
+
+                          {/* Floating pill tab switcher */}
+                          <div className="flex w-full p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-full border border-gray-200 dark:border-gray-700/50 shadow-inner">
+                            <button
+                              onClick={() => setAutomationTab('settlement')}
+                              aria-label={t('Settlement tab')}
+                              className={`relative flex-1 px-5 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                                automationTab === 'settlement'
+                                  ? 'bg-white dark:bg-[#2a2a2a] text-indigo-700 dark:text-indigo-300 shadow-md'
+                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                              }`}
                             >
-                              <input
-                                type="file"
-                                accept=".xlsx,.xls"
-                                multiple
-                                className="hidden"
-                                onChange={(e) => {
-                                  const newFiles = Array.from(e.target.files || []);
-                                  if (newFiles.length > 0) {
-                                    handleLookupFilesSelected(newFiles);
-                                  }
-                                  e.target.value = ''; // Reset so same file can be re-selected
-                                }}
-                              />
-                              <CloudArrowUpIcon className="w-4 h-4" />
-                              <span className="text-xs font-semibold whitespace-nowrap">
-                                {lookupFiles.length > 0
-                                  ? t('Lookup files: {{count}}', { count: lookupFiles.length })
-                                  : t('Upload Lookup Files')}
-                              </span>
-                              {lookupFiles.length > 0 && (
-                                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-purple-600 text-white text-[10px] font-bold rounded-full ring-2 ring-white dark:ring-gray-800">
-                                  {lookupFiles.length}
+                              <ArrowsRightLeftIcon className="w-3.5 h-3.5" />
+                              {t('Settlement')}
+                              {settlementSSE.isRunning && (
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500" />
                                 </span>
                               )}
-                            </label>
-                            {lookupFiles.length > 0 && (
-                              <button
-                                onClick={() => setLookupFiles([])}
-                                className="px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                title={t('Clear all lookup files')}
-                              >
-                                {t('Clear')}
-                              </button>
-                            )}
+                              {settlementSSE.result && !settlementSSE.isRunning && (
+                                <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
+                              )}
+                            </button>
                             <button
-                              onClick={handleRunOpenNew}
-                              disabled={openNewSSE.isRunning || settlementSSE.isRunning}
-                              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#333] hover:bg-white/80 text-gray-900 dark:text-white rounded-lg font-semibold shadow-sm transition-all disabled:opacity-50"
+                              onClick={() => setAutomationTab('open_new')}
+                              aria-label={t('Open New tab')}
+                              className={`relative flex-1 px-5 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                                automationTab === 'open_new'
+                                  ? 'bg-white dark:bg-[#2a2a2a] text-purple-700 dark:text-purple-300 shadow-md'
+                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                              }`}
                             >
-                              {openNewSSE.isRunning ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BanknotesIcon className="w-4 h-4 text-purple-600" />}
-                              <span>{t('Open New')}</span>
+                              <BanknotesIcon className="w-3.5 h-3.5" />
+                              {t('Open New')}
+                              {openNewSSE.isRunning && (
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-500" />
+                                </span>
+                              )}
+                              {openNewSSE.result && !openNewSSE.isRunning && (
+                                <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
+                              )}
                             </button>
                           </div>
-                        </div>
-                        {/* Lookup Files */}
-                        {lookupFiles.length > 0 && (
-                          <div className="w-full rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50/60 dark:bg-purple-900/10">
-                            <button
-                              onClick={() => setShowLookupFiles(!showLookupFiles)}
-                              className="w-full flex items-center justify-between px-3 py-2 border-b border-purple-200/70 dark:border-purple-800/70 hover:bg-purple-100/50 dark:hover:bg-purple-900/20 transition-colors"
-                            >
-                              <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
-                                {t('Lookup Files for Open New')}
-                                <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${showLookupFiles ? 'rotate-180' : ''}`} />
-                              </p>
-                              <span className="text-[11px] text-purple-600 dark:text-purple-400">
-                                {lookupFiles.length} {t('file(s)')}
-                              </span>
-                            </button>
-                            <AnimatePresence>
-                              {showLookupFiles && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.2 }}
-                                  className="overflow-hidden"
-                                >
-                                  <div className="max-h-32 overflow-y-auto p-2 space-y-1.5">
-                                    {lookupFiles.map((f, i) => (
-                                      <div
-                                        key={`${f.name}-${i}`}
-                                        className="flex items-center justify-between gap-3 px-2.5 py-1.5 bg-white dark:bg-[#2a2a2a] border border-purple-100 dark:border-purple-900 rounded-md"
+
+                          {/* Action card */}
+                          <div className="w-full bg-white/80 dark:bg-[#1e1e1e]/80 backdrop-blur-md p-2 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.07)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.35)] border border-gray-200/50 dark:border-gray-700/50 relative overflow-hidden">
+                            {/* Ambient glow matching active tab */}
+                            <div className={`absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 blur-3xl opacity-[0.15] rounded-full pointer-events-none transition-colors duration-700 ${automationTab === 'settlement' ? 'bg-indigo-500' : 'bg-purple-500'}`} />
+
+                            <div className="relative z-10">
+                              <AnimatePresence mode="wait">
+                                {automationTab === 'settlement' ? (
+                                  <motion.div
+                                    key="settlement"
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -6 }}
+                                    transition={{ duration: 0.18 }}
+                                    className="flex flex-col gap-2"
+                                  >
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={handlePreviewSettlement}
+                                        disabled={previewingSettlement || settlementSSE.isRunning || openNewSSE.isRunning}
+                                        aria-label={t('Preview settlement candidates')}
+                                        title={t('Preview what settlement will do (dry run)')}
+                                        className="flex items-center justify-center gap-1.5 w-[100px] py-3 bg-white dark:bg-[#2a2a2a] text-indigo-600 dark:text-indigo-400 font-bold rounded-2xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-gray-100 dark:border-gray-800 shadow-sm transition-all disabled:opacity-50 text-sm flex-shrink-0"
                                       >
-                                        <div className="min-w-0 flex items-center gap-2">
-                                          <DocumentTextIcon className="w-4 h-4 text-purple-500 flex-shrink-0" />
-                                          <span className="text-xs font-medium text-purple-800 dark:text-purple-300 truncate" title={f.name}>
-                                            {f.name}
+                                        {previewingSettlement
+                                          ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                                          : <EyeIcon className="w-4 h-4" />
+                                        }
+                                        {t('Preview')}
+                                      </button>
+                                      <button
+                                        onClick={handleRunSettlement}
+                                        disabled={settlementSSE.isRunning || openNewSSE.isRunning}
+                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
+                                      >
+                                        {settlementSSE.isRunning
+                                          ? <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                                          : <ArrowsRightLeftIcon className="w-5 h-5" />
+                                        }
+                                        {settlementSSE.isRunning ? t('Running Settlement...') : t('Run Settlement')}
+                                      </button>
+                                    </div>
+
+                                    {settlementSSE.result && (
+                                      <button
+                                        onClick={() => handleDownloadAuditLog(settlementSSE.result, `settlement_${session?.config?.period_name || session?.session_id?.slice(0,8)}`)}
+                                        aria-label={t('Download settlement audit log')}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-2 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl font-medium text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all"
+                                      >
+                                        <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                                        {t('Download Audit Log')}
+                                      </button>
+                                    )}
+                                  </motion.div>
+                                ) : (
+                                  <motion.div
+                                    key="open_new"
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -6 }}
+                                    transition={{ duration: 0.18 }}
+                                    className="flex flex-col gap-2"
+                                  >
+                                    {/* Lookup files upload */}
+                                    <div className="flex items-center gap-2">
+                                      <label
+                                        className="relative flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl cursor-pointer border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#2a2a2a] text-purple-600 dark:text-purple-400 hover:border-purple-300 dark:hover:border-purple-700 shadow-sm transition-all"
+                                        title={t('Upload Lookup Files')}
+                                        aria-label={t('Upload Lookup Files')}
+                                      >
+                                        <input
+                                          type="file"
+                                          accept=".xlsx,.xls"
+                                          multiple
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            const newFiles = Array.from(e.target.files || []);
+                                            if (newFiles.length > 0) handleLookupFilesSelected(newFiles);
+                                            e.target.value = '';
+                                          }}
+                                        />
+                                        <CloudArrowUpIcon className="w-4 h-4 flex-shrink-0" />
+                                        <span className="text-xs font-bold whitespace-nowrap">
+                                          {lookupFiles.length > 0
+                                            ? t('Lookup files: {{count}}', { count: lookupFiles.length })
+                                            : t('Upload Lookup Files')}
+                                        </span>
+                                        {lookupFiles.length > 0 && (
+                                          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-purple-600 text-white text-[10px] font-bold rounded-full ring-2 ring-white dark:ring-[#1e1e1e]">
+                                            {lookupFiles.length}
                                           </span>
-                                        </div>
+                                        )}
+                                      </label>
+                                      {lookupFiles.length > 0 && (
                                         <button
-                                          onClick={() => removeLookupFile(i)}
-                                          className="p-1 text-purple-500 hover:text-red-500 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors"
-                                          title={t('Remove')}
+                                          onClick={() => setLookupFiles([])}
+                                          aria-label={t('Clear all lookup files')}
+                                          className="w-9 h-9 flex items-center justify-center border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#2a2a2a] rounded-2xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 hover:border-red-200 dark:hover:border-red-800 transition-all shadow-sm"
                                         >
                                           <XMarkIcon className="w-3.5 h-3.5" />
                                         </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </motion.div>
+                                      )}
+                                    </div>
+
+                                    {/* Lookup files list */}
+                                    {lookupFiles.length > 0 && (
+                                      <div className="rounded-2xl border border-purple-100 dark:border-purple-900/50 bg-purple-50/60 dark:bg-purple-900/10">
+                                        <button
+                                          onClick={() => setShowLookupFiles(!showLookupFiles)}
+                                          aria-label={showLookupFiles ? t('Collapse lookup files') : t('Expand lookup files')}
+                                          className="w-full flex items-center justify-between px-3 py-2 border-b border-purple-100/70 dark:border-purple-900/30 hover:bg-purple-100/50 dark:hover:bg-purple-900/20 transition-colors rounded-t-2xl"
+                                        >
+                                          <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
+                                            {t('Lookup Files for Open New')}
+                                            <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${showLookupFiles ? 'rotate-180' : ''}`} />
+                                          </p>
+                                          <span className="text-[11px] text-purple-600 dark:text-purple-400">
+                                            {lookupFiles.length} {t('file(s)')}
+                                    </span>
+                                  </button>
+                                  <AnimatePresence>
+                                    {showLookupFiles && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="max-h-32 overflow-y-auto p-2 space-y-1.5">
+                                          {lookupFiles.map((f, i) => (
+                                            <div
+                                              key={`${f.name}-${i}`}
+                                              className="flex items-center justify-between gap-3 px-2.5 py-1.5 bg-white dark:bg-[#2a2a2a] border border-purple-100 dark:border-purple-900 rounded-md"
+                                            >
+                                              <div className="min-w-0 flex items-center gap-2">
+                                                <DocumentTextIcon className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                                                <span className="text-xs font-medium text-purple-800 dark:text-purple-300 truncate" title={f.name}>
+                                                  {f.name}
+                                                </span>
+                                              </div>
+                                              <button
+                                                onClick={() => removeLookupFile(i)}
+                                                aria-label={t('Remove {{name}}', { name: f.name })}
+                                                title={t('Remove')}
+                                                className="p-1 text-purple-500 hover:text-red-500 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors"
+                                              >
+                                                <XMarkIcon className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
                               )}
-                            </AnimatePresence>
+
+                                    {/* Preview + Run Open New buttons row */}
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={handlePreviewOpenNew}
+                                        disabled={previewingOpenNew || openNewSSE.isRunning || settlementSSE.isRunning}
+                                        aria-label={t('Preview open-new candidates')}
+                                        title={t('Preview what open-new will do (dry run)')}
+                                        className="flex items-center justify-center gap-1.5 w-[100px] py-3 bg-white dark:bg-[#2a2a2a] text-purple-600 dark:text-purple-400 font-bold rounded-2xl hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-gray-100 dark:border-gray-800 shadow-sm transition-all disabled:opacity-50 text-sm flex-shrink-0"
+                                      >
+                                        {previewingOpenNew
+                                          ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                                          : <EyeIcon className="w-4 h-4" />
+                                        }
+                                        {t('Preview')}
+                                      </button>
+                                      <button
+                                        onClick={handleRunOpenNew}
+                                        disabled={openNewSSE.isRunning || settlementSSE.isRunning}
+                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
+                                      >
+                                        {openNewSSE.isRunning
+                                          ? <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                                          : <BanknotesIcon className="w-5 h-5" />
+                                        }
+                                        {openNewSSE.isRunning ? t('Running Open New...') : t('Run Open New')}
+                                      </button>
+                                    </div>
+
+                                    {openNewSSE.result && (
+                                      <button
+                                        onClick={() => handleDownloadAuditLog(openNewSSE.result, `open_new_${session?.config?.period_name || session?.session_id?.slice(0,8)}`)}
+                                        aria-label={t('Download open-new audit log')}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-2 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl font-medium text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all"
+                                      >
+                                        <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                                        {t('Download Audit Log')}
+                                      </button>
+                                    )}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                        </div>
+                    </div>
+                  )}
 
                 {/* Uploaded Files List */}
                 {session?.uploaded_files?.length > 0 && (
                   <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-black/20">
                     <button
                       onClick={() => setShowUploadedFiles(!showUploadedFiles)}
+                      aria-label={showUploadedFiles ? t('Collapse uploaded files') : t('Expand uploaded files')}
                       className="w-full p-4 lg:px-8 hover:bg-gray-100 dark:hover:bg-gray-900/30 transition-colors"
                     >
                       <div className="flex justify-between items-center">
@@ -983,10 +1251,85 @@ const CashReport = () => {
 
               </div>
             )}
+            </div>
           </div>
         )}
 
-        <div className="space-y-6">
+        {/* ── RIGHT SIDEBAR: Generate Movement Data (col-span-3) ── */}
+        {hasSession && (
+        <div className="lg:col-span-3 lg:order-2 lg:sticky lg:top-6">
+          {/* Generate Movement Data Card */}
+          <div className="h-full bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-6 flex flex-col">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/20 rounded-lg">
+                <ArrowsRightLeftIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                  {t('Generate Movement Data')}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t('Upload a Movement Data file (7-col, no header) → Download classified Export file')}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 mt-auto">
+              {/* File picker */}
+              <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed cursor-pointer transition-colors flex-1 min-w-0 ${
+                generateFile
+                  ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20'
+                  : 'border-gray-300 dark:border-gray-600 hover:border-amber-400 dark:hover:border-amber-500'
+              }`}>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={(e) => setGenerateFile(e.target.files?.[0] || null)}
+                />
+                <CloudArrowUpIcon className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <span className={`text-sm truncate ${generateFile ? 'text-amber-700 dark:text-amber-400 font-medium' : 'text-gray-400 dark:text-gray-500'}`}>
+                  {generateFile ? generateFile.name : t('Click to select Upload file (.xlsx)')}
+                </span>
+                {generateFile && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); setGenerateFile(null); }}
+                    aria-label={t('Clear selected file')}
+                    className="ml-auto text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                )}
+              </label>
+
+              {/* Generate button */}
+              <button
+                onClick={handleGenerateMovementData}
+                disabled={generating || !generateFile}
+                className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {generating ? (
+                  <>
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                    {t('Generating...')}
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownTrayIcon className="w-4 h-4" />
+                    {t('Generate & Download')}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+        )}{/* end right sidebar */}
+        </div>{/* end two-column grid */}
+
+        {/* ── FULL WIDTH BELOW: Loading / No-Session / Upload / Errors ── */}
+        <div className="mt-6 space-y-6">
+
           {/* Loading Sessions */}
           {!hasSession && loadingSessions && (
             <div className="bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-8">
@@ -1042,6 +1385,7 @@ const CashReport = () => {
                   {(uploadSSE.steps.length > 0 || movementSSE.steps.length > 0 || uploading || uploadingMovement || hasSettlementStarted || hasOpenNewStarted) && (
                     <button
                       onClick={() => setShowProgress(!showProgress)}
+                      aria-label={showProgress ? t('Hide progress panel') : t('Show progress panel')}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                         showProgress
                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
@@ -1120,13 +1464,13 @@ const CashReport = () => {
                   <div className="hidden md:block w-px bg-gray-200 dark:bg-gray-700 mx-6" />
                   <div className="md:hidden h-px bg-gray-200 dark:bg-gray-700 my-6" />
 
-                  {/* RIGHT: Movement NS/Manual */}
+                  {/* RIGHT: Movement Data */}
                   <div className="flex-1 min-w-0 flex flex-col">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                      {t('Upload Movement NS/Manual')}
+                      {t('Upload Movement Data')}
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      {t('Upload pre-classified Movement file from NetSuite or manual entries')}
+                      {t('Upload pre-classified Movement file')}
                     </p>
 
                     <div className="flex-1">
@@ -1138,7 +1482,7 @@ const CashReport = () => {
                         onRemoveFile={handleRemoveMovementFile}
                         colorTheme="purple"
                         label={t('Drop Movement file here')}
-                        hint={t('Movement Netsuite & Manual (.xlsx)')}
+                        hint={t('Movement Data (.xlsx)')}
                       />
                     </div>
 
@@ -1150,7 +1494,7 @@ const CashReport = () => {
                       {uploadingMovement ? (
                         <>
                           <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                          {t('Uploading NS/Manual...')}
+                          {t('Uploading Movement Data...')}
                         </>
                       ) : (
                         <>
@@ -1186,7 +1530,7 @@ const CashReport = () => {
                                 isActive={uploading}
                             />
 
-                            {/* Section 1b: Movement NS/Manual Upload Progress */}
+                            {/* Section 1b: Movement Data Upload Progress */}
                             {(movementSSE.steps.length > 0 || uploadingMovement) && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
@@ -1195,7 +1539,7 @@ const CashReport = () => {
                                 >
                                     <div className="flex items-center gap-2 mb-2">
                                         <DocumentChartBarIcon className={`w-5 h-5 ${uploadingMovement ? 'text-purple-500 animate-pulse' : 'text-emerald-500'}`} />
-                                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{t('Movement NS/Manual')}</h3>
+                                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{t('Movement Data')}</h3>
                                     </div>
                                     <UploadProgressPanel
                                         isVisible={true}
@@ -1419,60 +1763,162 @@ const CashReport = () => {
                 )}
               </AnimatePresence>
 
-              {/* Mobile: Progress Panel below */}
-              {showProgress && (
-                <div className="lg:hidden w-full mt-4 bg-white dark:bg-[#222] rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-                  <UploadProgressPanel
-                    isVisible={true}
-                    steps={uploadSSE.steps}
-                    isComplete={uploadSSE.isComplete}
-                    isError={!!uploadSSE.error}
-                    errorMessage={uploadSSE.error}
-                    isActive={uploading}
-                  />
+              {/* Mobile: Progress Panel — auto-open accordion (#3) */}
+              <AnimatePresence>
+                {(showProgress || uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning) && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="lg:hidden w-full mt-4 overflow-hidden"
+                  >
+                    <div className="bg-white dark:bg-[#222] rounded-xl border border-gray-200 dark:border-gray-800">
+                      {/* Sticky header with collapse button */}
+                      <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 bg-white dark:bg-[#222] border-b border-gray-100 dark:border-gray-800 rounded-t-xl">
+                        <div className="flex items-center gap-2">
+                          {(uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning) && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                            {uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning
+                              ? t('Running...')
+                              : t('Progress Log')}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setShowProgress(false)}
+                          aria-label={t('Collapse progress panel')}
+                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded transition-colors"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </div>
 
-                  {/* Mobile Settlement UI */}
-                  {hasSettlementStarted && (
-                       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                           <p className="text-sm font-bold mb-2">{t('Settlement Status')}: {settlementSSE.currentStep}</p>
-                           {settlementSSE.result && (
-                               <button onClick={() => handleDownload('settlement')} className="w-full py-2 bg-emerald-600 text-white rounded-lg text-sm">
-                                   {t('Download Result')}
-                               </button>
-                           )}
-                       </div>
-                  )}
+                      <div className="p-4 space-y-4">
+                        <UploadProgressPanel
+                          isVisible={true}
+                          steps={uploadSSE.steps}
+                          isComplete={uploadSSE.isComplete}
+                          isError={!!uploadSSE.error}
+                          errorMessage={uploadSSE.error}
+                          isActive={uploading}
+                        />
 
-                  {/* Mobile Open-New UI */}
-                  {hasOpenNewStarted && (
-                       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                           <p className="text-sm font-bold mb-2">{t('Open-New Status')}: {openNewSSE.currentStep}</p>
-                           {openNewSSE.result && (
-                               <button onClick={() => handleDownload('open_new')} className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm">
-                                   {t('Download Result')}
-                               </button>
-                           )}
-                       </div>
-                  )}
-                </div>
-              )}
+                        {/* Mobile Movement Upload */}
+                        {(movementSSE.steps.length > 0 || uploadingMovement) && (
+                          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('Movement Data')}</p>
+                            <UploadProgressPanel
+                              isVisible={true}
+                              steps={movementSSE.steps}
+                              isComplete={movementSSE.isComplete}
+                              isError={!!movementSSE.error}
+                              errorMessage={movementSSE.error}
+                              isActive={uploadingMovement}
+                            />
+                          </div>
+                        )}
+
+                        {/* Mobile Settlement */}
+                        {hasSettlementStarted && (
+                          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                              {t('Settlement')} {settlementSSE.currentStep ? `— ${settlementSSE.currentStep}` : ''}
+                            </p>
+                            {settlementError && (
+                              <p className="text-xs text-red-500 mb-2">{settlementError}</p>
+                            )}
+                            {settlementSSE.result && (
+                              <button
+                                onClick={() => handleDownload('settlement')}
+                                aria-label={t('Download settlement result')}
+                                className="w-full py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                              >
+                                <ArrowDownTrayIcon className="w-4 h-4" />
+                                {t('Download Result')}
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Mobile Open-New */}
+                        {hasOpenNewStarted && (
+                          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                              {t('Open-New')} {openNewSSE.currentStep ? `— ${openNewSSE.currentStep}` : ''}
+                            </p>
+                            {openNewError && (
+                              <p className="text-xs text-red-500 mb-2">{openNewError}</p>
+                            )}
+                            {openNewSSE.result && (
+                              <button
+                                onClick={() => handleDownload('open_new')}
+                                aria-label={t('Download open-new result')}
+                                className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                              >
+                                <ArrowDownTrayIcon className="w-4 h-4" />
+                                {t('Download Result')}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
 
-          {/* Error Display */}
+          {/* Per-module Error Display (#9) */}
           <AnimatePresence>
-            {error && (
+            {[
+              { key: 'upload', error: uploadError, label: t('Upload error'), onClear: () => setUploadError(null) },
+              { key: 'movement', error: movementError, label: t('Movement upload error'), onClear: () => setMovementError(null) },
+              { key: 'settlement', error: settlementError, label: t('Settlement error'), onClear: () => setSettlementError(null) },
+              { key: 'openNew', error: openNewError, label: t('Open-new error'), onClear: () => setOpenNewError(null) },
+            ].filter(e => !!e.error).map(({ key, error: errMsg, label, onClear }) => (
               <motion.div
+                key={key}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4"
+                className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3"
               >
-                <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+                <ExclamationCircleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide mb-0.5">{label}</p>
+                  <p className="text-sm text-red-700 dark:text-red-300 break-words">{errMsg}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard?.writeText(errMsg);
+                      toast.success(t('Error copied to clipboard'));
+                    }}
+                    aria-label={t('Copy error details')}
+                    title={t('Copy error details')}
+                    className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
+                  >
+                    <DocumentTextIcon className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={onClear}
+                    aria-label={t('Dismiss error')}
+                    title={t('Dismiss')}
+                    className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                </div>
               </motion.div>
-            )}
+            ))}
           </AnimatePresence>
-        </div>
+        </div>{/* end full-width section */}
       </div>
 
       {/* Create Session Modal */}
@@ -1524,6 +1970,64 @@ const CashReport = () => {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
+
+                {/* Period name preview (#4) */}
+                {openingDate && endingDate && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                    <CalendarIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                    <span className="text-xs text-emerald-700 dark:text-emerald-400">
+                      {t('Period')}: <span className="font-bold">{generatePeriodName(openingDate, endingDate)}</span>
+                    </span>
+                    {templateFile && (
+                      <span className="ml-auto text-xs text-emerald-600 dark:text-emerald-500 italic">
+                        {t('Cash Balance → Prior Period, Movement cleared')}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {t('Template File')}
+                    <span className="ml-1 text-xs font-normal text-gray-400 dark:text-gray-500">
+                      ({t('optional — upload previous period\'s completed file')})
+                    </span>
+                  </label>
+                  <div
+                    className={`relative w-full border-2 border-dashed rounded-lg px-4 py-3 text-center cursor-pointer transition-colors ${
+                      templateFile
+                        ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+                        : 'border-gray-300 dark:border-gray-600 hover:border-emerald-400 dark:hover:border-emerald-500'
+                    }`}
+                    onClick={() => document.getElementById('template-file-input').click()}
+                  >
+                    <input
+                      id="template-file-input"
+                      type="file"
+                      accept=".xlsx"
+                      className="hidden"
+                      onChange={(e) => setTemplateFile(e.target.files?.[0] || null)}
+                    />
+                    {templateFile ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm text-emerald-700 dark:text-emerald-400 truncate">
+                          {templateFile.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setTemplateFile(null); document.getElementById('template-file-input').value = ''; }}
+                          className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-400 dark:text-gray-500">
+                        {t('Click to upload .xlsx template')}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-3 mt-6">
@@ -1554,97 +2058,287 @@ const CashReport = () => {
         )}
       </AnimatePresence>
 
-      {/* Data Preview Dialog */}
+      {/* Settlement Preview Modal (#11) */}
       <AnimatePresence>
-        {showPreview && previewData && (
+        {settlementPreview && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowPreview(false)}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setSettlementPreview(null)}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-[#222] rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] overflow-hidden"
+              initial={{ scale: 0.92, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 20 }}
+              className="bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
-                    <DocumentTextIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                    <EyeIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {t('Data Preview')}
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                      {t('Settlement Preview (Dry Run)')}
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {t('Showing first {{count}} rows', { count: previewData.length })}
+                      {t('No changes will be written until you click Run Settlement')}
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowPreview(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                >
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadAuditLog(settlementPreview, `settlement_preview_${session?.config?.period_name || 'session'}`)}
+                    aria-label={t('Download preview as audit log')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors"
+                  >
+                    <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                    {t('Download JSON')}
+                  </button>
+                  <button onClick={() => setSettlementPreview(null)} aria-label={t('Close preview')} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <XMarkIcon className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
-              <div className="overflow-auto max-h-[calc(85vh-80px)]">
-                {previewData.length > 0 ? (
-                  <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
+              {/* Stats row */}
+              <div className="px-6 py-3 bg-indigo-50 dark:bg-indigo-900/10 border-b border-indigo-100 dark:border-indigo-900/30 flex-shrink-0 flex flex-wrap gap-4">
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">{t('Scanned')}</p>
+                  <p className="text-lg font-bold text-indigo-800 dark:text-indigo-300">{settlementPreview.total_transactions_scanned ?? 0}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">{t('Candidates')}</p>
+                  <p className="text-lg font-bold text-indigo-800 dark:text-indigo-300">{settlementPreview.settlement_candidates ?? 0}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">{t('Would Create')}</p>
+                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{settlementPreview.counter_entries_would_create ?? 0}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400">{t('Interest Splits')}</p>
+                  <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{settlementPreview.interest_splits_would_create ?? 0}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-red-500 dark:text-red-400">{t('No Account')}</p>
+                  <p className="text-lg font-bold text-red-600 dark:text-red-400">{(settlementPreview.skipped_no_account || []).length}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-gray-500">{t('Duplicates')}</p>
+                  <p className="text-lg font-bold text-gray-600 dark:text-gray-400">{(settlementPreview.skipped_duplicate || []).length}</p>
+                </div>
+              </div>
+
+              {/* Candidates table */}
+              <div className="flex-1 overflow-auto">
+                {(settlementPreview.candidates || []).length === 0 ? (
+                  <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
+                    {t('No candidates found')}
+                  </div>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
                       <tr>
-                        <th className="text-left py-3 px-3 text-gray-600 dark:text-gray-400 font-medium">#</th>
-                        <th className="text-left py-3 px-3 text-gray-600 dark:text-gray-400 font-medium">{t('Source')}</th>
-                        <th className="text-left py-3 px-3 text-gray-600 dark:text-gray-400 font-medium">{t('Bank')}</th>
-                        <th className="text-left py-3 px-3 text-gray-600 dark:text-gray-400 font-medium">{t('Account')}</th>
-                        <th className="text-left py-3 px-3 text-gray-600 dark:text-gray-400 font-medium">{t('Date')}</th>
-                        <th className="text-left py-3 px-3 text-gray-600 dark:text-gray-400 font-medium max-w-xs">{t('Description')}</th>
-                        <th className="text-right py-3 px-3 text-gray-600 dark:text-gray-400 font-medium">{t('Debit')}</th>
-                        <th className="text-right py-3 px-3 text-gray-600 dark:text-gray-400 font-medium">{t('Credit')}</th>
-                        <th className="text-left py-3 px-3 text-gray-600 dark:text-gray-400 font-medium">{t('Nature')}</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Status')}</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Date')}</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Bank')}</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide max-w-[200px]">{t('Description')}</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Debit')}</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Counter Account')}</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {previewData.map((row, idx) => (
-                        <tr key={idx} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                          <td className="py-2.5 px-3 text-gray-400 dark:text-gray-500 text-xs">{row.row || idx + 1}</td>
-                          <td className="py-2.5 px-3 text-gray-700 dark:text-gray-300 text-xs max-w-[120px] truncate" title={row.source}>{row.source}</td>
-                          <td className="py-2.5 px-3 text-gray-700 dark:text-gray-300">{row.bank}</td>
-                          <td className="py-2.5 px-3 text-gray-700 dark:text-gray-300 font-mono text-xs">{row.account}</td>
-                          <td className="py-2.5 px-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                            {row.date ? new Date(row.date).toLocaleDateString(i18n.language) : ''}
-                          </td>
-                          <td className="py-2.5 px-3 text-gray-700 dark:text-gray-300 text-xs max-w-[200px] truncate" title={row.description}>
-                            {row.description}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-red-600 dark:text-red-400 font-medium whitespace-nowrap">
-                            {row.debit ? Number(row.debit).toLocaleString(i18n.language) : ''}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-green-600 dark:text-green-400 font-medium whitespace-nowrap">
-                            {row.credit ? Number(row.credit).toLocaleString(i18n.language) : ''}
-                          </td>
-                          <td className="py-2.5 px-3">
-                            {row.nature && (
-                              <span className="px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                                {row.nature}
-                              </span>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {(settlementPreview.candidates || []).map((c, i) => (
+                        <tr key={i} className={`transition-colors ${
+                          c.status === 'matched' ? 'hover:bg-emerald-50 dark:hover:bg-emerald-900/10'
+                          : c.status === 'no_account' ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
+                          : 'bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/50'
+                        }`}>
+                          <td className="px-4 py-2.5">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                              c.status === 'matched' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                              : c.status === 'no_account' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                            }`}>
+                              {c.status === 'matched' ? t('Match') : c.status === 'no_account' ? t('No Acct') : t('Dup')}
+                            </span>
+                            {c.has_interest_split && (
+                              <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">+{t('INT')}</span>
                             )}
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 whitespace-nowrap">{c.date || '—'}</td>
+                          <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap">{c.bank || '—'}</td>
+                          <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 max-w-[200px]">
+                            <span className="truncate block" title={c.description}>{c.description || '—'}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-right text-gray-700 dark:text-gray-300 font-mono whitespace-nowrap">
+                            {c.debit != null ? c.debit.toLocaleString() : '—'}
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 font-mono">{c.counter_account || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-between bg-gray-50 dark:bg-gray-900/30">
+                <span className="text-xs text-gray-500">
+                  {t('{{count}} row(s)', { count: (settlementPreview.candidates || []).length })}
+                </span>
+                <button
+                  onClick={() => setSettlementPreview(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  {t('Close')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Open-New Preview Modal (#11) */}
+      <AnimatePresence>
+        {openNewPreview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setOpenNewPreview(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 20 }}
+              className="bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <EyeIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                      {t('Open-New Preview (Dry Run)')}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {t('No changes will be written until you click Run Open New')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadAuditLog(openNewPreview, `open_new_preview_${session?.config?.period_name || 'session'}`)}
+                    aria-label={t('Download preview as audit log')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
+                  >
+                    <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                    {t('Download JSON')}
+                  </button>
+                  <button onClick={() => setOpenNewPreview(null)} aria-label={t('Close preview')} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <XMarkIcon className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats row */}
+              <div className="px-6 py-3 bg-purple-50 dark:bg-purple-900/10 border-b border-purple-100 dark:border-purple-900/30 flex-shrink-0 flex flex-wrap gap-4">
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400">{t('Scanned')}</p>
+                  <p className="text-lg font-bold text-purple-800 dark:text-purple-300">{openNewPreview.total_transactions_scanned ?? 0}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400">{t('Candidates')}</p>
+                  <p className="text-lg font-bold text-purple-800 dark:text-purple-300">{openNewPreview.open_new_candidates ?? 0}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">{t('Would Create')}</p>
+                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{openNewPreview.counter_entries_would_create ?? 0}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-red-500 dark:text-red-400">{t('No Account')}</p>
+                  <p className="text-lg font-bold text-red-600 dark:text-red-400">{(openNewPreview.skipped_no_account || []).length}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-bold text-gray-500">{t('Duplicates')}</p>
+                  <p className="text-lg font-bold text-gray-600 dark:text-gray-400">{(openNewPreview.skipped_duplicate || []).length}</p>
+                </div>
+              </div>
+
+              {/* Candidates table */}
+              <div className="flex-1 overflow-auto">
+                {(openNewPreview.candidates || []).length === 0 ? (
+                  <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
+                    {t('No candidates found')}
+                  </div>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Status')}</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Date')}</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Bank')}</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide max-w-[200px]">{t('Description')}</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Credit')}</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Saving Account')}</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Rate')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {(openNewPreview.candidates || []).map((c, i) => (
+                        <tr key={i} className={`transition-colors ${
+                          c.status === 'matched' ? (c.no_lookup_data ? 'bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/20' : 'hover:bg-emerald-50 dark:hover:bg-emerald-900/10')
+                          : c.status === 'no_account' ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
+                          : 'bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/50'
+                        }`}>
+                          <td className="px-4 py-2.5">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                              c.status === 'matched' ? (c.no_lookup_data ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400')
+                              : c.status === 'no_account' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                            }`}>
+                              {c.status === 'matched' ? (c.no_lookup_data ? t('No Data') : t('Match')) : c.status === 'no_account' ? t('No Acct') : t('Dup')}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 whitespace-nowrap">{c.date || '—'}</td>
+                          <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap">{c.bank || '—'}</td>
+                          <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 max-w-[200px]">
+                            <span className="truncate block" title={c.description}>{c.description || '—'}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-right text-gray-700 dark:text-gray-300 font-mono whitespace-nowrap">
+                            {c.credit != null ? c.credit.toLocaleString() : '—'}
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 font-mono">{c.saving_account || '—'}</td>
+                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
+                            {c.interest_rate != null ? `${(c.interest_rate * 100).toFixed(2)}%` : '—'}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
-                    <DocumentTextIcon className="w-12 h-12 mb-3" />
-                    <p className="text-sm font-medium">{t('No data available')}</p>
-                  </div>
                 )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-between bg-gray-50 dark:bg-gray-900/30">
+                <span className="text-xs text-gray-500">
+                  {t('{{count}} row(s)', { count: (openNewPreview.candidates || []).length })}
+                </span>
+                <button
+                  onClick={() => setOpenNewPreview(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  {t('Close')}
+                </button>
               </div>
             </motion.div>
           </motion.div>
