@@ -26,7 +26,6 @@ import {
   TableCellsIcon,
   ExclamationCircleIcon,
   EyeIcon,
-  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb, FileUploadZone, ActionMenu } from '@components/common';
@@ -46,7 +45,6 @@ import {
   streamUploadProgress,
   streamSettlementProgress,
   streamOpenNewProgress,
-  generateMovementData,
   previewSettlement,
   previewOpenNew,
 } from '../services/cash-report/cash-report-apis';
@@ -83,10 +81,6 @@ const CashReport = () => {
   const [resetting, setResetting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [resetSlow, setResetSlow] = useState(false);
-
-  // Generate Movement Data state
-  const [generateFile, setGenerateFile] = useState(null);
-  const [generating, setGenerating] = useState(false);
 
   // UI state
   const [showProgress, setShowProgress] = useState(false);
@@ -419,22 +413,6 @@ const CashReport = () => {
     }
   };
 
-  /**
-   * Download a preview or run-result as a JSON audit log file
-   */
-  const handleDownloadAuditLog = (data, prefix) => {
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${prefix}_audit_log.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-    toast.success(t('Audit log downloaded'));
-  };
 
   const handleDownload = async (step) => {
     if (!session?.session_id) return;
@@ -500,6 +478,7 @@ const CashReport = () => {
     });
   };
 
+
   const handleDelete = () => {
     if (!session?.session_id) return;
     setConfirmDialog({
@@ -538,33 +517,6 @@ const CashReport = () => {
         }
       },
     });
-  };
-
-  const handleGenerateMovementData = async () => {
-    if (!generateFile) {
-      toast.error(t('Please select a Movement Data Upload file'));
-      return;
-    }
-    setGenerating(true);
-    try {
-      const periodLabel = session?.config?.period_name || periodName || '';
-      const { blob, filename } = await generateMovementData(generateFile, periodLabel);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      toast.success(t('Movement Data Export generated successfully'));
-      setGenerateFile(null);
-    } catch (err) {
-      console.error('Error generating movement data:', err);
-      toast.error(t('Failed to generate Movement Data Export'));
-    } finally {
-      setGenerating(false);
-    }
   };
 
   // Read Excel header row from file
@@ -849,13 +801,10 @@ const CashReport = () => {
           </div>
         </div>
 
-        {/* Page Body: two-column grid when session active */}
-        <div className={hasSession ? 'grid grid-cols-1 lg:grid-cols-10 gap-6 items-stretch' : ''}>
-
-        {/* ── LEFT MAIN: Master Control Panel (col-span-7) ── */}
+        {/* ── Master Control Panel ── */}
         {hasSession && (
-          <div className="lg:col-span-7 lg:order-1 h-full">
-            <div className="h-full bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div>
+            <div className="bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
             {loadingSessions ? (
               <div className="flex items-center justify-center py-12">
                 <ArrowPathIcon className="w-6 h-6 animate-spin text-gray-400" />
@@ -1029,16 +978,6 @@ const CashReport = () => {
                                       </button>
                                     </div>
 
-                                    {settlementSSE.result && (
-                                      <button
-                                        onClick={() => handleDownloadAuditLog(settlementSSE.result, `settlement_${session?.config?.period_name || session?.session_id?.slice(0,8)}`)}
-                                        aria-label={t('Download settlement audit log')}
-                                        className="flex items-center justify-center gap-1.5 px-3 py-2 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl font-medium text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all"
-                                      >
-                                        <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
-                                        {t('Download Audit Log')}
-                                      </button>
-                                    )}
                                   </motion.div>
                                 ) : (
                                   <motion.div
@@ -1058,7 +997,7 @@ const CashReport = () => {
                                       >
                                         <input
                                           type="file"
-                                          accept=".xlsx,.xls"
+                                          accept=".xlsx,.xls,.pdf"
                                           multiple
                                           className="hidden"
                                           onChange={(e) => {
@@ -1172,16 +1111,6 @@ const CashReport = () => {
                                       </button>
                                     </div>
 
-                                    {openNewSSE.result && (
-                                      <button
-                                        onClick={() => handleDownloadAuditLog(openNewSSE.result, `open_new_${session?.config?.period_name || session?.session_id?.slice(0,8)}`)}
-                                        aria-label={t('Download open-new audit log')}
-                                        className="flex items-center justify-center gap-1.5 px-3 py-2 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl font-medium text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all"
-                                      >
-                                        <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
-                                        {t('Download Audit Log')}
-                                      </button>
-                                    )}
                                   </motion.div>
                                 )}
                               </AnimatePresence>
@@ -1255,79 +1184,7 @@ const CashReport = () => {
           </div>
         )}
 
-        {/* ── RIGHT SIDEBAR: Generate Movement Data (col-span-3) ── */}
-        {hasSession && (
-        <div className="lg:col-span-3 lg:order-2 lg:sticky lg:top-6">
-          {/* Generate Movement Data Card */}
-          <div className="h-full bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-6 flex flex-col">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-amber-100 dark:bg-amber-900/20 rounded-lg">
-                <ArrowsRightLeftIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-                  {t('Generate Movement Data')}
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {t('Upload a Movement Data file (7-col, no header) → Download classified Export file')}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 mt-auto">
-              {/* File picker */}
-              <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed cursor-pointer transition-colors flex-1 min-w-0 ${
-                generateFile
-                  ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-amber-400 dark:hover:border-amber-500'
-              }`}>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  className="hidden"
-                  onChange={(e) => setGenerateFile(e.target.files?.[0] || null)}
-                />
-                <CloudArrowUpIcon className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                <span className={`text-sm truncate ${generateFile ? 'text-amber-700 dark:text-amber-400 font-medium' : 'text-gray-400 dark:text-gray-500'}`}>
-                  {generateFile ? generateFile.name : t('Click to select Upload file (.xlsx)')}
-                </span>
-                {generateFile && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); setGenerateFile(null); }}
-                    aria-label={t('Clear selected file')}
-                    className="ml-auto text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
-                  >
-                    <XMarkIcon className="w-4 h-4" />
-                  </button>
-                )}
-              </label>
-
-              {/* Generate button */}
-              <button
-                onClick={handleGenerateMovementData}
-                disabled={generating || !generateFile}
-                className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                {generating ? (
-                  <>
-                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                    {t('Generating...')}
-                  </>
-                ) : (
-                  <>
-                    <ArrowDownTrayIcon className="w-4 h-4" />
-                    {t('Generate & Download')}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-        )}{/* end right sidebar */}
-        </div>{/* end two-column grid */}
-
-        {/* ── FULL WIDTH BELOW: Loading / No-Session / Upload / Errors ── */}
+        {/* ── Loading / No-Session / Upload / Errors ── */}
         <div className="mt-6 space-y-6">
 
           {/* Loading Sessions */}
@@ -1422,7 +1279,7 @@ const CashReport = () => {
                       {t('Upload Bank Statements')}
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      {t('Upload parsed bank statement Excel files (output from Bank Statement Parser)')}
+                      {t('Upload parsed bank statement Excel files')}
                     </p>
 
                     <div className="flex-1">
@@ -1978,11 +1835,6 @@ const CashReport = () => {
                     <span className="text-xs text-emerald-700 dark:text-emerald-400">
                       {t('Period')}: <span className="font-bold">{generatePeriodName(openingDate, endingDate)}</span>
                     </span>
-                    {templateFile && (
-                      <span className="ml-auto text-xs text-emerald-600 dark:text-emerald-500 italic">
-                        {t('Cash Balance → Prior Period, Movement cleared')}
-                      </span>
-                    )}
                   </div>
                 )}
 
@@ -2090,19 +1942,9 @@ const CashReport = () => {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleDownloadAuditLog(settlementPreview, `settlement_preview_${session?.config?.period_name || 'session'}`)}
-                    aria-label={t('Download preview as audit log')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors"
-                  >
-                    <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
-                    {t('Download JSON')}
-                  </button>
-                  <button onClick={() => setSettlementPreview(null)} aria-label={t('Close preview')} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
-                </div>
+                <button onClick={() => setSettlementPreview(null)} aria-label={t('Close preview')} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
               </div>
 
               {/* Stats row */}
@@ -2235,19 +2077,9 @@ const CashReport = () => {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleDownloadAuditLog(openNewPreview, `open_new_preview_${session?.config?.period_name || 'session'}`)}
-                    aria-label={t('Download preview as audit log')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
-                  >
-                    <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
-                    {t('Download JSON')}
-                  </button>
-                  <button onClick={() => setOpenNewPreview(null)} aria-label={t('Close preview')} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
-                </div>
+                <button onClick={() => setOpenNewPreview(null)} aria-label={t('Close preview')} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
               </div>
 
               {/* Stats row */}

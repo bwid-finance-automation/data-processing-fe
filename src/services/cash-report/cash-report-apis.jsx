@@ -185,6 +185,7 @@ export const resetAutomationSession = async (sessionId) => {
   }
 };
 
+
 /**
  * Delete session
  * @param {string} sessionId - Session ID
@@ -476,39 +477,3 @@ export const previewMovementData = async (sessionId, limit = 20) => {
   }
 };
 
-/**
- * Generate a Movement Data Export file from a Movement Data Upload file.
- * The upload file has 7 columns (no header): Source, Bank, Account, Date, Description, Debit, Credit.
- * The generated export file has 16 columns (with header) ready for Upload Movement Data.
- * @param {File} file - Movement Data Upload .xlsx file
- * @param {string} periodName - Period name to fill the Period column (e.g. "W3-4Jan26")
- * @returns {Promise<{blob: Blob, filename: string}>} Generated export file blob and filename
- */
-export const generateMovementData = async (file, periodName = '') => {
-  const formData = new FormData();
-  formData.append('file', file);
-  if (periodName) {
-    formData.append('period_name', periodName);
-  }
-
-  try {
-    const response = await apiClient.post(
-      `${FINANCE_API_BASE_URL}/cash-report/generate-movement-data`,
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        responseType: 'blob',
-      }
-    );
-    const contentDisposition = response.headers['content-disposition'];
-    let filename = file.name.replace(/\.[^.]+$/, '') + '_Export.xlsx';
-    if (contentDisposition) {
-      const match = contentDisposition.match(/filename=(.+)/);
-      if (match) filename = match[1].replace(/"/g, '');
-    }
-    return { blob: response.data, filename };
-  } catch (error) {
-    console.error('Error generating movement data:', error);
-    throw error;
-  }
-};
