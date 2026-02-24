@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDownIcon, SunIcon, MoonIcon, GlobeAltIcon, UserCircleIcon, ArrowRightOnRectangleIcon, Bars3Icon, ShieldCheckIcon } from "@heroicons/react/24/solid";
+import { ChevronDownIcon, SunIcon, MoonIcon, GlobeAltIcon, UserCircleIcon, ArrowRightOnRectangleIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import { useTranslation } from 'react-i18next';
 import { useDarkMode } from "@configs/DarkModeProvider";
 import { motion, AnimatePresence } from "framer-motion";
@@ -160,11 +160,6 @@ export default function Header() {
                           </p>
                         </div>
                       </div>
-                      {user.role === "admin" && (
-                        <span className="mt-2 inline-block px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded">
-                          Admin
-                        </span>
-                      )}
                     </div>
                   )}
 
@@ -184,26 +179,6 @@ export default function Header() {
                       </motion.button>
                     ))}
                   </div>
-
-                  {/* Admin Section (only for admin users) */}
-                  {isAuthenticated && user?.role === "admin" && (
-                    <>
-                      <div className="border-t border-gray-200 dark:border-gray-700"></div>
-                      <div className="py-1">
-                        <motion.button
-                          onClick={() => {
-                            navigate('/admin');
-                            setOpen(false);
-                          }}
-                          whileHover={{ x: 4 }}
-                          className="w-full text-left px-4 py-2.5 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all flex items-center gap-3"
-                        >
-                          <ShieldCheckIcon className="w-5 h-5" />
-                          <span className="font-medium">{t('Admin Panel')}</span>
-                        </motion.button>
-                      </div>
-                    </>
-                  )}
 
                   {/* Divider */}
                   <div className="border-t border-gray-200 dark:border-gray-700"></div>

@@ -5,10 +5,9 @@ import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { AnimatePresence, motion } from "framer-motion";
 
 import DarkModeProvider from "@configs/DarkModeProvider";
-import AuthProvider, { useAuth } from "@configs/AuthProvider";
+import AuthProvider from "@configs/AuthProvider";
 import SettingsProvider from "@configs/SettingsProvider";
 import MainLayout from "@layouts/MainLayout";
-import AdminLayout from "@layouts/AdminLayout";
 
 import Home from "@pages/Home";
 import Login from "@pages/Login";
@@ -26,11 +25,6 @@ import UtilityBilling from "@pages/UtilityBilling";
 import BankStatementParser from "@pages/BankStatementParser";
 import BankStatementSessionDetail from "@pages/BankStatementSessionDetail";
 import CashReport from "@pages/CashReport";
-import AIUsageDashboard from "@pages/AIUsageDashboard";
-import AdminUsers from "@pages/AdminUsers";
-import AdminDashboard from "@pages/admin/AdminDashboard";
-import AdminCases from "@pages/admin/AdminCases";
-import AdminSettings from "@pages/admin/AdminSettings";
 import NotFound from "@pages/NotFound";
 import ProtectedRoute from "@components/auth/ProtectedRoute";
 import FeatureGate from "@components/FeatureGate";
@@ -62,38 +56,9 @@ function PageWrapper({ children }) {
   );
 }
 
-// Admin Route wrapper - redirects non-admin users
-function AdminRoute({ children }) {
-  const { isAuthenticated, user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (user?.role !== "admin") {
-    return <Navigate to="/" replace />;
-  }
-
-  return <AdminLayout>{children}</AdminLayout>;
-}
-
 // User Routes (with MainLayout)
 function UserRoutes() {
   const location = useLocation();
-  const { isAuthenticated, user, loading } = useAuth();
-
-  // Redirect admin users to admin panel
-  if (!loading && isAuthenticated && user?.role === "admin") {
-    return <Navigate to="/admin" replace />;
-  }
 
   return (
     <MainLayout>
@@ -267,22 +232,6 @@ function UserRoutes() {
   );
 }
 
-// Admin Routes (with AdminLayout)
-function AdminRoutes() {
-  return (
-    <AdminRoute>
-      <Routes>
-        <Route path="/" element={<AdminDashboard />} />
-        <Route path="/users" element={<AdminUsers />} />
-        <Route path="/cases" element={<AdminCases />} />
-        <Route path="/ai-usage" element={<AIUsageDashboard />} />
-        <Route path="/settings" element={<AdminSettings />} />
-        <Route path="*" element={<Navigate to="/admin" replace />} />
-      </Routes>
-    </AdminRoute>
-  );
-}
-
 // Main App Routes
 function AppRoutes() {
   const location = useLocation();
@@ -295,9 +244,6 @@ function AppRoutes() {
         {/* Public Auth Routes - No Layout */}
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-
-        {/* Admin Routes - AdminLayout */}
-        <Route path="/admin/*" element={<AdminRoutes />} />
 
         {/* User Routes - MainLayout */}
         <Route path="/*" element={<UserRoutes />} />

@@ -867,15 +867,6 @@
   "showcaseGradientTextDesc": "Using the gradient-text utility class for stunning typography",
 
   "or": "or",
-  "Admin Login": "Admin Login",
-  "Username": "Username",
-  "Enter username or email": "Enter username or email",
   "Enter password": "Enter password",
-  "Signing in...": "Signing in...",
-  "Sign in": "Sign in",
-  "Back to Google Login": "Back to Google Login",
-  "Back to Home": "Back to Home",
-  "Login failed. Please check your credentials.": "Login failed. Please check your credentials.",
-  "Please enter both username and password": "Please enter both username and password",
-  "Admin Panel": "Admin Panel"
+  "Back to Home": "Back to Home"
 }

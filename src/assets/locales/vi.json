@@ -867,15 +867,6 @@
   "showcaseGradientTextDesc": "Sử dụng class gradient-text cho kiểu chữ ấn tượng",
 
   "or": "hoặc",
-  "Admin Login": "Đăng nhập Admin",
-  "Username": "Tên đăng nhập",
-  "Enter username or email": "Nhập tên đăng nhập hoặc email",
   "Enter password": "Nhập mật khẩu",
-  "Signing in...": "Đang đăng nhập...",
-  "Sign in": "Đăng nhập",
-  "Back to Google Login": "Quay lại đăng nhập Google",
-  "Back to Home": "Quay về trang chủ",
-  "Login failed. Please check your credentials.": "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.",
-  "Please enter both username and password": "Vui lòng nhập cả tên đăng nhập và mật khẩu",
-  "Admin Panel": "Bảng quản trị"
+  "Back to Home": "Quay về trang chủ"
 }
