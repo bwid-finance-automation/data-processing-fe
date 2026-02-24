@@ -1,16 +1,19 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export default function NotFound() {
+  const { t } = useTranslation();
+
   useEffect(() => {
-    document.title = "404 - Page Not Found - BW Industrial";
-  }, []);
+    document.title = `${t("notFoundTitle")} - BW Industrial`;
+  }, [t]);
 
   return (
     <div>
-      <h1>404 - Page Not Found</h1>
-      <p>The page you're looking for doesn't exist.</p>
-      <Link to="/">Go back home</Link>
+      <h1>{t("notFoundTitle")}</h1>
+      <p>{t("notFoundDesc")}</p>
+      <Link to="/">{t("goBackHome")}</Link>
     </div>
   );
 }

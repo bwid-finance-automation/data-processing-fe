@@ -2,13 +2,22 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
+import { GlobeAltIcon, SunIcon, MoonIcon } from "@heroicons/react/24/solid";
 import { useAuth } from "@configs/AuthProvider";
+import { useDarkMode } from "@configs/DarkModeProvider";
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user, getGoogleAuthUrl, handleLogin, error: authError } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { isDark, toggleDarkMode } = useDarkMode();
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'vi' ? 'en' : 'vi';
+    i18n.changeLanguage(newLang);
+    localStorage.setItem('language', newLang);
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -74,7 +83,32 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 px-4 relative">
+      {/* Language & Theme Toggles */}
+      <div className="absolute top-4 right-4 flex items-center gap-1.5">
+        <motion.button
+          onClick={toggleLanguage}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center gap-1.5 px-3 h-9 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm transition-all"
+        >
+          <GlobeAltIcon className="w-4 h-4" />
+          <span className="text-xs font-semibold">{i18n.language.toUpperCase()}</span>
+        </motion.button>
+        <motion.button
+          onClick={toggleDarkMode}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center justify-center w-9 h-9 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm transition-all"
+        >
+          {isDark ? <SunIcon className="w-4 h-4 text-yellow-500" /> : <MoonIcon className="w-4 h-4" />}
+        </motion.button>
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

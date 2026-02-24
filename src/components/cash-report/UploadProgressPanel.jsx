@@ -181,9 +181,9 @@ const UploadProgressPanel = ({ isVisible, steps, isComplete, isError, errorMessa
                             className="pl-3 pb-3 pt-0.5 min-w-0"
                           >
                             <span className="text-sm leading-relaxed text-slate-600 dark:text-gray-400 font-light">
-                              {step.message}
-                              {step.detail && (
-                                <span className="text-slate-400 dark:text-gray-500"> — {step.detail}</span>
+                              {step.message_key ? t(step.message_key, step.message_params || {}) : step.message}
+                              {(step.detail_key || step.detail) && (
+                                <span className="text-slate-400 dark:text-gray-500"> — {step.detail_key ? t(step.detail_key, step.detail_params || {}) : step.detail}</span>
                               )}
                             </span>
                           </motion.div>

@@ -831,6 +831,25 @@ const CashReport = () => {
                       </span>
                     )}
 
+                    {/* Toggle Files Button */}
+                    {session?.uploaded_files?.length > 0 && (
+                      <button
+                        onClick={() => setShowUploadedFiles(!showUploadedFiles)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                          showUploadedFiles
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`}
+                        title={showUploadedFiles ? t('Hide Uploaded Files') : t('Show Uploaded Files')}
+                      >
+                        <DocumentTextIcon className="w-4 h-4" />
+                        <span className="hidden sm:inline">{t('Files')}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${showUploadedFiles ? 'bg-emerald-200/50 dark:bg-emerald-800/50' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                          {session.uploaded_files.length}
+                        </span>
+                      </button>
+                    )}
+
                     {/* Export dropdown */}
                     <div className="relative" data-export-menu>
                       <button
@@ -884,10 +903,14 @@ const CashReport = () => {
                   </div>
                 </div>
 
-                {/* ── Primary Actions ── */}
-                {movementRows > 0 && (
-                  <div className="px-6 lg:px-8 pb-6">
-                    <div className="relative py-6 px-4 rounded-[2rem] bg-gradient-to-b from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#111] border border-gray-200/60 dark:border-gray-800/60 flex flex-col items-center gap-4">
+                {/* ── Primary Actions & Uploaded Files ── */}
+                <div className="px-6 lg:px-8 pb-6 flex flex-col md:flex-row items-stretch gap-4">
+
+                  {/* Primary Actions Container */}
+                  {movementRows > 0 && (
+                    <div
+                      className={`relative py-5 px-4 rounded-[2rem] bg-gradient-to-b from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#111] border border-gray-200/60 dark:border-gray-800/60 flex flex-col items-center gap-4 min-w-0 transition-all duration-300 ease-in-out ${showUploadedFiles && session?.uploaded_files?.length > 0 ? 'md:w-[60%]' : 'w-full'}`}
+                    >
 
                           {/* Floating pill tab switcher */}
                           <div className="flex w-full p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-full border border-gray-200 dark:border-gray-700/50 shadow-inner">
@@ -936,7 +959,7 @@ const CashReport = () => {
                           </div>
 
                           {/* Action card */}
-                          <div className="w-full bg-white/80 dark:bg-[#1e1e1e]/80 backdrop-blur-md p-2 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.07)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.35)] border border-gray-200/50 dark:border-gray-700/50 relative overflow-hidden">
+                          <div className="w-full bg-white/80 dark:bg-white/[0.04] backdrop-blur-md p-2 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.07)] dark:shadow-none border border-gray-200/50 dark:border-gray-700/30 relative overflow-hidden">
                             {/* Ambient glow matching active tab */}
                             <div className={`absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 blur-3xl opacity-[0.15] rounded-full pointer-events-none transition-colors duration-700 ${automationTab === 'settlement' ? 'bg-indigo-500' : 'bg-purple-500'}`} />
 
@@ -968,7 +991,7 @@ const CashReport = () => {
                                       <button
                                         onClick={handleRunSettlement}
                                         disabled={settlementSSE.isRunning || openNewSSE.isRunning}
-                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
+                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-black dark:hover:bg-white text-white dark:text-gray-900 rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
                                       >
                                         {settlementSSE.isRunning
                                           ? <ArrowPathIcon className="w-5 h-5 animate-spin" />
@@ -1101,7 +1124,7 @@ const CashReport = () => {
                                       <button
                                         onClick={handleRunOpenNew}
                                         disabled={openNewSSE.isRunning || settlementSSE.isRunning}
-                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
+                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-black dark:hover:bg-white text-white dark:text-gray-900 rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
                                       >
                                         {openNewSSE.isRunning
                                           ? <ArrowPathIcon className="w-5 h-5 animate-spin" />
@@ -1116,67 +1139,45 @@ const CashReport = () => {
                               </AnimatePresence>
                             </div>
                           </div>
-                        </div>
                     </div>
                   )}
 
-                {/* Uploaded Files List */}
-                {session?.uploaded_files?.length > 0 && (
-                  <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-black/20">
-                    <button
-                      onClick={() => setShowUploadedFiles(!showUploadedFiles)}
-                      aria-label={showUploadedFiles ? t('Collapse uploaded files') : t('Expand uploaded files')}
-                      className="w-full p-4 lg:px-8 hover:bg-gray-100 dark:hover:bg-gray-900/30 transition-colors"
+                  {/* Uploaded Files Side Panel — CSS-only transition, always mounted */}
+                  {session?.uploaded_files?.length > 0 && (
+                    <div
+                      className={`hidden md:block overflow-hidden transition-all duration-300 ease-in-out ${
+                        showUploadedFiles ? 'md:w-[40%] opacity-100' : 'w-0 opacity-0'
+                      }`}
                     >
-                      <div className="flex justify-between items-center">
-                        <h4 className="text-xs font-semibold uppercase text-gray-500 tracking-wider flex items-center gap-1.5">
-                          {t('Uploaded Files')}
-                          <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${showUploadedFiles ? 'rotate-180' : ''}`} />
-                        </h4>
-                        <span className="text-xs text-gray-400 font-mono">
-                          {((session?.uploaded_files?.reduce((acc, f) => acc + (f.file_size || 0), 0) || 0) / 1024 / 1024).toFixed(2)} MB Total
-                        </span>
-                      </div>
-                    </button>
-
-                    <AnimatePresence>
-                      {showUploadedFiles && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          {/* Horizontal Scrollable Tabs */}
-                          <div className="px-4 lg:px-8 pb-4">
-                            <div className="relative">
-                              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent pb-2">
-                                <div className="flex gap-2 min-w-max">
-                                  {session.uploaded_files.map((file, idx) => (
-                                    <div
-                                      key={`${file.filename}-${idx}`}
-                                      className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-[#252525] rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hover:border-blue-400 dark:hover:border-blue-600 transition-colors group"
-                                    >
-                                      <div className="p-1.5 bg-blue-50 dark:bg-blue-900/20 rounded text-blue-600 dark:text-blue-400">
-                                        <DocumentTextIcon className="w-4 h-4" />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="text-xs font-medium text-gray-900 dark:text-white whitespace-nowrap" title={file.filename}>
-                                          {file.filename}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
+                      <div className="h-full py-4 px-3 rounded-[2rem] bg-gradient-to-b from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#111] border border-gray-200/60 dark:border-gray-800/60 min-w-[220px] flex flex-col">
+                        <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                          <h4 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 tracking-wider flex items-center gap-1.5">
+                            <DocumentTextIcon className="w-3.5 h-3.5" />
+                            {t('Files')}
+                          </h4>
+                          <span className="text-[10px] text-gray-400 font-mono whitespace-nowrap">
+                            {((session?.uploaded_files?.reduce((acc, f) => acc + (f.file_size || 0), 0) || 0) / 1024 / 1024).toFixed(2)} MB
+                          </span>
+                        </div>
+                        <div className="space-y-1.5 overflow-y-auto pr-1 flex-1 min-h-0">
+                          {session.uploaded_files.map((file, idx) => (
+                            <div
+                              key={`${file.filename}-${idx}`}
+                              className="flex items-center gap-2 px-2.5 py-2 bg-white dark:bg-white/[0.04] rounded-lg border border-gray-200 dark:border-gray-700/40 hover:border-blue-400 dark:hover:border-blue-600 transition-colors"
+                            >
+                              <div className="p-1 bg-blue-50 dark:bg-blue-900/20 rounded text-blue-600 dark:text-blue-400 flex-shrink-0">
+                                <DocumentTextIcon className="w-3.5 h-3.5" />
                               </div>
+                              <p className="text-[11px] font-medium text-gray-900 dark:text-white truncate" title={file.filename}>
+                                {file.filename}
+                              </p>
                             </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
               </div>
             )}
@@ -1805,27 +1806,95 @@ const CashReport = () => {
               </div>
 
               <div className="space-y-4">
+                {/* Quick Period Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t('Opening Date')} *
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('Quick Period')}
                   </label>
-                  <input
-                    type="date"
-                    value={openingDate}
-                    onChange={(e) => setOpeningDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
-                  />
+                  <div className="flex flex-wrap gap-2">
+                    {(() => {
+                      const now = new Date();
+                      const todayDay = now.getDate();
+                      const todayMonth = now.getMonth();
+                      const todayYear = now.getFullYear();
+                      // current period index: W1-2 = 0, W3-4 = 1 within a month
+                      const currentHalf = todayDay <= 15 ? 0 : 1;
+
+                      // Build a flat list of all half-month periods across a range of months
+                      const allPeriods = [];
+                      for (let offset = -2; offset <= 2; offset++) {
+                        const d = new Date(todayYear, todayMonth + offset, 1);
+                        const y = d.getFullYear();
+                        const m = d.getMonth();
+                        const mm = String(m + 1).padStart(2, '0');
+                        const monthShort = d.toLocaleString('en-US', { month: 'short' });
+                        const yr = String(y).slice(-2);
+                        const lastDay = new Date(y, m + 1, 0).getDate();
+                        allPeriods.push({
+                          label: `W1-2${monthShort}${yr}`,
+                          start: `${y}-${mm}-01`,
+                          end: `${y}-${mm}-15`,
+                          isCurrent: offset === 0 && currentHalf === 0,
+                        });
+                        allPeriods.push({
+                          label: `W3-4${monthShort}${yr}`,
+                          start: `${y}-${mm}-16`,
+                          end: `${y}-${mm}-${lastDay}`,
+                          isCurrent: offset === 0 && currentHalf === 1,
+                        });
+                      }
+
+                      // Show 4 periods: 2 before + current + 1 after
+                      const curIdx = allPeriods.findIndex((p) => p.isCurrent);
+                      const sliceStart = Math.max(0, curIdx - 2);
+                      const periods = allPeriods.slice(sliceStart, sliceStart + 4);
+
+                      return periods.map((p) => {
+                        const isSelected = openingDate === p.start && endingDate === p.end;
+                        return (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => { setOpeningDate(p.start); setEndingDate(p.end); }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                              isSelected
+                                ? 'bg-emerald-500 text-white border-emerald-500 shadow-md'
+                                : p.isCurrent
+                                  ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 ring-1 ring-emerald-200 dark:ring-emerald-800'
+                                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400'
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t('Ending Date')} *
-                  </label>
-                  <input
-                    type="date"
-                    value={endingDate}
-                    onChange={(e) => setEndingDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
-                  />
+
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      {t('Opening Date')} *
+                    </label>
+                    <input
+                      type="date"
+                      value={openingDate}
+                      onChange={(e) => setOpeningDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      {t('Ending Date')} *
+                    </label>
+                    <input
+                      type="date"
+                      value={endingDate}
+                      onChange={(e) => setEndingDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
                 </div>
 
                 {/* Period name preview (#4) */}
