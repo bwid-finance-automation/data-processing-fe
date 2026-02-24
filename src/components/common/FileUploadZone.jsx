@@ -64,6 +64,7 @@ const FileUploadZone = memo(function FileUploadZone({
   maxSize,
   colorTheme = 'blue',
   showFileList = true,
+  compact = false,
   onRemoveFile,
   className = '',
   id,
@@ -126,7 +127,7 @@ const FileUploadZone = memo(function FileUploadZone({
         />
         <label
           htmlFor={inputId}
-          className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
+          className={`flex ${compact ? 'flex-row gap-3 px-4' : 'flex-col'} items-center justify-center w-full ${compact ? 'h-20' : 'h-48'} border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
             disabled ? 'opacity-50 cursor-not-allowed' : ''
           } ${
             hasFiles
@@ -136,29 +137,29 @@ const FileUploadZone = memo(function FileUploadZone({
               : `border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 ${colors.hover}`
           }`}
         >
-          <div className="flex flex-col items-center gap-3">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+          <div className={`flex ${compact ? 'flex-row' : 'flex-col'} items-center ${compact ? 'gap-2.5' : 'gap-3'}`}>
+            <div className={`${compact ? 'w-10 h-10' : 'w-16 h-16'} rounded-full flex items-center justify-center flex-shrink-0 ${
               hasFiles ? 'bg-green-500' : dragActive ? colors.icon : 'bg-gray-300 dark:bg-gray-700'
             }`}>
               {hasFiles ? (
-                <CheckIcon className="w-8 h-8 text-white" />
+                <CheckIcon className={`${compact ? 'w-5 h-5' : 'w-8 h-8'} text-white`} />
               ) : (
-                <CloudArrowUpIcon className="w-8 h-8 text-white" />
+                <CloudArrowUpIcon className={`${compact ? 'w-5 h-5' : 'w-8 h-8'} text-white`} />
               )}
             </div>
-            <div className="text-center">
-              <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <div className={compact ? 'text-left' : 'text-center'}>
+              <p className={`${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-700 dark:text-gray-200`}>
                 {hasFiles
                   ? (multiple ? `${selectedFiles.length} ${t('file(s) selected')}` : selectedFiles[0]?.name)
                   : (label || t('Click to choose files'))}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-gray-500 dark:text-gray-400 mt-0.5`}>
                 {hasFiles
                   ? formatFileSize(selectedFiles.reduce((acc, f) => acc + f.size, 0))
                   : (hint || t('or drag and drop'))}
               </p>
               {maxSize && !hasFiles && (
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-gray-400 dark:text-gray-500 mt-0.5`}>
                   {t('Max size')}: {formatFileSize(maxSize)}
                 </p>
               )}
@@ -169,16 +170,16 @@ const FileUploadZone = memo(function FileUploadZone({
 
       {/* File List */}
       {showFileList && (
-        <div className="mt-3 h-[120px] overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+        <div className={`${compact ? 'mt-2 max-h-[80px]' : 'mt-3 h-[120px]'} overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30`}>
           {hasFiles ? (
             <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
               {selectedFiles.map((file, index) => (
                 <div
                   key={`${file.name}-${index}`}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-white dark:hover:bg-gray-800 transition-colors group"
+                  className={`flex items-center ${compact ? 'gap-2 px-2.5 py-1.5' : 'gap-3 px-3 py-2.5'} hover:bg-white dark:hover:bg-gray-800 transition-colors group`}
                 >
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${colors.bg} flex items-center justify-center`}>
-                    <CloudArrowUpIcon className={`w-4 h-4 ${
+                  <div className={`flex-shrink-0 ${compact ? 'w-6 h-6 rounded-md' : 'w-8 h-8 rounded-lg'} ${colors.bg} flex items-center justify-center`}>
+                    <CloudArrowUpIcon className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} ${
                       colorTheme === 'emerald' ? 'text-emerald-500' :
                       colorTheme === 'green' ? 'text-green-500' :
                       colorTheme === 'indigo' ? 'text-indigo-500' :
@@ -187,26 +188,28 @@ const FileUploadZone = memo(function FileUploadZone({
                     }`} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                    <p className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-gray-800 dark:text-gray-200 truncate`}>
                       {file.name}
                     </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">
-                      {formatFileSize(file.size)}
-                    </p>
+                    {!compact && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        {formatFileSize(file.size)}
+                      </p>
+                    )}
                   </div>
                   {onRemoveFile && (
                     <button
                       onClick={() => onRemoveFile(index)}
-                      className="flex-shrink-0 p-1.5 rounded-lg text-red-300 dark:text-red-400/50 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                      className={`flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'} rounded-lg text-red-300 dark:text-red-400/50 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all`}
                     >
-                      <XMarkIcon className="w-4 h-4" />
+                      <XMarkIcon className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
                     </button>
                   )}
                 </div>
               ))}
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center text-gray-300 dark:text-gray-600">
+            <div className={`${compact ? 'py-3' : 'h-full'} flex items-center justify-center text-gray-300 dark:text-gray-600`}>
               <p className="text-xs">{t('Uploaded files will appear here')}</p>
             </div>
           )}

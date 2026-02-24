@@ -84,7 +84,7 @@ const CashReport = () => {
 
   // UI state
   const [showProgress, setShowProgress] = useState(false);
-  const [showLookupFiles, setShowLookupFiles] = useState(true);
+
   const [showUploadedFiles, setShowUploadedFiles] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -1011,100 +1011,20 @@ const CashReport = () => {
                                     transition={{ duration: 0.18 }}
                                     className="flex flex-col gap-2"
                                   >
-                                    {/* Lookup files upload */}
-                                    <div className="flex items-center gap-2">
-                                      <label
-                                        className="relative flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl cursor-pointer border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#2a2a2a] text-purple-600 dark:text-purple-400 hover:border-purple-300 dark:hover:border-purple-700 shadow-sm transition-all"
-                                        title={t('Upload Lookup Files')}
-                                        aria-label={t('Upload Lookup Files')}
-                                      >
-                                        <input
-                                          type="file"
-                                          accept=".xlsx,.xls,.pdf"
-                                          multiple
-                                          className="hidden"
-                                          onChange={(e) => {
-                                            const newFiles = Array.from(e.target.files || []);
-                                            if (newFiles.length > 0) handleLookupFilesSelected(newFiles);
-                                            e.target.value = '';
-                                          }}
-                                        />
-                                        <CloudArrowUpIcon className="w-4 h-4 flex-shrink-0" />
-                                        <span className="text-xs font-bold whitespace-nowrap">
-                                          {lookupFiles.length > 0
-                                            ? t('Lookup files: {{count}}', { count: lookupFiles.length })
-                                            : t('Upload Lookup Files')}
-                                        </span>
-                                        {lookupFiles.length > 0 && (
-                                          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-purple-600 text-white text-[10px] font-bold rounded-full ring-2 ring-white dark:ring-[#1e1e1e]">
-                                            {lookupFiles.length}
-                                          </span>
-                                        )}
-                                      </label>
-                                      {lookupFiles.length > 0 && (
-                                        <button
-                                          onClick={() => setLookupFiles([])}
-                                          aria-label={t('Clear all lookup files')}
-                                          className="w-9 h-9 flex items-center justify-center border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#2a2a2a] rounded-2xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 hover:border-red-200 dark:hover:border-red-800 transition-all shadow-sm"
-                                        >
-                                          <XMarkIcon className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                    </div>
-
-                                    {/* Lookup files list */}
-                                    {lookupFiles.length > 0 && (
-                                      <div className="rounded-2xl border border-purple-100 dark:border-purple-900/50 bg-purple-50/60 dark:bg-purple-900/10">
-                                        <button
-                                          onClick={() => setShowLookupFiles(!showLookupFiles)}
-                                          aria-label={showLookupFiles ? t('Collapse lookup files') : t('Expand lookup files')}
-                                          className="w-full flex items-center justify-between px-3 py-2 border-b border-purple-100/70 dark:border-purple-900/30 hover:bg-purple-100/50 dark:hover:bg-purple-900/20 transition-colors rounded-t-2xl"
-                                        >
-                                          <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
-                                            {t('Lookup Files for Open New')}
-                                            <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${showLookupFiles ? 'rotate-180' : ''}`} />
-                                          </p>
-                                          <span className="text-[11px] text-purple-600 dark:text-purple-400">
-                                            {lookupFiles.length} {t('file(s)')}
-                                    </span>
-                                  </button>
-                                  <AnimatePresence>
-                                    {showLookupFiles && (
-                                      <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="overflow-hidden"
-                                      >
-                                        <div className="max-h-32 overflow-y-auto p-2 space-y-1.5">
-                                          {lookupFiles.map((f, i) => (
-                                            <div
-                                              key={`${f.name}-${i}`}
-                                              className="flex items-center justify-between gap-3 px-2.5 py-1.5 bg-white dark:bg-[#2a2a2a] border border-purple-100 dark:border-purple-900 rounded-md"
-                                            >
-                                              <div className="min-w-0 flex items-center gap-2">
-                                                <DocumentTextIcon className="w-4 h-4 text-purple-500 flex-shrink-0" />
-                                                <span className="text-xs font-medium text-purple-800 dark:text-purple-300 truncate" title={f.name}>
-                                                  {f.name}
-                                                </span>
-                                              </div>
-                                              <button
-                                                onClick={() => removeLookupFile(i)}
-                                                aria-label={t('Remove {{name}}', { name: f.name })}
-                                                title={t('Remove')}
-                                                className="p-1 text-purple-500 hover:text-red-500 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors"
-                                              >
-                                                <XMarkIcon className="w-3.5 h-3.5" />
-                                              </button>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
-                              )}
+                                    {/* Lookup files upload - drag & drop zone */}
+                                    <FileUploadZone
+                                      onFilesSelected={handleLookupFilesSelected}
+                                      accept=".xlsx,.xls,.pdf"
+                                      multiple
+                                      compact
+                                      selectedFiles={lookupFiles}
+                                      label={t('Upload Lookup Files')}
+                                      hint={t('Drag & drop or click to browse')}
+                                      colorTheme="purple"
+                                      showFileList={true}
+                                      onRemoveFile={removeLookupFile}
+                                      id="lookup-files-upload"
+                                    />
 
                                     {/* Preview + Run Open New buttons row */}
                                     <div className="flex gap-2">
