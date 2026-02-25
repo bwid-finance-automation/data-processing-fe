@@ -30,6 +30,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb, FileUploadZone, ActionMenu } from '@components/common';
 import UploadProgressPanel from '../components/cash-report/UploadProgressPanel';
+import HowItWorksCard from '../components/cash-report/HowItWorksCard';
 import useSSEProgress from '../hooks/useSSEProgress';
 import {
   initAutomationSession,
@@ -89,6 +90,7 @@ const CashReport = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [automationTab, setAutomationTab] = useState('settlement'); // 'settlement' | 'open_new'
+  const [hasDownloadedResult, setHasDownloadedResult] = useState(false);
 
   // Per-module error state (#9)
   const [uploadError, setUploadError] = useState(null);
@@ -237,6 +239,7 @@ const CashReport = () => {
         templateFile: templateFile || null,
       });
 
+      setHasDownloadedResult(false);
       setSession(result);
       setShowCreateModal(false);
       setTemplateFile(null);
@@ -269,6 +272,7 @@ const CashReport = () => {
     // Reset settlement & open-new state if re-uploading
     settlementSSE.resetAll();
     openNewSSE.resetAll();
+    setHasDownloadedResult(false);
 
     // Start SSE stream for upload progress
     uploadSSE.startUploadStream(() => streamUploadProgress(session.session_id));
@@ -428,6 +432,7 @@ const CashReport = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+      setHasDownloadedResult(true);
       toast.success(t('Downloaded successfully'));
     } catch (err) {
       console.error('Error downloading:', err);
@@ -464,6 +469,7 @@ const CashReport = () => {
           setMovementError(null);
           setSettlementError(null);
           setOpenNewError(null);
+          setHasDownloadedResult(false);
 
           await loadSessionStatus(session.session_id);
         } catch (err) {
@@ -503,6 +509,7 @@ const CashReport = () => {
           setMovementError(null);
           setSettlementError(null);
           setOpenNewError(null);
+          setHasDownloadedResult(false);
 
           setSession(null);
           setOpeningDate('');
@@ -654,6 +661,7 @@ const CashReport = () => {
     // Reset settlement & open-new state if re-uploading
     settlementSSE.resetAll();
     openNewSSE.resetAll();
+    setHasDownloadedResult(false);
 
     // Start SSE stream for upload progress
     movementSSE.startUploadStream(() => streamUploadProgress(session.session_id));
@@ -780,7 +788,7 @@ const CashReport = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#0d0d0d] p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="w-full max-w-[85vw] mx-auto">
         <Breadcrumb items={breadcrumbItems} />
 
         {/* Header */}
@@ -1700,6 +1708,18 @@ const CashReport = () => {
             ))}
           </AnimatePresence>
         </div>{/* end full-width section */}
+
+        {/* How It Works */}
+        <HowItWorksCard
+          hasSession={hasSession}
+          movementRows={movementRows}
+          hasSettlementResult={!!settlementSSE.result}
+          hasOpenNewResult={!!openNewSSE.result}
+          isUploadingData={uploading || uploadingMovement}
+          settlementRunning={settlementSSE.isRunning}
+          openNewRunning={openNewSSE.isRunning}
+          hasDownloadedResult={hasDownloadedResult}
+        />
       </div>
 
       {/* Create Session Modal */}

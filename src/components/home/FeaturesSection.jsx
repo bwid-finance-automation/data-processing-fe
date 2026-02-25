@@ -23,19 +23,11 @@ export default function FeaturesSection({ content }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: index * 0.2 }}
-            whileHover={{ y: -10, scale: 1.03 }}
-            className="relative theme-surface p-6 rounded-xl shadow-md hover:shadow-2xl transition-all border border-transparent hover:border-blue-300 dark:hover:border-blue-700 group overflow-hidden"
+            whileHover={{ y: -2 }}
+            className="relative theme-surface p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
           >
-            {/* Animated gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-            <div className="relative z-10">
-              <motion.div
-                whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
-                transition={{ duration: 0.5 }}
-              >
-                <feature.icon className="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4" />
-              </motion.div>
+            <div>
+              <feature.icon className="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4" />
               <h3 className="text-xl font-semibold theme-text-primary mb-3">
                 {feature.title}
               </h3>
