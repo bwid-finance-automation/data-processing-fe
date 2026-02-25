@@ -177,7 +177,6 @@ export default function Project() {
               </button>
 
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                {safeT("projectsFor", "Projects -")}{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-500">
                   {departmentName}
                 </span>

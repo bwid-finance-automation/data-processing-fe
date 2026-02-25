@@ -81,9 +81,8 @@ export default function Department() {
 
           <div className="flex flex-col lg:flex-row lg:items-end gap-6 lg:gap-8">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              {safeT("operationalTitle", "Operational")}{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-500">
-                {safeT("operationalTitleHighlight", "Hubs")}
+                {departmentsLabel}
               </span>
             </h1>
 

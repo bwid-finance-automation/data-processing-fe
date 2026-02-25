@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useDarkMode } from "@configs/DarkModeProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@configs/AuthProvider";
+import tabLogo from "@assets/images/tab-logo.png";
 
 export default function Header() {
   const navigate = useNavigate();
@@ -62,24 +63,32 @@ export default function Header() {
       animate={{ y: 0, opacity: 1 }}
       className="flex justify-between items-center px-6 py-4 bg-[var(--app-header-bg)] backdrop-blur-lg theme-text-primary shadow-sm border-b border-[color:var(--app-border)] sticky top-0 z-50"
     >
-      <motion.div
-        className="flex items-center gap-3 cursor-pointer select-none group"
+      <motion.button
+        type="button"
+        className="group flex items-center gap-3 rounded-xl px-1 py-1 transition-all duration-300"
         onClick={() => navigate("/")}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
-        <div className="flex items-center gap-3">
-          <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 dark:from-blue-500 dark:to-blue-700 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105 overflow-hidden">
-            <motion.div
-              className="absolute inset-0 bg-white/20"
-              initial={{ scale: 0, opacity: 0 }}
-              whileHover={{ scale: 2, opacity: 0 }}
-              transition={{ duration: 0.6 }}
-            />
-            <span className="text-2xl font-bold text-white relative z-10">B</span>
-          </div>
+        <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl border border-[color:var(--app-border)] bg-[color:var(--app-surface)] shadow-[0_8px_16px_-12px_rgba(2,132,199,0.45)] dark:shadow-[0_10px_20px_-14px_rgba(56,189,248,0.55)]">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-500/15 via-blue-500/10 to-indigo-500/20 dark:from-sky-400/25 dark:via-blue-500/25 dark:to-indigo-500/35" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.45),transparent_48%)] dark:bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.22),transparent_48%)]" />
+          <img
+            src={tabLogo}
+            alt="BW Industrial"
+            className="relative z-10 h-7 w-7 object-contain drop-shadow-[0_2px_5px_rgba(0,0,0,0.35)]"
+          />
         </div>
-      </motion.div>
+        <div className="hidden sm:flex flex-col leading-tight text-left">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+            Finance Automation
+          </span>
+          <span className="text-[1.15rem] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+            BW Industrial
+          </span>
+          <div className="mt-1 h-[2px] w-24 rounded-full bg-gradient-to-r from-cyan-400/80 via-blue-500/70 to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+        </div>
+      </motion.button>
 
       <div className="flex items-center gap-2">
         {/* Language & Theme Toggles */}
