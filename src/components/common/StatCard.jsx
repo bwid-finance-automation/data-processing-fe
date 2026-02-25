@@ -60,7 +60,7 @@ const StatCard = memo(function StatCard({
 
   return (
     <div
-      className={`bg-white dark:bg-[#222] rounded-xl shadow-lg p-5 border border-gray-200 dark:border-gray-800 ${className}`}
+      className={`theme-surface rounded-xl shadow-lg p-5 border border-[color:var(--app-border)] ${className}`}
     >
       <div className="flex items-start gap-4">
         {Icon && (

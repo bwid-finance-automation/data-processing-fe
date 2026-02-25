@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 const DarkModeContext = createContext(undefined);
 
@@ -20,6 +20,7 @@ const getInitialTheme = () => {
 const DarkModeProvider = ({ children }) => {
   const [isDark, setIsDark] = useState(getInitialTheme);
   const [mounted, setMounted] = useState(false);
+  const isFirstThemeSync = useRef(true);
 
   // Prevent flash of incorrect theme
   useEffect(() => {
@@ -28,14 +29,30 @@ const DarkModeProvider = ({ children }) => {
 
   useEffect(() => {
     const root = document.documentElement;
+    const syncTheme = () => {
+      if (isDark) {
+        root.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+      } else {
+        root.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+      }
+    };
 
-    if (isDark) {
-      root.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      root.classList.remove("dark");
-      localStorage.setItem("theme", "light");
+    if (isFirstThemeSync.current) {
+      isFirstThemeSync.current = false;
+      syncTheme();
+      return undefined;
     }
+
+    root.classList.add("theme-transition");
+    const timeoutId = window.setTimeout(() => {
+      root.classList.remove("theme-transition");
+    }, 240);
+
+    syncTheme();
+
+    return () => window.clearTimeout(timeoutId);
   }, [isDark]);
 
   // Listen for system theme changes

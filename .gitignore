@@ -52,6 +52,11 @@ Desktop.ini
 *.temp
 .cache
 
+# Temporary visual test artifacts
+.tmp-*
+.tmp-screens/
+.tmp-screens-all/
+
 # Package manager files
 # Uncomment the lock file you're NOT using to avoid conflicts
 # package-lock.json

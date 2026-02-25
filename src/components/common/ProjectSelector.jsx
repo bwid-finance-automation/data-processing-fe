@@ -121,7 +121,7 @@ const ProjectSelector = memo(forwardRef(function ProjectSelector({
           <button
             onClick={onToggleDropdown}
             disabled={loadingProject}
-            className={`flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#222] border border-gray-300 dark:border-gray-600 rounded-lg ${colors.hover} transition-colors min-w-[200px]`}
+            className={`flex items-center gap-2 px-3 py-1.5 theme-surface border border-[color:var(--app-border)] rounded-lg ${colors.hover} transition-colors min-w-[200px]`}
           >
             {loadingProject ? (
               <span className="text-gray-400">{t('Loading...')}</span>
@@ -148,7 +148,7 @@ const ProjectSelector = memo(forwardRef(function ProjectSelector({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.15 }}
-                className="absolute top-full left-0 mt-1 w-72 bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 max-h-80 overflow-auto"
+                className="absolute top-full left-0 mt-1 w-72 theme-surface border border-[color:var(--app-border)] rounded-lg shadow-xl z-50 max-h-80 overflow-auto"
               >
                 {/* Create New Project Option */}
                 {onCreateNew && (

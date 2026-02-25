@@ -737,6 +737,7 @@ const CashReport = () => {
   // Detect if any settlement/open-new activity has started
   const hasSettlementStarted = settlementSSE.isRunning || settlementSSE.currentStep || settlementSSE.result || settlementSSE.error;
   const hasOpenNewStarted = openNewSSE.isRunning || openNewSSE.currentStep || openNewSSE.result || openNewSSE.error;
+  const isAutomationTabLocked = settlementSSE.isRunning || openNewSSE.isRunning;
 
   // Dynamic session sub-state badge (#1)
   const sessionBadge = (() => {
@@ -916,12 +917,13 @@ const CashReport = () => {
                           <div className="flex w-full p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-full border border-gray-200 dark:border-gray-700/50 shadow-inner">
                             <button
                               onClick={() => setAutomationTab('settlement')}
+                              disabled={isAutomationTabLocked}
                               aria-label={t('Settlement tab')}
                               className={`relative flex-1 px-5 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
                                 automationTab === 'settlement'
                                   ? 'bg-white dark:bg-[#2a2a2a] text-indigo-700 dark:text-indigo-300 shadow-md'
                                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                              }`}
+                              } disabled:opacity-60 disabled:cursor-not-allowed`}
                             >
                               <ArrowsRightLeftIcon className="w-3.5 h-3.5" />
                               {t('Settlement')}
@@ -937,12 +939,13 @@ const CashReport = () => {
                             </button>
                             <button
                               onClick={() => setAutomationTab('open_new')}
+                              disabled={isAutomationTabLocked}
                               aria-label={t('Open New tab')}
                               className={`relative flex-1 px-5 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
                                 automationTab === 'open_new'
                                   ? 'bg-white dark:bg-[#2a2a2a] text-purple-700 dark:text-purple-300 shadow-md'
                                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                              }`}
+                              } disabled:opacity-60 disabled:cursor-not-allowed`}
                             >
                               <BanknotesIcon className="w-3.5 h-3.5" />
                               {t('Open New')}

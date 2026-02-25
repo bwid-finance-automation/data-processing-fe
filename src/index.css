@@ -28,12 +28,48 @@
     --color-ocean-700: #0369a1;
     --color-ocean-800: #075985;
     --color-ocean-900: #0c4a6e;
+
+    /* App theme tokens (light) */
+    --app-bg: #f3f6fb;
+    --app-bg-soft: #edf2f8;
+    --app-surface: #fcfdff;
+    --app-surface-muted: #f6f9fc;
+    --app-border: #d7e0ec;
+    --app-border-strong: #c2cfdf;
+    --app-text-primary: #1f2937;
+    --app-text-secondary: #4b5563;
+    --app-header-bg: rgba(248, 251, 255, 0.86);
+    --app-footer-bg: #ecf1f7;
+  }
+
+  .dark {
+    --app-bg: #181818;
+    --app-bg-soft: #0d0d0d;
+    --app-surface: #222222;
+    --app-surface-muted: #181818;
+    --app-border: #374151;
+    --app-border-strong: #4b5563;
+    --app-text-primary: #f5efe6;
+    --app-text-secondary: #9ca3af;
+    --app-header-bg: rgba(24, 24, 24, 0.8);
+    --app-footer-bg: #1f1f1f;
   }
 
   body {
     font-smooth: antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-color: var(--app-bg);
+    color: var(--app-text-primary);
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-duration: 220ms !important;
+    transition-timing-function: ease;
   }
 }
 
@@ -247,6 +283,38 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  .theme-bg-app {
+    background-color: var(--app-bg);
+  }
+
+  .theme-bg-app-soft {
+    background: linear-gradient(180deg, var(--app-bg) 0%, var(--app-bg-soft) 100%);
+  }
+
+  .theme-surface {
+    background-color: var(--app-surface);
+  }
+
+  .theme-surface-muted {
+    background-color: var(--app-surface-muted);
+  }
+
+  .theme-border {
+    border-color: var(--app-border);
+  }
+
+  .theme-border-strong {
+    border-color: var(--app-border-strong);
+  }
+
+  .theme-text-primary {
+    color: var(--app-text-primary);
+  }
+
+  .theme-text-secondary {
+    color: var(--app-text-secondary);
   }
 }
 

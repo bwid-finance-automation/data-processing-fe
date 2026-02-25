@@ -60,7 +60,7 @@ export default function Header() {
     <motion.header
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="flex justify-between items-center px-6 py-4 bg-white/80 dark:bg-[#181818]/80 backdrop-blur-lg text-[#222] dark:text-[#f5efe6] shadow-sm border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-50"
+      className="flex justify-between items-center px-6 py-4 bg-[var(--app-header-bg)] backdrop-blur-lg theme-text-primary shadow-sm border-b border-[color:var(--app-border)] sticky top-0 z-50"
     >
       <motion.div
         className="flex items-center gap-3 cursor-pointer select-none group"
@@ -142,7 +142,7 @@ export default function Header() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden z-50"
+                  className="absolute right-0 mt-2 w-64 theme-surface border border-[color:var(--app-border)] rounded-xl shadow-xl overflow-hidden z-50"
                 >
                   {/* User Info Section (if logged in) */}
                   {isAuthenticated && user && (
@@ -234,7 +234,7 @@ export default function Header() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.2 }}
-                className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-[90%] max-w-sm"
+                className="relative theme-surface rounded-2xl shadow-2xl p-6 w-[90%] max-w-sm border border-[color:var(--app-border)]"
               >
                 <div className="text-center">
                   <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">

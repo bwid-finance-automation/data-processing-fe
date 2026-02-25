@@ -36,7 +36,7 @@ const Modal = forwardRef(({
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             onClick={(e) => e.stopPropagation()}
-            className={`relative bg-white dark:bg-[#222] rounded-xl p-6 w-full ${maxWidth} mx-4 shadow-2xl border border-gray-200 dark:border-gray-700 ${className}`}
+            className={`relative theme-surface rounded-xl p-6 w-full ${maxWidth} mx-4 shadow-2xl border border-[color:var(--app-border)] ${className}`}
           >
             {showCloseButton && (
               <button

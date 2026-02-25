@@ -261,14 +261,14 @@ export default function ContractOCR() {
   });
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#181818] py-8 px-6">
+    <div className="min-h-screen theme-bg-app py-8 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Back Button */}
         <motion.button
           onClick={() => navigate('/project/2')}
           whileHover={{ x: -5 }}
           whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 mb-6 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-[#222] dark:hover:text-[#f5efe6] bg-white dark:bg-[#222] rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all"
+          className="flex items-center gap-2 mb-6 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 theme-surface rounded-lg border border-[color:var(--app-border)] hover:border-gray-300 dark:hover:border-gray-600 transition-all"
         >
           <span className="text-lg font-bold">←</span>
           <span className="font-medium">{t('backButton')}</span>
@@ -276,7 +276,7 @@ export default function ContractOCR() {
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#222] dark:text-[#f5efe6] mb-2">
+          <h1 className="text-3xl font-bold theme-text-primary mb-2">
             {t('contractOCRProject')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -355,7 +355,7 @@ export default function ContractOCR() {
                     </label>
                   </div>
                 ) : (
-                  <div className="bg-white dark:bg-[#181818] p-4 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="theme-surface p-4 rounded-lg border border-green-200 dark:border-green-800">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <svg className="w-8 h-8 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -480,7 +480,7 @@ export default function ContractOCR() {
 
         {/* Project Contract History */}
         {project && (
-          <div className="mt-8 bg-white dark:bg-[#222] rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="mt-8 theme-surface rounded-xl border border-[color:var(--app-border)] overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
               <div className="flex items-center gap-3">
                 <ClockIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
@@ -631,7 +631,7 @@ export default function ContractOCR() {
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden"
                           >
-                            <div className="px-4 py-2 bg-white dark:bg-[#181818] divide-y divide-gray-100 dark:divide-gray-800">
+                            <div className="px-4 py-2 theme-surface divide-y divide-gray-100 dark:divide-gray-800">
                               {session.files.map((file, idx) => (
                                 <div key={idx} className="py-2 flex items-center gap-3">
                                   <DocumentTextIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
@@ -688,7 +688,7 @@ export default function ContractOCR() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700"
+        className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-[color:var(--app-border)]"
       >
         <p>{t('contractOCRSystem')}</p>
       </motion.footer>

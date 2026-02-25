@@ -333,7 +333,7 @@ export default function UtilityBilling() {
 
   // File list component
   const FileList = ({ title, files, fileType }) => (
-    <div className="bg-white dark:bg-[#222] rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+    <div className="theme-surface rounded-lg border border-[color:var(--app-border)] p-4">
       <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{title}</h3>
       {files.length === 0 ? (
         <p className="text-gray-500 dark:text-gray-400 text-sm">{t('noFilesUploaded')}</p>
@@ -342,7 +342,7 @@ export default function UtilityBilling() {
           {files.map((file, index) => (
             <div
               key={index}
-              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#181818] rounded-lg"
+              className="flex items-center justify-between p-3 theme-surface-muted rounded-lg border border-[color:var(--app-border)]"
             >
               <div className="flex items-center gap-3 flex-1">
                 <DocumentIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -382,7 +382,7 @@ export default function UtilityBilling() {
 
   if (loading && !sessionId) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#181818] flex items-center justify-center">
+      <div className="min-h-screen theme-bg-app flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">{t('initializingSession')}</p>
@@ -392,19 +392,19 @@ export default function UtilityBilling() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#181818] py-8 px-6">
+    <div className="min-h-screen theme-bg-app py-8 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <button
           onClick={() => navigate('/project/2')}
-          className="flex items-center gap-2 mb-6 text-gray-600 dark:text-gray-400 hover:text-[#222] dark:hover:text-[#f5efe6] transition"
+          className="flex items-center gap-2 mb-6 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition"
         >
           <ArrowLeftIcon className="w-5 h-5" />
           <span>{t('backToProjects')}</span>
         </button>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#222] dark:text-[#f5efe6] mb-2">
+          <h1 className="text-3xl font-bold theme-text-primary mb-2">
             {t('utilityBillingTitle')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -575,7 +575,7 @@ export default function UtilityBilling() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700"
+          className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-[color:var(--app-border)]"
         >
           <p>{t('utilityBillingSystem')}</p>
         </motion.footer>

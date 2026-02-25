@@ -61,7 +61,7 @@ export default function VarianceAnalysis() {
   ];
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#181818]">
+    <div className="min-h-screen theme-bg-app">
       <div className="container mx-auto px-6 py-8">
         {/* Breadcrumb Navigation */}
         <Breadcrumb items={breadcrumbItems} className="mb-6" />
@@ -71,7 +71,7 @@ export default function VarianceAnalysis() {
           onClick={() => navigate("/project/2")}
           whileHover={{ x: -5 }}
           whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 mb-6 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-[#222] dark:hover:text-[#f5efe6] bg-white dark:bg-[#222] rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all"
+          className="flex items-center gap-2 mb-6 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 theme-surface rounded-lg border border-[color:var(--app-border)] hover:border-gray-300 dark:hover:border-gray-600 transition-all"
         >
           <span className="text-lg font-bold">←</span>
           <span className="font-medium">{t("backButton")}</span>
@@ -110,7 +110,7 @@ export default function VarianceAnalysis() {
         </motion.div>
 
         {/* Tab Navigation */}
-        <div className="bg-white dark:bg-[#222] p-2 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex gap-2 mb-6">
+        <div className="theme-surface p-2 rounded-xl shadow-lg border border-[color:var(--app-border)] flex gap-2 mb-6">
           <motion.button
             onClick={() => setActiveTab('ai')}
             whileHover={{ scale: 1.01 }}
@@ -186,7 +186,7 @@ export default function VarianceAnalysis() {
       </div>
 
       {/* Footer */}
-      <footer className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700">
+      <footer className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-[color:var(--app-border)]">
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

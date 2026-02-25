@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@configs/AuthProvider";
+import { getGoogleRedirectUri } from "@utils/google-oauth";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export default function AuthCallback() {
 
       try {
         setStatus("Authenticating with Google...");
-        await handleGoogleCallback(code, window.location.origin + "/auth/callback");
+        await handleGoogleCallback(code, getGoogleRedirectUri());
         setStatus("Success! Redirecting...");
 
         // Small delay to show success message

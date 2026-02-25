@@ -38,7 +38,7 @@ export const TableSkeleton = ({ rows = 5, columns = 4 }) => {
 
 export const CardSkeleton = () => {
   return (
-    <div className="p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#222] space-y-4">
+    <div className="p-6 rounded-xl border border-[color:var(--app-border)] theme-surface space-y-4">
       <Skeleton variant="title" />
       <Skeleton variant="text" />
       <Skeleton variant="text" className="w-2/3" />
@@ -52,7 +52,7 @@ export const CardSkeleton = () => {
 
 export const StatCardSkeleton = () => {
   return (
-    <div className="p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#222] space-y-3">
+    <div className="p-6 rounded-xl border border-[color:var(--app-border)] theme-surface space-y-3">
       <Skeleton className="h-6 w-24" />
       <Skeleton className="h-10 w-32" />
       <Skeleton className="h-4 w-16" />

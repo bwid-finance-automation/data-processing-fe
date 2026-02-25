@@ -41,7 +41,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#181818]">
+    <div className="min-h-screen theme-bg-app">
       <HeroSection content={content} />
 
       <div className="max-w-7xl mx-auto px-6 py-16">
@@ -52,9 +52,9 @@ export default function Home() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
             whileHover={{ scale: 1.02, y: -5 }}
-            className="bg-[#f7f6f3] dark:bg-[#222] p-8 rounded-2xl shadow-md hover:shadow-xl transition-shadow border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
+            className="theme-surface p-8 rounded-2xl shadow-md hover:shadow-xl transition-shadow border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
           >
-            <h2 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-4">
+            <h2 className="text-2xl font-bold theme-text-primary mb-4">
               {content.aboutTitle}
             </h2>
             <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -68,9 +68,9 @@ export default function Home() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
             whileHover={{ scale: 1.02, y: -5 }}
-            className="bg-[#f7f6f3] dark:bg-[#222] p-8 rounded-2xl shadow-md hover:shadow-xl transition-shadow border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
+            className="theme-surface p-8 rounded-2xl shadow-md hover:shadow-xl transition-shadow border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
           >
-            <h2 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-4">
+            <h2 className="text-2xl font-bold theme-text-primary mb-4">
               {content.teamTitle}
             </h2>
             <p className="text-gray-600 dark:text-gray-300 leading-relaxed">

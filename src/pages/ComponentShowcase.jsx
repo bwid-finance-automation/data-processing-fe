@@ -36,14 +36,14 @@ export default function ComponentShowcase() {
   ];
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#181818] py-8 px-6">
+    <div className="min-h-screen theme-bg-app py-8 px-6">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold text-[#222] dark:text-[#f5efe6] mb-2 gradient-text">
+          <h1 className="text-4xl font-bold theme-text-primary mb-2 gradient-text">
             {t("showcaseTitle")}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -60,8 +60,8 @@ export default function ComponentShowcase() {
           viewport={{ once: true }}
           className="mb-12"
         >
-          <h2 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-4">{t("showcaseButtons")}</h2>
-          <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+          <h2 className="text-2xl font-bold theme-text-primary mb-4">{t("showcaseButtons")}</h2>
+          <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap gap-4 mb-4">
               <Button variant="primary">{t("showcasePrimaryBtn")}</Button>
               <Button variant="secondary">{t("showcaseSecondaryBtn")}</Button>
@@ -93,8 +93,8 @@ export default function ComponentShowcase() {
           viewport={{ once: true }}
           className="mb-12"
         >
-          <h2 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-4">{t("showcaseBadges")}</h2>
-          <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+          <h2 className="text-2xl font-bold theme-text-primary mb-4">{t("showcaseBadges")}</h2>
+          <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap gap-3 mb-4">
               <Badge variant="success" icon={CheckCircleIcon}>{t("showcaseSuccessBtn")}</Badge>
               <Badge variant="error" icon={XCircleIcon}>{t("Error")}</Badge>
@@ -123,8 +123,8 @@ export default function ComponentShowcase() {
           viewport={{ once: true }}
           className="mb-12"
         >
-          <h2 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-4">{t("showcaseProgressIndicators")}</h2>
-          <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+          <h2 className="text-2xl font-bold theme-text-primary mb-4">{t("showcaseProgressIndicators")}</h2>
+          <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700">
             <div className="space-y-6 mb-6">
               <div>
                 <label className="text-sm text-gray-600 dark:text-gray-400 mb-2 block">{t("showcaseProgressPrimary")}</label>
@@ -183,7 +183,7 @@ export default function ComponentShowcase() {
           viewport={{ once: true }}
           className="mb-12"
         >
-          <h2 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-4">{t("showcaseAnimatedCounters")}</h2>
+          <h2 className="text-2xl font-bold theme-text-primary mb-4">{t("showcaseAnimatedCounters")}</h2>
           <div className="grid md:grid-cols-4 gap-6">
             <StatCard
               title={t("showcaseTotalRevenue")}
@@ -228,10 +228,10 @@ export default function ComponentShowcase() {
           viewport={{ once: true }}
           className="mb-12"
         >
-          <h2 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-4">{t("showcaseSkeletonLoaders")}</h2>
+          <h2 className="text-2xl font-bold theme-text-primary mb-4">{t("showcaseSkeletonLoaders")}</h2>
           <div className="space-y-6">
-            <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-[#222] dark:text-[#f5efe6] mb-4">{t("showcaseBasicSkeletons")}</h3>
+            <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold theme-text-primary mb-4">{t("showcaseBasicSkeletons")}</h3>
               <div className="space-y-3">
                 <Skeleton variant="text" />
                 <Skeleton variant="text" className="w-3/4" />
@@ -246,18 +246,18 @@ export default function ComponentShowcase() {
               </div>
             </div>
 
-            <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-[#222] dark:text-[#f5efe6] mb-4">{t("showcaseCardSkeleton")}</h3>
+            <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold theme-text-primary mb-4">{t("showcaseCardSkeleton")}</h3>
               <CardSkeleton />
             </div>
 
-            <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-[#222] dark:text-[#f5efe6] mb-4">{t("showcaseListSkeleton")}</h3>
+            <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold theme-text-primary mb-4">{t("showcaseListSkeleton")}</h3>
               <ListSkeleton items={3} />
             </div>
 
-            <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-[#222] dark:text-[#f5efe6] mb-4">{t("showcaseTableSkeleton")}</h3>
+            <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold theme-text-primary mb-4">{t("showcaseTableSkeleton")}</h3>
               <TableSkeleton rows={4} columns={5} />
             </div>
           </div>
@@ -270,34 +270,34 @@ export default function ComponentShowcase() {
           viewport={{ once: true }}
           className="mb-12"
         >
-          <h2 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-4">{t("showcaseAnimationExamples")}</h2>
+          <h2 className="text-2xl font-bold theme-text-primary mb-4">{t("showcaseAnimationExamples")}</h2>
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
+            <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
               <div className="w-16 h-16 bg-blue-500 rounded-lg mx-auto mb-3 animate-float" />
               <p className="text-sm text-gray-600 dark:text-gray-400">{t("showcaseFloatAnim")}</p>
             </div>
 
-            <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
+            <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
               <RocketLaunchIcon className="w-16 h-16 text-blue-500 mx-auto mb-3 animate-bounce-in" />
               <p className="text-sm text-gray-600 dark:text-gray-400">{t("showcaseBounceIn")}</p>
             </div>
 
-            <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center hover-lift">
+            <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center hover-lift">
               <SparklesIcon className="w-16 h-16 text-blue-500 mx-auto mb-3" />
               <p className="text-sm text-gray-600 dark:text-gray-400">{t("showcaseHoverLift")}</p>
             </div>
 
-            <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center hover-scale">
+            <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center hover-scale">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg mx-auto mb-3" />
               <p className="text-sm text-gray-600 dark:text-gray-400">{t("showcaseHoverScale")}</p>
             </div>
 
-            <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center hover-glow">
+            <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center hover-glow">
               <div className="w-16 h-16 bg-blue-500 rounded-lg mx-auto mb-3" />
               <p className="text-sm text-gray-600 dark:text-gray-400">{t("showcaseHoverGlow")}</p>
             </div>
 
-            <div className="bg-[#f7f6f3] dark:bg-[#222] p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
+            <div className="theme-surface p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-shift rounded-lg mx-auto mb-3" />
               <p className="text-sm text-gray-600 dark:text-gray-400">{t("showcaseGradientShift")}</p>
             </div>
@@ -322,3 +322,4 @@ export default function ComponentShowcase() {
     </div>
   );
 }
+

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { authApi } from "@services/auth/auth-apis";
+import { getGoogleRedirectUri, withGoogleRedirectUri } from "@utils/google-oauth";
 
 const AuthContext = createContext(undefined);
 
@@ -85,7 +86,7 @@ const AuthProvider = ({ children }) => {
   const getGoogleAuthUrl = useCallback(async () => {
     try {
       const response = await authApi.getGoogleAuthUrl();
-      return response.data.authorization_url;
+      return withGoogleRedirectUri(response.data.authorization_url, getGoogleRedirectUri());
     } catch (err) {
       setError("Failed to get Google login URL");
       throw err;
@@ -93,7 +94,7 @@ const AuthProvider = ({ children }) => {
   }, []);
 
   // Handle Google callback
-  const handleGoogleCallback = useCallback(async (code, redirectUri) => {
+  const handleGoogleCallback = useCallback(async (code, redirectUri = getGoogleRedirectUri()) => {
     try {
       setLoading(true);
       setError(null);

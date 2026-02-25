@@ -37,10 +37,10 @@ export default function StatsCounter({ content }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6 }}
-      className="bg-[#f7f6f3] dark:bg-[#1f1f1f] py-16"
+      className="theme-surface-muted dark:bg-[#1f1f1f] py-16"
     >
       <div className="max-w-7xl mx-auto px-6">
-        <h2 className="text-3xl font-bold text-center text-[#222] dark:text-[#f5efe6] mb-12">
+        <h2 className="text-3xl font-bold text-center theme-text-primary mb-12">
           {content.statsTitle}
         </h2>
         <div className="grid md:grid-cols-3 gap-8">
@@ -49,7 +49,7 @@ export default function StatsCounter({ content }) {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-center bg-white dark:bg-[#222] p-8 rounded-2xl shadow-md"
+            className="text-center theme-surface p-8 rounded-2xl shadow-md border border-[color:var(--app-border)]"
           >
             <div className="text-5xl font-bold text-blue-600 dark:text-blue-400 mb-2">
               {counters.projects}+
@@ -64,7 +64,7 @@ export default function StatsCounter({ content }) {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-center bg-white dark:bg-[#222] p-8 rounded-2xl shadow-md"
+            className="text-center theme-surface p-8 rounded-2xl shadow-md border border-[color:var(--app-border)]"
           >
             <div className="text-5xl font-bold text-blue-600 dark:text-blue-400 mb-2">
               {counters.clients}+
@@ -79,7 +79,7 @@ export default function StatsCounter({ content }) {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="text-center bg-white dark:bg-[#222] p-8 rounded-2xl shadow-md"
+            className="text-center theme-surface p-8 rounded-2xl shadow-md border border-[color:var(--app-border)]"
           >
             <div className="text-5xl font-bold text-blue-600 dark:text-blue-400 mb-2">
               {counters.years}+
