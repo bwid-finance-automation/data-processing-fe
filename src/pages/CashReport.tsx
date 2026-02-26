@@ -1024,15 +1024,16 @@ const CashReport = () => {
                                     transition={{ duration: 0.18 }}
                                     className="flex flex-col gap-2"
                                   >
-                                    {/* Lookup files upload - drag & drop zone */}
+                                    {/* Lookup files upload — compact row */}
                                     <FileUploadZone
                                       onFilesSelected={handleLookupFilesSelected}
                                       accept=".xlsx,.xls,.pdf"
                                       multiple
                                       compact
+                                      horizontal
                                       selectedFiles={lookupFiles}
                                       label={t('Upload Lookup Files')}
-                                      hint={t('Drag & drop or click to browse')}
+                                      hint={t('Drag & drop or click')}
                                       colorTheme="purple"
                                       showFileList={true}
                                       onRemoveFile={removeLookupFile}
