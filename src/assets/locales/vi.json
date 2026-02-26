@@ -760,6 +760,7 @@
   "Create Session": "Tạo Phiên",
   "cashReportTourWelcome": "Chào mừng đến với Cash Report! Công cụ này giúp bạn tự động tạo báo cáo tiền mặt theo kỳ chỉ trong vài bước đơn giản.",
   "cashReportTourSession": "Bắt đầu bằng cách tạo phiên làm việc. Thiết lập kỳ báo cáo và có thể tải lên file template.",
+  "cashReportTourMaster": "Đây là bảng điều khiển chính của phiên làm việc. Xem thông tin kỳ, số giao dịch, quản lý file đã tải và xuất kết quả.",
   "cashReportTourUpload": "Tải lên parsed bank statements hoặc file Movement tại đây. Hệ thống tự nhận dạng loại file.",
   "cashReportTourAutomation": "Chạy Settlement để xử lý giao dịch tất toán, sau đó có thể chạy Open New cho giao dịch gửi tiền/mở mới. Luôn preview trước!",
   "cashReportTourExport": "Xuất file hoàn chỉnh hoặc tải snapshot sau mỗi bước automation.",

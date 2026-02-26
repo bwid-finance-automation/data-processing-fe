@@ -25,6 +25,7 @@ interface TourStep {
 const STEPS: TourStep[] = [
   { target: '[data-tour="header"]',     descKey: 'cashReportTourWelcome' },
   { target: '[data-tour="session"]',    descKey: 'cashReportTourSession' },
+  { target: '[data-tour="master"]',     descKey: 'cashReportTourMaster' },
   { target: '[data-tour="upload"]',     descKey: 'cashReportTourUpload' },
   { target: '[data-tour="automation"]', descKey: 'cashReportTourAutomation' },
   { target: '[data-tour="export"]',     descKey: 'cashReportTourExport' },

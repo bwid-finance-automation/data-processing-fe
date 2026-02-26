@@ -760,6 +760,7 @@
   "Create Session": "Create Session",
   "cashReportTourWelcome": "Welcome to Cash Report! This tool automates biweekly cash report generation in just a few simple steps.",
   "cashReportTourSession": "Start by creating a session. Set your reporting period dates and optionally upload a template file.",
+  "cashReportTourMaster": "This is the master control panel for your active session. View period info, transaction count, manage uploaded files, and export results.",
   "cashReportTourUpload": "Upload your parsed bank statements or a Movement file here. The system automatically detects the file type.",
   "cashReportTourAutomation": "Run Settlement to process settlement transactions, then optionally run Open New for deposit/opening transactions. Always preview first!",
   "cashReportTourExport": "Export your completed workbook or download snapshots after each automation step.",

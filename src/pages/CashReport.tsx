@@ -771,7 +771,7 @@ const CashReport = () => {
         {/* ── Master Control Panel ── */}
         {hasSession && (
           <div>
-            <div className="bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden" data-tour="session">
+            <div className="bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden" data-tour="master">
             {loadingSessions ? (
               <div className="flex items-center justify-center py-12">
                 <ArrowPathIcon className="w-6 h-6 animate-spin text-gray-400" />
