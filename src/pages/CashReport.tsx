@@ -24,9 +24,9 @@ import {
   DocumentPlusIcon,
   SparklesIcon,
   TableCellsIcon,
-  ScaleIcon,
   ExclamationCircleIcon,
   EyeIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb, FileUploadZone, ActionMenu } from '@components/common';
@@ -43,7 +43,6 @@ import {
   uploadMovementFile,
   runSettlementAutomation,
   runOpenNewAutomation,
-  runReconcileChecks,
   getAutomationSessionStatus,
   downloadAutomationResult,
   resetAutomationSession,
@@ -389,33 +388,7 @@ const CashReport = () => {
     }
   };
 
-  const handleRunReconcile = async () => {
-    if (!session?.session_id) return;
-
-    setReconcileRunning(true);
-    setReconcileError(null);
-    setReconcileResult(null);
-
-    try {
-      const result = await runReconcileChecks(session.session_id);
-      setReconcileResult(result);
-
-      const step8Balanced = !!result?.step8_internal_transfer_reconcile?.is_balanced;
-      const step9Balanced = !!result?.step9_cash_balance_reconcile?.is_balanced;
-      if (step8Balanced && step9Balanced) {
-        toast.success(t('Reconcile completed. No differences found.'));
-      } else {
-        toast.warning(t('Reconcile completed with differences.'));
-      }
-    } catch (err) {
-      console.error('Error running reconcile:', err);
-      const msg = err.response?.data?.detail || t('Failed to run reconcile checks');
-      setReconcileError(msg);
-      toast.error(msg);
-    } finally {
-      setReconcileRunning(false);
-    }
-  };
+  // handleRunReconcile removed — Reconcile step is currently locked
 
 
   const handleDownload = async (step) => {
@@ -746,12 +719,7 @@ const CashReport = () => {
 
   const hasSession = !!session?.session_id;
   const movementRows = session?.movement_rows || session?.statistics?.movement_rows || 0;
-  const canRunReconcile = hasSession
-    && movementRows > 0
-    && !uploading
-    && !uploadingMovement
-    && !settlementSSE.isRunning
-    && !openNewSSE.isRunning;
+  // canRunReconcile removed — Reconcile step is currently locked
 
   // Detect if any settlement/open-new activity has started
   const hasSettlementStarted = settlementSSE.isRunning || settlementSSE.currentStep || settlementSSE.result || settlementSSE.error;
@@ -988,26 +956,13 @@ const CashReport = () => {
                               )}
                             </button>
                             <button
-                              onClick={() => setAutomationTab('reconcile')}
-                              disabled={isAutomationTabLocked}
+                              disabled
                               aria-label={t('Reconcile tab')}
-                              className={`relative flex-1 px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                                automationTab === 'reconcile'
-                                  ? 'bg-white dark:bg-[#2a2a2a] text-cyan-700 dark:text-cyan-300 shadow-md'
-                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                              } disabled:opacity-60 disabled:cursor-not-allowed`}
+                              title={t('Reconcile is currently locked')}
+                              className="relative flex-1 px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 text-gray-400 dark:text-gray-500 opacity-60 cursor-not-allowed"
                             >
-                              <ScaleIcon className="w-3.5 h-3.5" />
+                              <LockClosedIcon className="w-3.5 h-3.5" />
                               {t('Reconcile')}
-                              {reconcileRunning && (
-                                <span className="relative flex h-1.5 w-1.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
-                                </span>
-                              )}
-                              {reconcileResult && !reconcileRunning && (
-                                <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
-                              )}
                             </button>
                           </div>
 
@@ -1119,48 +1074,15 @@ const CashReport = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -6 }}
                                     transition={{ duration: 0.18 }}
-                                    className="flex flex-col gap-2"
+                                    className="flex flex-col items-center justify-center gap-3 py-6 text-center"
                                   >
-                                    <button
-                                      onClick={handleRunReconcile}
-                                      disabled={!canRunReconcile || reconcileRunning}
-                                      className="w-full flex items-center justify-center gap-2 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
-                                    >
-                                      {reconcileRunning
-                                        ? <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                                        : <ScaleIcon className="w-5 h-5" />
-                                      }
-                                      {reconcileRunning ? t('Running Reconcile...') : t('Run Reconcile')}
-                                    </button>
-
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div className="rounded-xl px-3 py-2 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-100 dark:border-cyan-800/40">
-                                        <p className="text-[10px] uppercase tracking-wide text-cyan-700 dark:text-cyan-300 font-semibold">
-                                          {t('Step 8')}
-                                        </p>
-                                        <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5">
-                                          {reconcileResult
-                                            ? (reconcileResult?.step8_internal_transfer_reconcile?.is_balanced ? t('Balanced') : t('Has differences'))
-                                            : t('No data')}
-                                        </p>
-                                      </div>
-                                      <div className="rounded-xl px-3 py-2 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-100 dark:border-cyan-800/40">
-                                        <p className="text-[10px] uppercase tracking-wide text-cyan-700 dark:text-cyan-300 font-semibold">
-                                          {t('Step 9')}
-                                        </p>
-                                        <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5">
-                                          {reconcileResult
-                                            ? (reconcileResult?.step9_cash_balance_reconcile?.is_balanced ? t('Balanced') : t('Has differences'))
-                                            : t('No data')}
-                                        </p>
-                                      </div>
-                                    </div>
-
-                                    {reconcileResult && (
-                                      <div className="rounded-xl px-3 py-2 bg-white dark:bg-[#2a2a2a] border border-gray-100 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-300">
-                                        {t('Total Accounts')}: {(reconcileResult?.step9_cash_balance_reconcile?.total_accounts || 0).toLocaleString()} | {t('Not Reconciled')}: {(reconcileResult?.step9_cash_balance_reconcile?.not_reconciled_count || 0).toLocaleString()}
-                                      </div>
-                                    )}
+                                    <LockClosedIcon className="w-10 h-10 text-gray-300 dark:text-gray-600" />
+                                    <p className="text-sm font-semibold text-gray-400 dark:text-gray-500">
+                                      {t('Reconcile is currently locked')}
+                                    </p>
+                                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                                      {t('This feature is temporarily unavailable.')}
+                                    </p>
                                   </motion.div>
                                 )}
                               </AnimatePresence>
