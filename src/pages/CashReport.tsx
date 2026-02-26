@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -29,11 +29,15 @@ import {
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb, FileUploadZone, ActionMenu } from '@components/common';
-import UploadProgressPanel from '../components/cash-report/UploadProgressPanel';
-import HowItWorksCard from '../components/cash-report/HowItWorksCard';
+import TutorialGuide from '../components/cash-report/TutorialGuide';
+import ConfirmDialog from '../components/cash-report/ConfirmDialog';
+import CreateSessionModal from '../components/cash-report/CreateSessionModal';
+import SettlementPreviewModal from '../components/cash-report/SettlementPreviewModal';
+import OpenNewPreviewModal from '../components/cash-report/OpenNewPreviewModal';
+import DesktopProgressPanel from '../components/cash-report/DesktopProgressPanel';
+import MobileProgressPanel from '../components/cash-report/MobileProgressPanel';
 import useSSEProgress from '../hooks/useSSEProgress';
 import {
-  initAutomationSession,
   uploadBankStatements,
   uploadMovementFile,
   runSettlementAutomation,
@@ -64,16 +68,12 @@ const CashReport = () => {
   const [loadingSessions, setLoadingSessions] = useState(false);
 
   // Form state
-  const [openingDate, setOpeningDate] = useState('');
-  const [endingDate, setEndingDate] = useState('');
-  const [templateFile, setTemplateFile] = useState(null);
 
   // File upload state
   const [files, setFiles] = useState([]);
   const [movementFile, setMovementFile] = useState(null);
 
   // Loading states
-  const [initializing, setInitializing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingMovement, setUploadingMovement] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -87,6 +87,7 @@ const CashReport = () => {
   const [showUploadedFiles, setShowUploadedFiles] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const [automationTab, setAutomationTab] = useState('settlement'); // 'settlement' | 'open_new'
   const [hasDownloadedResult, setHasDownloadedResult] = useState(false);
 
@@ -103,16 +104,53 @@ const CashReport = () => {
   const [previewingOpenNew, setPreviewingOpenNew] = useState(false);
 
   // Confirm dialog state
-  const [confirmDialog, setConfirmDialog] = useState({
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    type: 'warning' | 'danger';
+    onConfirm: (() => void) | null;
+  }>({
     open: false,
     title: '',
     message: '',
-    type: 'warning', // 'warning' | 'danger'
+    type: 'warning',
     onConfirm: null,
   });
 
   // Lookup files for open-new
   const [lookupFiles, setLookupFiles] = useState([]);
+
+  // Refs for auto-scrolling to active step
+  const settlementStepRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const openNewStepRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Auto-scroll to active step when currentStep changes (Settlement)
+  useEffect(() => {
+    if (settlementSSE.currentStep && settlementSSE.currentStep !== 'done') {
+      const el = settlementStepRefs.current[settlementSSE.currentStep];
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [settlementSSE.currentStep]);
+
+  // Auto-scroll to active step when currentStep changes (Open-New)
+  useEffect(() => {
+    if (openNewSSE.currentStep && openNewSSE.currentStep !== 'done') {
+      const el = openNewStepRefs.current[openNewSSE.currentStep];
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [openNewSSE.currentStep]);
+
+  // Auto-open progress panel when any process starts running
+  useEffect(() => {
+    if (settlementSSE.isRunning || openNewSSE.isRunning || uploading || uploadingMovement) {
+      setShowProgress(true);
+    }
+  }, [settlementSSE.isRunning, openNewSSE.isRunning, uploading, uploadingMovement]);
 
   const breadcrumbItems = [
     { label: t('Home'), href: '/' },
@@ -120,23 +158,6 @@ const CashReport = () => {
     { label: t('Finance & Accounting Department'), href: '/project/2' },
     { label: t('Cash Report'), href: '/cash-report' }
   ];
-
-  // Auto-generate period name from date range
-  const generatePeriodName = (startDate, endDate) => {
-    if (!startDate || !endDate) return '';
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    const startDay = start.getDate();
-    const month = start.toLocaleString('en-US', { month: 'short' });
-    const year = end.getFullYear().toString().slice(-2);
-
-    // 1-15 → W1-2, 16-end of month → W3-4
-    const weekRange = startDay <= 15 ? 'W1-2' : 'W3-4';
-
-    return `${weekRange}${month}${year}`;
-  };
 
   // Format date using current i18n locale
   const formatDate = (dateStr) => {
@@ -153,10 +174,6 @@ const CashReport = () => {
     try {
       const result = await getAutomationSessionStatus(sessionId);
       setSession(result);
-      if (result.config) {
-        setOpeningDate(result.config.opening_date || '');
-        setEndingDate(result.config.ending_date || '');
-      }
     } catch (err) {
       console.error('Error loading session status:', err);
     }
@@ -193,65 +210,7 @@ const CashReport = () => {
   }, [showExportMenu]);
 
   const handleOpenCreateModal = () => {
-    setOpeningDate('');
-    setEndingDate('');
     setShowCreateModal(true);
-  };
-
-  const handleInitSession = async () => {
-    if (!openingDate || !endingDate) {
-      toast.error(t('Please select opening and ending dates'));
-      return;
-    }
-
-    const opening = new Date(openingDate);
-    const ending = new Date(endingDate);
-
-    if (opening > ending) {
-      toast.error(t('Opening date must be before ending date'));
-      return;
-    }
-
-    const diffDays = Math.ceil((ending.getTime() - opening.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays > 31) {
-      toast.error(t('Date range cannot exceed 31 days'));
-      return;
-    }
-
-    if (templateFile && !templateFile.name.endsWith('.xlsx')) {
-      toast.error(t('Template file must be an .xlsx file'));
-      return;
-    }
-
-    setInitializing(true);
-    const autoPeriodName = generatePeriodName(openingDate, endingDate);
-
-    try {
-      const result = await initAutomationSession({
-        openingDate,
-        endingDate,
-        periodName: autoPeriodName,
-        templateFile: templateFile || null,
-      });
-
-      setHasDownloadedResult(false);
-      setSession(result);
-      setShowCreateModal(false);
-      setTemplateFile(null);
-      if (result.is_existing) {
-        toast.info(t('Using existing session'));
-      } else if (result.movement_prepared) {
-        toast.success(t('Session created — Summary updated, Cash Balance copied, Movement cleared'));
-      } else {
-        toast.success(t('Session created successfully'));
-      }
-      await loadSessions();
-    } catch (err) {
-      console.error('Error initializing session:', err);
-      toast.error(err.response?.data?.detail || t('Failed to create session'));
-    } finally {
-      setInitializing(false);
-    }
   };
 
   const handleUpload = async () => {
@@ -507,8 +466,6 @@ const CashReport = () => {
           setHasDownloadedResult(false);
 
           setSession(null);
-          setOpeningDate('');
-          setEndingDate('');
           await loadSessions();
         } catch (err) {
           console.error('Error deleting session:', err);
@@ -786,7 +743,7 @@ const CashReport = () => {
         <Breadcrumb items={breadcrumbItems} />
 
         {/* Header */}
-        <div className="mt-6 mb-8">
+        <div className="mt-6 mb-8" data-tour="header">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
@@ -801,13 +758,20 @@ const CashReport = () => {
                 </p>
               </div>
             </div>
+            <button
+              onClick={() => setShowTour(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-sm transition-colors"
+            >
+              <BookOpenIcon className="w-4 h-4" />
+              {t('Tutorial')}
+            </button>
           </div>
         </div>
 
         {/* ── Master Control Panel ── */}
         {hasSession && (
           <div>
-            <div className="bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div className="bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden" data-tour="session">
             {loadingSessions ? (
               <div className="flex items-center justify-center py-12">
                 <ArrowPathIcon className="w-6 h-6 animate-spin text-gray-400" />
@@ -854,7 +818,7 @@ const CashReport = () => {
                     )}
 
                     {/* Export dropdown */}
-                    <div className="relative" data-export-menu>
+                    <div className="relative" data-export-menu data-tour="export">
                       <button
                         onClick={() => setShowExportMenu(prev => !prev)}
                         disabled={downloading}
@@ -913,6 +877,7 @@ const CashReport = () => {
                   {movementRows > 0 && (
                     <div
                       className={`relative py-5 px-4 rounded-[2rem] bg-gradient-to-b from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#111] border border-gray-200/60 dark:border-gray-800/60 flex flex-col items-center gap-4 min-w-0 transition-all duration-300 ease-in-out ${showUploadedFiles && session?.uploaded_files?.length > 0 ? 'md:w-[60%]' : 'w-full'}`}
+                      data-tour="automation"
                     >
 
                           {/* Floating pill tab switcher */}
@@ -1127,7 +1092,7 @@ const CashReport = () => {
 
           {/* No Session - Show Create Button */}
           {!hasSession && !loadingSessions && (
-            <div className="bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-8 text-center">
+            <div className="bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-8 text-center" data-tour="session">
               <div className="flex justify-center mb-4">
                 <div className="p-4 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-full">
                   <DocumentChartBarIcon className="w-12 h-12 text-emerald-500" />
@@ -1157,6 +1122,7 @@ const CashReport = () => {
               <motion.div
                 layout
                 className="flex-1 w-full min-w-0 bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 relative z-10"
+                data-tour="upload"
               >
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 pb-0">
@@ -1292,368 +1258,40 @@ const CashReport = () => {
               </motion.div>
 
               {/* RIGHT: Sliding Progress Panel (Desktop) */}
-              <AnimatePresence mode="popLayout">
-                {showProgress && (
-                  <motion.div
-                    initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                    animate={{ width: 380, opacity: 1, marginLeft: 24 }}
-                    exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                    className="relative hidden lg:block overflow-hidden rounded-2xl bg-white dark:bg-[#222] border border-gray-200 dark:border-gray-800 shadow-xl"
-                  >
-                    <div className="absolute inset-0 w-[380px] overflow-y-auto">
-                        <div className="flex flex-col p-4 gap-4">
-                            {/* Section 1: Bank Statement Upload Progress */}
-                            <UploadProgressPanel
-                                isVisible={true}
-                                steps={uploadSSE.steps}
-                                isComplete={uploadSSE.isComplete}
-                                isError={!!uploadSSE.error}
-                                errorMessage={uploadSSE.error}
-                                isActive={uploading}
-                            />
+              <DesktopProgressPanel
+                showProgress={showProgress}
+                uploading={uploading}
+                uploadingMovement={uploadingMovement}
+                downloading={downloading}
+                uploadSSE={uploadSSE}
+                movementSSE={movementSSE}
+                settlementSSE={settlementSSE}
+                openNewSSE={openNewSSE}
+                hasSettlementStarted={hasSettlementStarted}
+                hasOpenNewStarted={hasOpenNewStarted}
+                settlementSteps={SETTLEMENT_STEPS}
+                openNewSteps={OPEN_NEW_STEPS}
+                settlementStepRefs={settlementStepRefs}
+                openNewStepRefs={openNewStepRefs}
+                onDownload={handleDownload}
+              />
 
-                            {/* Section 1b: Movement Data Upload Progress */}
-                            {(movementSSE.steps.length > 0 || uploadingMovement) && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="border-t border-gray-100 dark:border-gray-800 pt-4"
-                                >
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <DocumentChartBarIcon className={`w-5 h-5 ${uploadingMovement ? 'text-purple-500 animate-pulse' : 'text-emerald-500'}`} />
-                                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{t('Movement Data')}</h3>
-                                    </div>
-                                    <UploadProgressPanel
-                                        isVisible={true}
-                                        steps={movementSSE.steps}
-                                        isComplete={movementSSE.isComplete}
-                                        isError={!!movementSSE.error}
-                                        errorMessage={movementSSE.error}
-                                        isActive={uploadingMovement}
-                                    />
-                                </motion.div>
-                            )}
-
-                            {/* Section 2: Settlement Progress */}
-                            {hasSettlementStarted && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="border-t border-gray-100 dark:border-gray-800 pt-4"
-                                >
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <ArrowsRightLeftIcon className={`w-5 h-5 ${settlementSSE.isRunning ? 'text-blue-500 animate-spin' : 'text-emerald-500'}`} />
-                                        <h3 className="font-semibold text-gray-900 dark:text-white">{t('Settlement Process')}</h3>
-                                    </div>
-
-                                    {/* Settlement Steps List */}
-                                    <div className="bg-slate-50 dark:bg-slate-900/30 rounded-xl p-4 border border-slate-100 dark:border-slate-800 mb-4">
-                                        <div className="space-y-4">
-                                            {SETTLEMENT_STEPS.map((step, idx) => {
-                                                const isActive = settlementSSE.currentStep === step.key && !settlementSSE.result && !settlementSSE.error;
-                                                const isCompleted = settlementSSE.completedSteps.includes(step.key) || !!settlementSSE.result;
-                                                const isPending = !isCompleted && !isActive;
-                                                const StepIcon = step.icon;
-
-                                                return (
-                                                    <motion.div
-                                                        key={step.key}
-                                                        className={`flex items-start gap-3 transition-opacity duration-500 ${isPending ? 'opacity-40' : 'opacity-100'}`}
-                                                    >
-                                                        {/* Icon */}
-                                                        <div className="relative pt-0.5">
-                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-500
-                                                                ${isCompleted ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                                                                    : isActive ? 'bg-white dark:bg-gray-900 border-blue-500 text-blue-600 dark:text-blue-400 scale-110'
-                                                                    : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}
-                                                            `}>
-                                                                {isCompleted ? <CheckCircleIcon className="w-3 h-3" /> : <StepIcon className="w-3 h-3" />}
-                                                            </div>
-                                                            {idx < SETTLEMENT_STEPS.length - 1 && (
-                                                                <div className={`absolute top-6 left-1/2 -translate-x-1/2 w-0.5 h-6 transition-colors duration-500
-                                                                    ${isCompleted ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-gray-200 dark:bg-gray-700'}`}
-                                                                />
-                                                            )}
-                                                        </div>
-
-                                                        {/* Text */}
-                                                        <div className="flex-1 pt-0.5">
-                                                            <h4 className={`text-xs font-bold ${isActive ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}`}>
-                                                                {step.title}
-                                                            </h4>
-                                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">{step.desc}</p>
-                                                            {isActive && (
-                                                                <motion.div
-                                                                    className="h-1 mt-1 rounded-full bg-blue-100 dark:bg-blue-900/30 overflow-hidden w-full"
-                                                                >
-                                                                    <motion.div className="bg-blue-500 h-full w-1/3 rounded-full"
-                                                                        animate={{ x: ['-100%', '300%'] }}
-                                                                        transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                                                                    />
-                                                                </motion.div>
-                                                            )}
-                                                        </div>
-                                                    </motion.div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    {/* Settlement Error */}
-                                    {settlementSSE.error && (
-                                        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-600 dark:text-red-400 mb-3">
-                                            {settlementSSE.error}
-                                        </div>
-                                    )}
-
-                                    {/* Settlement Success Result */}
-                                    {settlementSSE.result && !settlementSSE.error && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className="bg-emerald-50/80 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/30 rounded-xl p-4"
-                                        >
-                                            <div className="grid grid-cols-2 gap-2 mb-3">
-                                                <div className="text-center p-2 bg-white dark:bg-white/5 rounded-lg">
-                                                    <p className="text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-bold">{t('Created')}</p>
-                                                    <p className="text-xl font-bold text-emerald-800 dark:text-emerald-300">{settlementSSE.result.counter_entries_created ?? 0}</p>
-                                                </div>
-                                                <div className="text-center p-2 bg-white dark:bg-white/5 rounded-lg">
-                                                    <p className="text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-bold">{t('Cleaned')}</p>
-                                                    <p className="text-xl font-bold text-emerald-800 dark:text-emerald-300">{settlementSSE.result.saving_rows_removed ?? 0}</p>
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                onClick={() => handleDownload('settlement')}
-                                                disabled={downloading}
-                                                className="w-full py-2 bg-emerald-600 text-white text-xs rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                {downloading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <ArrowDownTrayIcon className="w-3 h-3" />}
-                                                {t('Download Result')}
-                                            </button>
-                                        </motion.div>
-                                    )}
-                                </motion.div>
-                            )}
-
-                            {/* Section 3: Open-New Progress */}
-                            {hasOpenNewStarted && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="border-t border-gray-100 dark:border-gray-800 pt-4"
-                                >
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <BanknotesIcon className={`w-5 h-5 ${openNewSSE.isRunning ? 'text-purple-500 animate-pulse' : 'text-emerald-500'}`} />
-                                        <h3 className="font-semibold text-gray-900 dark:text-white">{t('Open-New Process')}</h3>
-                                    </div>
-
-                                    {/* Open-New Steps List */}
-                                    <div className="bg-purple-50 dark:bg-purple-900/10 rounded-xl p-4 border border-purple-100 dark:border-purple-800 mb-4">
-                                        <div className="space-y-4">
-                                            {OPEN_NEW_STEPS.map((step, idx) => {
-                                                const isActive = openNewSSE.currentStep === step.key && !openNewSSE.result && !openNewSSE.error;
-                                                const isCompleted = openNewSSE.completedSteps.includes(step.key) || !!openNewSSE.result;
-                                                const isPending = !isCompleted && !isActive;
-                                                const StepIcon = step.icon;
-
-                                                return (
-                                                    <motion.div
-                                                        key={step.key}
-                                                        className={`flex items-start gap-3 transition-opacity duration-500 ${isPending ? 'opacity-40' : 'opacity-100'}`}
-                                                    >
-                                                        {/* Icon */}
-                                                        <div className="relative pt-0.5">
-                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-500
-                                                                ${isCompleted ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                                                                    : isActive ? 'bg-white dark:bg-gray-900 border-purple-500 text-purple-600 dark:text-purple-400 scale-110'
-                                                                    : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}
-                                                            `}>
-                                                                {isCompleted ? <CheckCircleIcon className="w-3 h-3" /> : <StepIcon className="w-3 h-3" />}
-                                                            </div>
-                                                            {idx < OPEN_NEW_STEPS.length - 1 && (
-                                                                <div className={`absolute top-6 left-1/2 -translate-x-1/2 w-0.5 h-6 transition-colors duration-500
-                                                                    ${isCompleted ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-gray-200 dark:bg-gray-700'}`}
-                                                                />
-                                                            )}
-                                                        </div>
-
-                                                        {/* Text */}
-                                                        <div className="flex-1 pt-0.5">
-                                                            <h4 className={`text-xs font-bold ${isActive ? 'text-purple-700 dark:text-purple-400' : 'text-gray-800 dark:text-gray-200'}`}>
-                                                                {step.title}
-                                                            </h4>
-                                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">{step.desc}</p>
-                                                            {isActive && (
-                                                                <motion.div
-                                                                    className="h-1 mt-1 rounded-full bg-purple-100 dark:bg-purple-900/30 overflow-hidden w-full"
-                                                                >
-                                                                    <motion.div className="bg-purple-500 h-full w-1/3 rounded-full"
-                                                                        animate={{ x: ['-100%', '300%'] }}
-                                                                        transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                                                                    />
-                                                                </motion.div>
-                                                            )}
-                                                        </div>
-                                                    </motion.div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    {/* Open-New Error */}
-                                    {openNewSSE.error && (
-                                        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-600 dark:text-red-400 mb-3">
-                                            {openNewSSE.error}
-                                        </div>
-                                    )}
-
-                                    {/* Open-New Success Result */}
-                                    {openNewSSE.result && !openNewSSE.error && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className="bg-purple-50/80 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/30 rounded-xl p-4"
-                                        >
-                                            <div className="grid grid-cols-2 gap-2 mb-3">
-                                                <div className="text-center p-2 bg-white dark:bg-white/5 rounded-lg">
-                                                    <p className="text-[10px] uppercase text-purple-600 dark:text-purple-400 font-bold">{t('Created')}</p>
-                                                    <p className="text-xl font-bold text-purple-800 dark:text-purple-300">{openNewSSE.result.counter_entries_created ?? 0}</p>
-                                                </div>
-                                                <div className="text-center p-2 bg-white dark:bg-white/5 rounded-lg">
-                                                    <p className="text-[10px] uppercase text-purple-600 dark:text-purple-400 font-bold">{t('Candidates')}</p>
-                                                    <p className="text-xl font-bold text-purple-800 dark:text-purple-300">{openNewSSE.result.candidates_found ?? 0}</p>
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                onClick={() => handleDownload('open_new')}
-                                                disabled={downloading}
-                                                className="w-full py-2 bg-purple-600 text-white text-xs rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                {downloading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <ArrowDownTrayIcon className="w-3 h-3" />}
-                                                {t('Download Result')}
-                                            </button>
-                                        </motion.div>
-                                    )}
-                                </motion.div>
-                            )}
-                        </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Mobile: Progress Panel — auto-open accordion (#3) */}
-              <AnimatePresence>
-                {(showProgress || uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning) && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="lg:hidden w-full mt-4 overflow-hidden"
-                  >
-                    <div className="bg-white dark:bg-[#222] rounded-xl border border-gray-200 dark:border-gray-800">
-                      {/* Sticky header with collapse button */}
-                      <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 bg-white dark:bg-[#222] border-b border-gray-100 dark:border-gray-800 rounded-t-xl">
-                        <div className="flex items-center gap-2">
-                          {(uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning) && (
-                            <span className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                            </span>
-                          )}
-                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                            {uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning
-                              ? t('Running...')
-                              : t('Progress Log')}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => setShowProgress(false)}
-                          aria-label={t('Collapse progress panel')}
-                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded transition-colors"
-                        >
-                          <XMarkIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      <div className="p-4 space-y-4">
-                        <UploadProgressPanel
-                          isVisible={true}
-                          steps={uploadSSE.steps}
-                          isComplete={uploadSSE.isComplete}
-                          isError={!!uploadSSE.error}
-                          errorMessage={uploadSSE.error}
-                          isActive={uploading}
-                        />
-
-                        {/* Mobile Movement Upload */}
-                        {(movementSSE.steps.length > 0 || uploadingMovement) && (
-                          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('Movement Data')}</p>
-                            <UploadProgressPanel
-                              isVisible={true}
-                              steps={movementSSE.steps}
-                              isComplete={movementSSE.isComplete}
-                              isError={!!movementSSE.error}
-                              errorMessage={movementSSE.error}
-                              isActive={uploadingMovement}
-                            />
-                          </div>
-                        )}
-
-                        {/* Mobile Settlement */}
-                        {hasSettlementStarted && (
-                          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                              {t('Settlement')} {settlementSSE.currentStep ? `— ${settlementSSE.currentStep}` : ''}
-                            </p>
-                            {settlementError && (
-                              <p className="text-xs text-red-500 mb-2">{settlementError}</p>
-                            )}
-                            {settlementSSE.result && (
-                              <button
-                                onClick={() => handleDownload('settlement')}
-                                aria-label={t('Download settlement result')}
-                                className="w-full py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
-                              >
-                                <ArrowDownTrayIcon className="w-4 h-4" />
-                                {t('Download Result')}
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Mobile Open-New */}
-                        {hasOpenNewStarted && (
-                          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                              {t('Open-New')} {openNewSSE.currentStep ? `— ${openNewSSE.currentStep}` : ''}
-                            </p>
-                            {openNewError && (
-                              <p className="text-xs text-red-500 mb-2">{openNewError}</p>
-                            )}
-                            {openNewSSE.result && (
-                              <button
-                                onClick={() => handleDownload('open_new')}
-                                aria-label={t('Download open-new result')}
-                                className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
-                              >
-                                <ArrowDownTrayIcon className="w-4 h-4" />
-                                {t('Download Result')}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Mobile: Progress Panel */}
+              <MobileProgressPanel
+                visible={showProgress || uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning}
+                uploading={uploading}
+                uploadingMovement={uploadingMovement}
+                uploadSSE={uploadSSE}
+                movementSSE={movementSSE}
+                settlementSSE={settlementSSE}
+                openNewSSE={openNewSSE}
+                hasSettlementStarted={hasSettlementStarted}
+                hasOpenNewStarted={hasOpenNewStarted}
+                settlementError={settlementError}
+                openNewError={openNewError}
+                onClose={() => setShowProgress(false)}
+                onDownload={handleDownload}
+              />
             </div>
           )}
 
@@ -1703,553 +1341,41 @@ const CashReport = () => {
           </AnimatePresence>
         </div>{/* end full-width section */}
 
-        {/* How It Works */}
-        <HowItWorksCard
-          hasSession={hasSession}
-          movementRows={movementRows}
-          hasSettlementResult={!!settlementSSE.result}
-          hasOpenNewResult={!!openNewSSE.result}
-          isUploadingData={uploading || uploadingMovement}
-          settlementRunning={settlementSSE.isRunning}
-          openNewRunning={openNewSSE.isRunning}
-          hasDownloadedResult={hasDownloadedResult}
-        />
+        {/* Onboarding Tour */}
+        <TutorialGuide open={showTour} onClose={() => setShowTour(false)} />
       </div>
 
       {/* Create Session Modal */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => !initializing && setShowCreateModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-[#222] rounded-2xl shadow-2xl p-6 w-full max-w-md"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">
-                  <CalendarIcon className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {t('Create New Session')}
-                </h3>
-              </div>
+      <CreateSessionModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreated={async () => {
+          setHasDownloadedResult(false);
+          await loadSessions();
+        }}
+      />
 
-              <div className="space-y-4">
-                {/* Quick Period Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('Quick Period')}
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {(() => {
-                      const now = new Date();
-                      const todayDay = now.getDate();
-                      const todayMonth = now.getMonth();
-                      const todayYear = now.getFullYear();
-                      // current period index: W1-2 = 0, W3-4 = 1 within a month
-                      const currentHalf = todayDay <= 15 ? 0 : 1;
+      {/* Settlement Preview Modal */}
+      <SettlementPreviewModal
+        preview={settlementPreview}
+        onClose={() => setSettlementPreview(null)}
+      />
 
-                      // Build a flat list of all half-month periods across a range of months
-                      const allPeriods = [];
-                      for (let offset = -2; offset <= 2; offset++) {
-                        const d = new Date(todayYear, todayMonth + offset, 1);
-                        const y = d.getFullYear();
-                        const m = d.getMonth();
-                        const mm = String(m + 1).padStart(2, '0');
-                        const monthShort = d.toLocaleString('en-US', { month: 'short' });
-                        const yr = String(y).slice(-2);
-                        const lastDay = new Date(y, m + 1, 0).getDate();
-                        allPeriods.push({
-                          label: `W1-2${monthShort}${yr}`,
-                          start: `${y}-${mm}-01`,
-                          end: `${y}-${mm}-15`,
-                          isCurrent: offset === 0 && currentHalf === 0,
-                        });
-                        allPeriods.push({
-                          label: `W3-4${monthShort}${yr}`,
-                          start: `${y}-${mm}-16`,
-                          end: `${y}-${mm}-${lastDay}`,
-                          isCurrent: offset === 0 && currentHalf === 1,
-                        });
-                      }
-
-                      // Show 4 periods: 2 before + current + 1 after
-                      const curIdx = allPeriods.findIndex((p) => p.isCurrent);
-                      const sliceStart = Math.max(0, curIdx - 2);
-                      const periods = allPeriods.slice(sliceStart, sliceStart + 4);
-
-                      return periods.map((p) => {
-                        const isSelected = openingDate === p.start && endingDate === p.end;
-                        return (
-                          <button
-                            key={p.label}
-                            type="button"
-                            onClick={() => { setOpeningDate(p.start); setEndingDate(p.end); }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                              isSelected
-                                ? 'bg-emerald-500 text-white border-emerald-500 shadow-md'
-                                : p.isCurrent
-                                  ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 ring-1 ring-emerald-200 dark:ring-emerald-800'
-                                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400'
-                            }`}
-                          >
-                            {p.label}
-                          </button>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {t('Opening Date')} *
-                    </label>
-                    <input
-                      type="date"
-                      value={openingDate}
-                      onChange={(e) => setOpeningDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {t('Ending Date')} *
-                    </label>
-                    <input
-                      type="date"
-                      value={endingDate}
-                      onChange={(e) => setEndingDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Period name preview (#4) */}
-                {openingDate && endingDate && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
-                    <CalendarIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                    <span className="text-xs text-emerald-700 dark:text-emerald-400">
-                      {t('Period')}: <span className="font-bold">{generatePeriodName(openingDate, endingDate)}</span>
-                    </span>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t('Template File')}
-                    <span className="ml-1 text-xs font-normal text-gray-400 dark:text-gray-500">
-                      ({t('optional — upload previous period\'s completed file')})
-                    </span>
-                  </label>
-                  <div
-                    className={`relative w-full border-2 border-dashed rounded-lg px-4 py-3 text-center cursor-pointer transition-colors ${
-                      templateFile
-                        ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-emerald-400 dark:hover:border-emerald-500'
-                    }`}
-                    onClick={() => document.getElementById('template-file-input').click()}
-                  >
-                    <input
-                      id="template-file-input"
-                      type="file"
-                      accept=".xlsx"
-                      className="hidden"
-                      onChange={(e) => setTemplateFile(e.target.files?.[0] || null)}
-                    />
-                    {templateFile ? (
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm text-emerald-700 dark:text-emerald-400 truncate">
-                          {templateFile.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setTemplateFile(null);
-                            const templateInput = document.getElementById('template-file-input') as HTMLInputElement | null;
-                            if (templateInput) {
-                              templateInput.value = '';
-                            }
-                          }}
-                          className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-400 dark:text-gray-500">
-                        {t('Click to upload .xlsx template')}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  disabled={initializing}
-                  className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
-                >
-                  {t('Cancel')}
-                </button>
-                <button
-                  onClick={handleInitSession}
-                  disabled={initializing || !openingDate || !endingDate}
-                  className="flex-1 py-2.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg font-medium hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {initializing ? (
-                    <>
-                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                      {t('Creating...')}
-                    </>
-                  ) : (
-                    t('Create')
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Settlement Preview Modal (#11) */}
-      <AnimatePresence>
-        {settlementPreview && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-            onClick={() => setSettlementPreview(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 20 }}
-              className="bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                    <EyeIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                      {t('Settlement Preview (Dry Run)')}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {t('No changes will be written until you click Run Settlement')}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => setSettlementPreview(null)} aria-label={t('Close preview')} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Stats row */}
-              <div className="px-6 py-3 bg-indigo-50 dark:bg-indigo-900/10 border-b border-indigo-100 dark:border-indigo-900/30 flex-shrink-0 flex flex-wrap gap-4">
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">{t('Scanned')}</p>
-                  <p className="text-lg font-bold text-indigo-800 dark:text-indigo-300">{settlementPreview.total_transactions_scanned ?? 0}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">{t('Candidates')}</p>
-                  <p className="text-lg font-bold text-indigo-800 dark:text-indigo-300">{settlementPreview.settlement_candidates ?? 0}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">{t('Would Create')}</p>
-                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{settlementPreview.counter_entries_would_create ?? 0}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400">{t('Interest Splits')}</p>
-                  <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{settlementPreview.interest_splits_would_create ?? 0}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-red-500 dark:text-red-400">{t('No Account')}</p>
-                  <p className="text-lg font-bold text-red-600 dark:text-red-400">{(settlementPreview.skipped_no_account || []).length}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-gray-500">{t('Duplicates')}</p>
-                  <p className="text-lg font-bold text-gray-600 dark:text-gray-400">{(settlementPreview.skipped_duplicate || []).length}</p>
-                </div>
-              </div>
-
-              {/* Candidates table */}
-              <div className="flex-1 overflow-auto">
-                {(settlementPreview.candidates || []).length === 0 ? (
-                  <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
-                    {t('No candidates found')}
-                  </div>
-                ) : (
-                  <table className="w-full text-xs">
-                    <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-                      <tr>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Status')}</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Date')}</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Bank')}</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide max-w-[200px]">{t('Description')}</th>
-                        <th className="px-4 py-2.5 text-right font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Debit')}</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Counter Account')}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {(settlementPreview.candidates || []).map((c, i) => (
-                        <tr key={i} className={`transition-colors ${
-                          c.status === 'matched' ? 'hover:bg-emerald-50 dark:hover:bg-emerald-900/10'
-                          : c.status === 'no_account' ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
-                          : 'bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                        }`}>
-                          <td className="px-4 py-2.5">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                              c.status === 'matched' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                              : c.status === 'no_account' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                            }`}>
-                              {c.status === 'matched' ? t('Match') : c.status === 'no_account' ? t('No Acct') : t('Dup')}
-                            </span>
-                            {c.has_interest_split && (
-                              <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">+{t('INT')}</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 whitespace-nowrap">{c.date || '—'}</td>
-                          <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap">{c.bank || '—'}</td>
-                          <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 max-w-[200px]">
-                            <span className="truncate block" title={c.description}>{c.description || '—'}</span>
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-gray-700 dark:text-gray-300 font-mono whitespace-nowrap">
-                            {c.debit != null ? c.debit.toLocaleString() : '—'}
-                          </td>
-                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 font-mono">{c.counter_account || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-between bg-gray-50 dark:bg-gray-900/30">
-                <span className="text-xs text-gray-500">
-                  {t('{{count}} row(s)', { count: (settlementPreview.candidates || []).length })}
-                </span>
-                <button
-                  onClick={() => setSettlementPreview(null)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                >
-                  {t('Close')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Open-New Preview Modal (#11) */}
-      <AnimatePresence>
-        {openNewPreview && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-            onClick={() => setOpenNewPreview(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 20 }}
-              className="bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                    <EyeIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                      {t('Open-New Preview (Dry Run)')}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {t('No changes will be written until you click Run Open New')}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => setOpenNewPreview(null)} aria-label={t('Close preview')} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Stats row */}
-              <div className="px-6 py-3 bg-purple-50 dark:bg-purple-900/10 border-b border-purple-100 dark:border-purple-900/30 flex-shrink-0 flex flex-wrap gap-4">
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400">{t('Scanned')}</p>
-                  <p className="text-lg font-bold text-purple-800 dark:text-purple-300">{openNewPreview.total_transactions_scanned ?? 0}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400">{t('Candidates')}</p>
-                  <p className="text-lg font-bold text-purple-800 dark:text-purple-300">{openNewPreview.open_new_candidates ?? 0}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">{t('Would Create')}</p>
-                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{openNewPreview.counter_entries_would_create ?? 0}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-red-500 dark:text-red-400">{t('No Account')}</p>
-                  <p className="text-lg font-bold text-red-600 dark:text-red-400">{(openNewPreview.skipped_no_account || []).length}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase font-bold text-gray-500">{t('Duplicates')}</p>
-                  <p className="text-lg font-bold text-gray-600 dark:text-gray-400">{(openNewPreview.skipped_duplicate || []).length}</p>
-                </div>
-              </div>
-
-              {/* Candidates table */}
-              <div className="flex-1 overflow-auto">
-                {(openNewPreview.candidates || []).length === 0 ? (
-                  <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
-                    {t('No candidates found')}
-                  </div>
-                ) : (
-                  <table className="w-full text-xs">
-                    <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-                      <tr>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Status')}</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Date')}</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Bank')}</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide max-w-[200px]">{t('Description')}</th>
-                        <th className="px-4 py-2.5 text-right font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Credit')}</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Saving Account')}</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('Rate')}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {(openNewPreview.candidates || []).map((c, i) => (
-                        <tr key={i} className={`transition-colors ${
-                          c.status === 'matched' ? (c.no_lookup_data ? 'bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/20' : 'hover:bg-emerald-50 dark:hover:bg-emerald-900/10')
-                          : c.status === 'no_account' ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
-                          : 'bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                        }`}>
-                          <td className="px-4 py-2.5">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                              c.status === 'matched' ? (c.no_lookup_data ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400')
-                              : c.status === 'no_account' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                            }`}>
-                              {c.status === 'matched' ? (c.no_lookup_data ? t('No Data') : t('Match')) : c.status === 'no_account' ? t('No Acct') : t('Dup')}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 whitespace-nowrap">{c.date || '—'}</td>
-                          <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap">{c.bank || '—'}</td>
-                          <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 max-w-[200px]">
-                            <span className="truncate block" title={c.description}>{c.description || '—'}</span>
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-gray-700 dark:text-gray-300 font-mono whitespace-nowrap">
-                            {c.credit != null ? c.credit.toLocaleString() : '—'}
-                          </td>
-                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 font-mono">{c.saving_account || '—'}</td>
-                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
-                            {c.interest_rate != null ? `${(c.interest_rate * 100).toFixed(2)}%` : '—'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-between bg-gray-50 dark:bg-gray-900/30">
-                <span className="text-xs text-gray-500">
-                  {t('{{count}} row(s)', { count: (openNewPreview.candidates || []).length })}
-                </span>
-                <button
-                  onClick={() => setOpenNewPreview(null)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                >
-                  {t('Close')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Open-New Preview Modal */}
+      <OpenNewPreviewModal
+        preview={openNewPreview}
+        onClose={() => setOpenNewPreview(null)}
+      />
 
       {/* Confirm Dialog */}
-      <AnimatePresence>
-        {confirmDialog.open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-[#222] rounded-2xl shadow-2xl p-6 w-full max-w-md"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`p-3 rounded-full ${
-                  confirmDialog.type === 'danger'
-                    ? 'bg-red-100 dark:bg-red-900/30'
-                    : 'bg-amber-100 dark:bg-amber-900/30'
-                }`}>
-                  {confirmDialog.type === 'danger' ? (
-                    <TrashIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
-                  ) : (
-                    <ArrowPathIcon className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                  )}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {confirmDialog.title}
-                </h3>
-              </div>
-
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                {confirmDialog.message}
-              </p>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
-                  className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
-                >
-                  {t('Cancel')}
-                </button>
-                <button
-                  onClick={confirmDialog.onConfirm}
-                  className={`flex-1 py-2.5 px-4 rounded-lg text-white font-medium transition-colors ${
-                    confirmDialog.type === 'danger'
-                      ? 'bg-red-500 hover:bg-red-600'
-                      : 'bg-amber-500 hover:bg-amber-600'
-                  }`}
-                >
-                  {confirmDialog.type === 'danger' ? t('Delete') : t('Reset')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };
