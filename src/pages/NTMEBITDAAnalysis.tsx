@@ -143,7 +143,7 @@ function NTMEBITDAAnalysis() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#181818] dark:to-[#0d0d0d] py-8 px-4">
-      <div className="container mx-auto px-6 max-w-5xl">
+      <div className="w-full max-w-[85vw] mx-auto">
         {/* Breadcrumb Navigation */}
         <Breadcrumb items={breadcrumbItems} className="mb-6" />
 

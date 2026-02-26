@@ -21,8 +21,8 @@ export const FINANCE_API_BASE_URL = `${BASE_URL}/finance`;
 // FP&A API
 export const FPA_API_BASE_URL = `${BASE_URL}/fpa`;
 
-// Project API
-export const PROJECT_API_BASE_URL = `${BASE_URL}/projects`;
+// History API
+export const HISTORY_API_BASE_URL = `${BASE_URL}/history`;
 
 // AI Usage API
 export const AI_USAGE_API_BASE_URL = `${BASE_URL}/ai-usage`;
@@ -33,7 +33,7 @@ if (import.meta.env.DEV) {
   console.log('  BASE_URL:', BASE_URL);
   console.log('  FINANCE_API_BASE_URL:', FINANCE_API_BASE_URL);
   console.log('  FPA_API_BASE_URL:', FPA_API_BASE_URL);
-  console.log('  PROJECT_API_BASE_URL:', PROJECT_API_BASE_URL);
+  console.log('  HISTORY_API_BASE_URL:', HISTORY_API_BASE_URL);
 }
 
 // Common axios configuration
@@ -53,9 +53,9 @@ export const fpaApiClient = axios.create({
   ...commonConfig,
 });
 
-// Create Project API axios instance
-export const projectApiClient = axios.create({
-  baseURL: PROJECT_API_BASE_URL,
+// Create History API axios instance
+export const historyApiClient = axios.create({
+  baseURL: HISTORY_API_BASE_URL,
   ...commonConfig,
 });
 
@@ -87,13 +87,13 @@ export const authApiClient = axios.create({
 // Apply centralized auth interceptors (token injection + 401 refresh + auto-logout)
 applyAuthInterceptors(apiClient);
 applyAuthInterceptors(fpaApiClient);
-applyAuthInterceptors(projectApiClient);
+applyAuthInterceptors(historyApiClient);
 applyAuthInterceptors(aiUsageApiClient);
 
 export default {
   apiClient,
   fpaApiClient,
-  projectApiClient,
+  historyApiClient,
   authApiClient,
   varianceApiClient, // Legacy export
   contractOcrApiClient, // Legacy export

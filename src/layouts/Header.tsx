@@ -53,7 +53,7 @@ export default function Header() {
 
   const navItems = [
     { label: t("departments"), path: "/department" },
-    { label: t("Projects"), path: "/projects" },
+    { label: t("History"), path: "/history" },
   ];
 
   return (

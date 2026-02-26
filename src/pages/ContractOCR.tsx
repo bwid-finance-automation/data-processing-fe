@@ -1,20 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import FileUpload from '@components/contract-ocr/FileUpload';
 import ProcessingStatus from '@components/contract-ocr/ProcessingStatus';
 import ResultsTable from '@components/contract-ocr/ResultsTable';
-import { ProjectSelector, PasswordDialog } from '@components/common';
-import { useProjectManagement } from '@hooks';
 import { processContracts, processContractWithUnits, exportContractWithUnitsToExcel } from '@services/contract-ocr/contract-ocr-apis';
 import { exportToExcel, exportToJSON } from '@utils/contract-ocr/exportUtils';
-import { getProjectContracts } from '@services/project/project-apis';
-import {
-  ClockIcon,
-  DocumentTextIcon,
-  ChevronRightIcon
-} from '@heroicons/react/24/outline';
+import ModuleHistory from '@components/common/ModuleHistory';
 
 export default function ContractOCR() {
   const navigate = useNavigate();
@@ -27,91 +20,9 @@ export default function ContractOCR() {
   const [results, setResults] = useState(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
-  // Project history
-  const [projectContractHistory, setProjectContractHistory] = useState(null);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [expandedHistorySessions, setExpandedHistorySessions] = useState({});
-
-  // History filter states
-  const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
-  const [historyTenantFilter, setHistoryTenantFilter] = useState('all');
-
-  // Use the custom hook for project management
-  const {
-    project,
-    loadingProject,
-    projectsList,
-    loadingProjects,
-    showProjectDropdown,
-    setShowProjectDropdown,
-    projectDropdownRef,
-    passwordDialog,
-    setPasswordDialog,
-    passwordError,
-    verifyingPassword,
-    showPassword,
-    setShowPassword,
-    handleSelectProject,
-    handleVerifyPassword,
-    handleClosePasswordDialog,
-  } = useProjectManagement({
-    basePath: '/contract-ocr',
-    onProjectChange: useCallback(() => {
-      setResults(null);
-      setFiles([]);
-      setProjectContractHistory(null);
-    }, []),
-  });
-
   useEffect(() => {
     document.title = `${t('contractOCRProject')} - BW Industrial`;
   }, [t]);
-
-  // Fetch contract history when project changes
-  useEffect(() => {
-    const fetchHistory = async () => {
-      if (!project) {
-        setProjectContractHistory(null);
-        return;
-      }
-
-      setLoadingHistory(true);
-      try {
-        const history = await getProjectContracts(project.uuid);
-        setProjectContractHistory(history);
-      } catch (err) {
-        if (err.response?.status !== 404) {
-          console.error('Error fetching contract history:', err);
-        }
-        setProjectContractHistory(null);
-      } finally {
-        setLoadingHistory(false);
-      }
-    };
-
-    fetchHistory();
-  }, [project]);
-
-  // Toggle history session expansion
-  const toggleHistorySession = (sessionId) => {
-    setExpandedHistorySessions(prev => ({
-      ...prev,
-      [sessionId]: !prev[sessionId]
-    }));
-  };
-
-  // Format date helper
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleString('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const handleFilesSelected = (selectedFiles) => {
     setFiles(selectedFiles);
@@ -138,7 +49,6 @@ export default function ContractOCR() {
         const data = await processContractWithUnits(
           files[0],
           unitBreakdownFile,
-          project?.uuid || null,
           (uploadProgress) => {
             console.log(`Upload progress: ${uploadProgress}%`);
           }
@@ -162,22 +72,13 @@ export default function ContractOCR() {
         console.log('Processing batch contracts...');
         setProgress({ current: 0, total: files.length });
 
-        const data = await processContracts(files, project?.uuid || null, (current, total) => {
+        const data = await processContracts(files, (current, total) => {
           setProgress({ current, total });
         });
 
         setResults(data);
       }
 
-      // Refresh contract history after processing
-      if (project) {
-        try {
-          const history = await getProjectContracts(project.uuid);
-          setProjectContractHistory(history);
-        } catch (err) {
-          console.error('Error refreshing contract history:', err);
-        }
-      }
     } catch (error) {
       console.error('Error processing contracts:', error);
       alert('Error processing contracts: ' + error.message);
@@ -234,37 +135,9 @@ export default function ContractOCR() {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  // Get unique tenants from history for filter dropdown
-  const uniqueTenantsInHistory = [...new Set(
-    (projectContractHistory?.sessions || []).flatMap(session => session.tenants || [])
-  )]
-    .filter((tenant): tenant is string => typeof tenant === 'string' && tenant.trim().length > 0)
-    .sort();
-
-  // Filter history based on selected filters
-  const filteredContractSessions = (projectContractHistory?.sessions || []).filter(session => {
-    if (historyTimeFilter !== 'all') {
-      const sessionDate = new Date(session.processed_at);
-      const now = new Date();
-      if (historyTimeFilter === '24h') {
-        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        if (sessionDate < twentyFourHoursAgo) return false;
-      } else if (historyTimeFilter === 'week') {
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        if (sessionDate < oneWeekAgo) return false;
-      }
-    }
-
-    if (historyTenantFilter !== 'all') {
-      if (!session.tenants || !session.tenants.includes(historyTenantFilter)) return false;
-    }
-
-    return true;
-  });
-
   return (
     <div className="min-h-screen theme-bg-app py-8 px-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full max-w-[85vw] mx-auto">
         {/* Back Button */}
         <motion.button
           onClick={() => navigate('/project/2')}
@@ -285,20 +158,6 @@ export default function ContractOCR() {
             {t('contractOCRDesc')}
           </p>
         </div>
-
-        {/* Project Selector */}
-        <ProjectSelector
-          project={project}
-          loadingProject={loadingProject}
-          projectsList={projectsList}
-          loadingProjects={loadingProjects}
-          showDropdown={showProjectDropdown}
-          onToggleDropdown={() => setShowProjectDropdown(!showProjectDropdown)}
-          dropdownRef={projectDropdownRef}
-          onSelectProject={handleSelectProject}
-          colorTheme="blue"
-          className="mb-6"
-        />
 
         {/* File Upload Section */}
         <div className="mb-8">
@@ -480,210 +339,13 @@ export default function ContractOCR() {
           </div>
         )}
 
-        {/* Project Contract History */}
-        {project && (
-          <div className="mt-8 theme-surface rounded-xl border border-[color:var(--app-border)] overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-              <div className="flex items-center gap-3">
-                <ClockIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {t('Contract History')}
-                </h3>
-                {projectContractHistory && (
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    ({filteredContractSessions.length}{filteredContractSessions.length !== (projectContractHistory.total_sessions || 0) ? ` / ${projectContractHistory.total_sessions || 0}` : ''} {t('sessions')})
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* History Filters */}
-            {projectContractHistory && projectContractHistory.sessions && projectContractHistory.sessions.length > 0 && !loadingHistory && (
-              <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Time Filter */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('Time')}:</span>
-                    <div className="flex rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden">
-                      {[
-                        { value: 'all', label: t('All') },
-                        { value: '24h', label: '24h' },
-                        { value: 'week', label: t('Week') }
-                      ].map(option => (
-                        <button
-                          key={option.value}
-                          onClick={() => setHistoryTimeFilter(option.value)}
-                          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                            historyTimeFilter === option.value
-                              ? 'bg-purple-600 text-white'
-                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Tenant Filter */}
-                  {uniqueTenantsInHistory.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('Tenant')}:</span>
-                      <select
-                        value={historyTenantFilter}
-                        onChange={(e) => setHistoryTenantFilter(e.target.value)}
-                        className="px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 max-w-[200px]"
-                      >
-                        <option value="all">{t('All Tenants')}</option>
-                        {uniqueTenantsInHistory.map(tenant => (
-                          <option key={tenant} value={tenant}>{tenant}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Clear Filters Button */}
-                  {(historyTimeFilter !== 'all' || historyTenantFilter !== 'all') && (
-                    <button
-                      onClick={() => {
-                        setHistoryTimeFilter('all');
-                        setHistoryTenantFilter('all');
-                      }}
-                      className="px-2 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    >
-                      {t('Clear Filters')}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="p-4">
-              {loadingHistory ? (
-                <div className="text-center py-8">
-                  <div className="inline-block w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-2" />
-                  <p className="text-gray-500 dark:text-gray-400">{t('Loading history...')}</p>
-                </div>
-              ) : !projectContractHistory || !projectContractHistory.sessions || projectContractHistory.sessions.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  <DocumentTextIcon className="mx-auto h-12 w-12 mb-2 opacity-50" />
-                  <p>{t('No contract history yet')}</p>
-                  <p className="text-sm">{t('Process contracts to see history')}</p>
-                </div>
-              ) : filteredContractSessions.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  <svg className="mx-auto h-12 w-12 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  <p>{t('No matching results')}</p>
-                  <p className="text-sm">{t('Try adjusting your filters')}</p>
-                  <button
-                    onClick={() => {
-                      setHistoryTimeFilter('all');
-                      setHistoryTenantFilter('all');
-                    }}
-                    className="mt-3 px-4 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                  >
-                    {t('Clear all filters')}
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredContractSessions.map((session) => (
-                    <div
-                      key={session.session_id}
-                      className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
-                    >
-                      {/* Session header */}
-                      <button
-                        onClick={() => toggleHistorySession(session.session_id)}
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-3">
-                          <ChevronRightIcon
-                            className={`h-4 w-4 text-gray-400 transition-transform ${
-                              expandedHistorySessions[session.session_id] ? 'rotate-90' : ''
-                            }`}
-                          />
-                          <div className="text-left">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900 dark:text-gray-100">
-                                {formatDate(session.processed_at)}
-                              </span>
-                              <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">
-                                {session.file_count} {t('contracts')}
-                              </span>
-                            </div>
-                            {session.tenants && session.tenants.length > 0 && (
-                              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                                {session.tenants.slice(0, 3).join(', ')}
-                                {session.tenants.length > 3 && ` +${session.tenants.length - 3}`}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-
-                      {/* Session files */}
-                      <AnimatePresence>
-                        {expandedHistorySessions[session.session_id] && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="px-4 py-2 theme-surface divide-y divide-gray-100 dark:divide-gray-800">
-                              {session.files.map((file, idx) => (
-                                <div key={idx} className="py-2 flex items-center gap-3">
-                                  <DocumentTextIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-gray-900 dark:text-gray-100 truncate">
-                                      {file.file_name || 'Unknown file'}
-                                    </p>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                      {file.contract_number && (
-                                        <span>#{file.contract_number}</span>
-                                      )}
-                                      {file.tenant && (
-                                        <span>• {file.tenant}</span>
-                                      )}
-                                      {file.unit_for_lease && (
-                                        <span>• Unit: {file.unit_for_lease}</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* History Section */}
+        <ModuleHistory
+          moduleKey="contracts"
+          refreshTrigger={results}
+          className="mt-6"
+        />
       </div>
-
-      {/* Password Dialog */}
-      <PasswordDialog
-        open={passwordDialog.open}
-        onClose={handleClosePasswordDialog}
-        onSubmit={handleVerifyPassword}
-        title={t('Project Password Required')}
-        subtitle={passwordDialog.project?.project_name}
-        description={t('This project is password protected')}
-        password={passwordDialog.password}
-        onPasswordChange={(value) => setPasswordDialog(prev => ({ ...prev, password: value }))}
-        showPassword={showPassword}
-        onToggleShowPassword={() => setShowPassword(!showPassword)}
-        loading={verifyingPassword}
-        error={passwordError}
-        colorTheme="blue"
-      />
 
       {/* Footer */}
       <motion.footer

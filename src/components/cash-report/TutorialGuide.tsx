@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRightIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowRightIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 
 /* ------------------------------------------------------------------ */
@@ -219,13 +219,24 @@ export default function TutorialGuide({ open, onClose }: TutorialGuideProps) {
               </div>
 
               {/* Next / finish button */}
-              <button
-                onClick={next}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-white text-gray-900 hover:bg-gray-200 transition-colors shadow-lg"
-                aria-label={stepIdx < visibleSteps.length - 1 ? t('cashReportTourNext') : t('cashReportTourFinish')}
-              >
-                <ArrowRightIcon className="w-4 h-4" />
-              </button>
+              {stepIdx < visibleSteps.length - 1 ? (
+                <button
+                  onClick={next}
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-white text-gray-900 hover:bg-gray-200 transition-colors shadow-lg"
+                  aria-label={t('cashReportTourNext')}
+                >
+                  <ArrowRightIcon className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={next}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shadow-lg text-sm font-medium"
+                  aria-label={t('cashReportTourFinish')}
+                >
+                  <CheckIcon className="w-4 h-4" />
+                  {t('cashReportTourFinish')}
+                </button>
+              )}
             </div>
           </div>
 

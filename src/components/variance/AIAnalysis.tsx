@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { startAIAnalysis, streamLogs, downloadResult } from '@services/variance/variance-apis';
 import { FINANCE_API_BASE_URL } from '@configs/APIs';
 
-const AIAnalysis = ({ projectUuid }) => {
+const AIAnalysis = () => {
   const { t } = useTranslation();
   const [excelFiles, setExcelFiles] = useState([]);
   const [loanInterestFile, setLoanInterestFile] = useState(null);
@@ -271,10 +271,6 @@ const AIAnalysis = ({ projectUuid }) => {
       formData.append('unit_for_lease_file', unitForLeaseFile);
     }
 
-    // Add project_uuid if provided (for project integration)
-    if (projectUuid) {
-      formData.append('project_uuid', projectUuid);
-    }
 
     try {
       // Start analysis
@@ -381,15 +377,15 @@ const AIAnalysis = ({ projectUuid }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Left Panel - Upload & Progress */}
-      <div className="bg-white dark:bg-[#222] rounded-xl shadow-lg p-6 space-y-6">
-        <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{t('uploadRun')}</h2>
+      <div className="bg-white dark:bg-[#222] rounded-xl shadow-lg p-4 space-y-4">
+        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{t('uploadRun')}</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Excel Files */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
               {t('excelLabel')}
             </label>
 
@@ -406,7 +402,7 @@ const AIAnalysis = ({ projectUuid }) => {
               />
               <label
                 htmlFor="excel-upload"
-                className={`flex items-center justify-center gap-3 w-full px-6 py-4 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed rounded-lg transition-all cursor-pointer ${
                   isProcessing
                     ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
                     : excelFiles.length > 0
@@ -414,13 +410,13 @@ const AIAnalysis = ({ projectUuid }) => {
                     : 'border-blue-300 dark:border-blue-600 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md'
                 }`}
               >
-                <div className={`flex flex-col items-center gap-2 ${isProcessing ? 'pointer-events-none' : ''}`}>
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                <div className={`flex flex-col items-center gap-1.5 ${isProcessing ? 'pointer-events-none' : ''}`}>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
                     excelFiles.length > 0
                       ? 'bg-green-500 dark:bg-green-600'
                       : 'bg-gradient-to-br from-blue-500 to-purple-600'
                   }`}>
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       {excelFiles.length > 0 ? (
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       ) : (
@@ -429,10 +425,10 @@ const AIAnalysis = ({ projectUuid }) => {
                     </svg>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
                       {excelFiles.length > 0 ? `${excelFiles.length} file(s) selected` : 'Choose Excel files'}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
                       {excelFiles.length > 0 ? 'Click to change files' : 'or drag and drop here'}
                     </p>
                   </div>
@@ -444,20 +440,20 @@ const AIAnalysis = ({ projectUuid }) => {
 
             {/* Selected Files List */}
             {excelFiles.length > 0 && (
-              <div className="mt-3 space-y-2">
+              <div className="mt-2 space-y-1.5">
                 {excelFiles.map((file, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
+                    className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md"
                   >
-                    <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-6 h-6 bg-green-100 dark:bg-green-900/30 rounded flex items-center justify-center flex-shrink-0">
+                      <svg className="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{file.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{(file.size / 1024).toFixed(2)} KB</p>
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{file.name}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">{(file.size / 1024).toFixed(2)} KB</p>
                     </div>
                   </div>
                 ))}
@@ -466,11 +462,11 @@ const AIAnalysis = ({ projectUuid }) => {
           </div>
 
           {/* Optional Loan Interest File */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-              <span className="w-1 h-4 bg-amber-500 rounded-full mr-2"></span>
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+            <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+              <span className="w-1 h-3 bg-amber-500 rounded-full mr-1.5"></span>
               ERP Loan Interest Rate
-              <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
+              <span className="ml-1.5 text-[11px] font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
             </h3>
 
             <div className="relative">
@@ -484,7 +480,7 @@ const AIAnalysis = ({ projectUuid }) => {
               />
               <label
                 htmlFor="ai-loan-interest-upload"
-                className={`flex items-center gap-3 w-full px-4 py-3 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                className={`flex items-center gap-2 w-full px-3 py-2 border-2 border-dashed rounded-lg transition-all cursor-pointer ${
                   isProcessing
                     ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
                     : loanInterestFile
@@ -492,10 +488,10 @@ const AIAnalysis = ({ projectUuid }) => {
                     : 'border-gray-300 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 hover:border-amber-400'
                 }`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
                   loanInterestFile ? 'bg-amber-500' : 'bg-gradient-to-br from-amber-500 to-amber-600'
                 }`}>
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     {loanInterestFile ? (
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     ) : (
@@ -504,30 +500,30 @@ const AIAnalysis = ({ projectUuid }) => {
                   </svg>
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
                     {loanInterestFile ? loanInterestFile.name : 'Loan Interest Rate File'}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
                     {loanInterestFile ? `${(loanInterestFile.size / 1024).toFixed(2)} KB` : 'NetSuite Save Search (.xls/.xlsx)'}
                   </p>
                 </div>
               </label>
             </div>
 
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
               Upload the ERP Loan Interest Rate Save Search file to enable enhanced Rule A2 analysis with interest rate lookups.
             </p>
           </div>
 
           {/* Account 511 Drill-Down Files Section */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-              <span className="w-1 h-4 bg-purple-500 rounded-full mr-2"></span>
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+            <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+              <span className="w-1 h-3 bg-purple-500 rounded-full mr-1.5"></span>
               Account 511 (Revenue) Drill-Down
-              <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
+              <span className="ml-1.5 text-[11px] font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
             </h3>
 
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 gap-2">
               {/* Revenue Breakdown File */}
               <div className="relative">
                 <input
@@ -540,7 +536,7 @@ const AIAnalysis = ({ projectUuid }) => {
                 />
                 <label
                   htmlFor="ai-revenue-breakdown-upload"
-                  className={`flex items-center gap-3 w-full px-4 py-3 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                  className={`flex items-center gap-2 w-full px-3 py-2 border-2 border-dashed rounded-lg transition-all cursor-pointer ${
                     isProcessing
                       ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
                       : revenueBreakdownFile
@@ -548,10 +544,10 @@ const AIAnalysis = ({ projectUuid }) => {
                       : 'border-gray-300 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 hover:border-purple-400'
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
                     revenueBreakdownFile ? 'bg-purple-500' : 'bg-gradient-to-br from-purple-500 to-purple-600'
                   }`}>
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       {revenueBreakdownFile ? (
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       ) : (
@@ -560,10 +556,10 @@ const AIAnalysis = ({ projectUuid }) => {
                     </svg>
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
                       {revenueBreakdownFile ? revenueBreakdownFile.name : 'RevenueBreakdown File'}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
                       {revenueBreakdownFile ? `${(revenueBreakdownFile.size / 1024).toFixed(2)} KB` : 'NetSuite export (.xls)'}
                     </p>
                   </div>
@@ -582,7 +578,7 @@ const AIAnalysis = ({ projectUuid }) => {
                 />
                 <label
                   htmlFor="ai-unit-for-lease-upload"
-                  className={`flex items-center gap-3 w-full px-4 py-3 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                  className={`flex items-center gap-2 w-full px-3 py-2 border-2 border-dashed rounded-lg transition-all cursor-pointer ${
                     isProcessing
                       ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
                       : unitForLeaseFile
@@ -590,10 +586,10 @@ const AIAnalysis = ({ projectUuid }) => {
                       : 'border-gray-300 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 hover:border-purple-400'
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
                     unitForLeaseFile ? 'bg-purple-500' : 'bg-gradient-to-br from-purple-500 to-purple-600'
                   }`}>
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       {unitForLeaseFile ? (
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       ) : (
@@ -602,10 +598,10 @@ const AIAnalysis = ({ projectUuid }) => {
                     </svg>
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
                       {unitForLeaseFile ? unitForLeaseFile.name : 'UnitForLeaseList File'}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
                       {unitForLeaseFile ? `${(unitForLeaseFile.size / 1024).toFixed(2)} KB` : 'NetSuite export (.xls)'}
                     </p>
                   </div>
@@ -613,26 +609,26 @@ const AIAnalysis = ({ projectUuid }) => {
               </div>
             </div>
 
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
               Upload both files to enable Account 511 revenue drill-down with sub-account breakdown, project analysis, and tenant matching.
             </p>
           </div>
 
           {/* AI Features */}
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-6 rounded-lg border border-blue-100 dark:border-blue-800">
-            <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-4 text-lg">{t('aiInfoTitle')}</h3>
-            <div className="space-y-3">
-              <div className="bg-white/50 dark:bg-gray-800/30 p-3 rounded-lg">
-                <strong className="text-gray-800 dark:text-gray-200 block mb-1">{t('autoMateriality')}</strong>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">{t('autoMaterialityDesc')}</p>
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+            <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-2 text-sm">{t('aiInfoTitle')}</h3>
+            <div className="space-y-2">
+              <div className="bg-white/50 dark:bg-gray-800/30 p-2 rounded-md">
+                <strong className="text-gray-800 dark:text-gray-200 block text-xs mb-0.5">{t('autoMateriality')}</strong>
+                <p className="text-gray-600 dark:text-gray-400 text-xs">{t('autoMaterialityDesc')}</p>
               </div>
-              <div className="bg-white/50 dark:bg-gray-800/30 p-3 rounded-lg">
-                <strong className="text-gray-800 dark:text-gray-200 block mb-1">{t('smartFocus')}</strong>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">{t('smartFocusDesc')}</p>
+              <div className="bg-white/50 dark:bg-gray-800/30 p-2 rounded-md">
+                <strong className="text-gray-800 dark:text-gray-200 block text-xs mb-0.5">{t('smartFocus')}</strong>
+                <p className="text-gray-600 dark:text-gray-400 text-xs">{t('smartFocusDesc')}</p>
               </div>
-              <div className="bg-white/50 dark:bg-gray-800/30 p-3 rounded-lg">
-                <strong className="text-gray-800 dark:text-gray-200 block mb-1">{t('detailedExplanations')}</strong>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">{t('detailedExplanationsDesc')}</p>
+              <div className="bg-white/50 dark:bg-gray-800/30 p-2 rounded-md">
+                <strong className="text-gray-800 dark:text-gray-200 block text-xs mb-0.5">{t('detailedExplanations')}</strong>
+                <p className="text-gray-600 dark:text-gray-400 text-xs">{t('detailedExplanationsDesc')}</p>
               </div>
             </div>
           </div>
@@ -641,7 +637,7 @@ const AIAnalysis = ({ projectUuid }) => {
           <button
             type="submit"
             disabled={isProcessing || excelFiles.length === 0}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
           >
             {isProcessing ? 'Processing...' : t('aiProcessBtn')}
           </button>
@@ -649,20 +645,20 @@ const AIAnalysis = ({ projectUuid }) => {
 
         {/* Progress Section */}
         {isProcessing && (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-800 dark:text-gray-100">AI Analysis Progress</h3>
+          <div className="space-y-3">
+            <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100">AI Analysis Progress</h3>
 
             {/* Progress Bar */}
-            <div className="flex items-center space-x-4">
-              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
+            <div className="flex items-center space-x-3">
+              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-4 overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-full transition-all duration-500 flex items-center justify-center text-white text-xs font-bold"
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-full transition-all duration-500 flex items-center justify-center text-white text-[10px] font-bold"
                   style={{ width: `${progress}%` }}
                 >
                   {progress > 10 && `${progress}%`}
                 </div>
               </div>
-              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{progress}%</span>
+              <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{progress}%</span>
             </div>
 
             {/* Stage Indicators */}
@@ -708,8 +704,8 @@ const AIAnalysis = ({ projectUuid }) => {
 
             {/* Status Text */}
             {statusText && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">{statusText}</p>
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md">
+                <p className="text-xs text-blue-800 dark:text-blue-300 font-medium">{statusText}</p>
               </div>
             )}
           </div>
@@ -717,8 +713,8 @@ const AIAnalysis = ({ projectUuid }) => {
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg">
-            <p className="text-red-800 dark:text-red-300 font-medium">Error: {error}</p>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-md">
+            <p className="text-xs text-red-800 dark:text-red-300 font-medium">Error: {error}</p>
           </div>
         )}
 
@@ -726,7 +722,7 @@ const AIAnalysis = ({ projectUuid }) => {
         {stage === 'complete' && sessionId && (
           <button
             onClick={handleDownload}
-            className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-all transform hover:scale-105"
+            className="w-full bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition-all transform hover:scale-[1.02]"
           >
             {t('downloadTitle')}
           </button>
@@ -734,36 +730,36 @@ const AIAnalysis = ({ projectUuid }) => {
       </div>
 
       {/* Right Panel - How It Works */}
-      <div className="bg-white dark:bg-[#222] rounded-xl shadow-lg p-6 space-y-6">
-        <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{t('howItWorks')}</h2>
+      <div className="bg-white dark:bg-[#222] rounded-xl shadow-lg p-4 space-y-4">
+        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{t('howItWorks')}</h2>
 
-        <div className="space-y-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-            <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">{t('step1Title')}</h3>
-            <p className="text-sm text-gray-700 dark:text-gray-300">{t('step1Desc')}</p>
+        <div className="space-y-2">
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+            <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-1 text-sm">{t('step1Title')}</h3>
+            <p className="text-xs text-gray-700 dark:text-gray-300">{t('step1Desc')}</p>
           </div>
 
-          <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
-            <h3 className="font-semibold text-purple-900 dark:text-purple-300 mb-2">{t('step2Title')}</h3>
-            <p className="text-sm text-gray-700 dark:text-gray-300">{t('step2Desc')}</p>
+          <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-md">
+            <h3 className="font-semibold text-purple-900 dark:text-purple-300 mb-1 text-sm">{t('step2Title')}</h3>
+            <p className="text-xs text-gray-700 dark:text-gray-300">{t('step2Desc')}</p>
           </div>
 
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg">
-            <h3 className="font-semibold text-indigo-900 dark:text-indigo-300 mb-2">{t('step3Title')}</h3>
-            <p className="text-sm text-gray-700 dark:text-gray-300">{t('step3Desc')}</p>
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-md">
+            <h3 className="font-semibold text-indigo-900 dark:text-indigo-300 mb-1 text-sm">{t('step3Title')}</h3>
+            <p className="text-xs text-gray-700 dark:text-gray-300">{t('step3Desc')}</p>
           </div>
 
-          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-            <h3 className="font-semibold text-green-900 dark:text-green-300 mb-2">{t('step4Title')}</h3>
-            <p className="text-sm text-gray-700 dark:text-gray-300">{t('step4Desc')}</p>
+          <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-md">
+            <h3 className="font-semibold text-green-900 dark:text-green-300 mb-1 text-sm">{t('step4Title')}</h3>
+            <p className="text-xs text-gray-700 dark:text-gray-300">{t('step4Desc')}</p>
           </div>
         </div>
 
         {/* Logs */}
         {logs.length > 0 && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-800 dark:text-gray-100">Analysis Logs</h3>
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100">Analysis Logs</h3>
               <div className="flex items-center space-x-3 text-xs">
                 <span className="flex items-center space-x-1">
                   <span className="w-2 h-2 rounded-full bg-green-400"></span>

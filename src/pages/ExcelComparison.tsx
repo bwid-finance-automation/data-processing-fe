@@ -1,11 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import Breadcrumb from '@components/common/Breadcrumb';
-import { ProjectSelector, CreateProjectDialog, PasswordDialog } from '@components/common';
-import { useProjectManagement } from '@hooks';
+import ModuleHistory from '@components/common/ModuleHistory';
 import { fpaApiClient, FPA_API_BASE_URL } from '@configs/APIs';
 
 function ExcelComparison() {
@@ -23,47 +22,6 @@ function ExcelComparison() {
 
   const previousInputRef = useRef(null);
   const currentInputRef = useRef(null);
-
-  // Use the custom hook for project management
-  const {
-    project,
-    projectUuid,
-    loadingProject,
-    projectsList,
-    loadingProjects,
-    showProjectDropdown,
-    setShowProjectDropdown,
-    projectDropdownRef,
-    showCreateProject,
-    setShowCreateProject,
-    createProjectForm,
-    setCreateProjectForm,
-    creatingProject,
-    projectError,
-    showCreatePassword,
-    setShowCreatePassword,
-    passwordDialog,
-    setPasswordDialog,
-    passwordError,
-    verifyingPassword,
-    showPassword,
-    setShowPassword,
-    handleSelectProject,
-    handleVerifyPassword,
-    handleCreateProject,
-    handleCloseCreateDialog,
-    handleClosePasswordDialog,
-  } = useProjectManagement({
-    basePath: '/excel-comparison',
-    onProjectChange: useCallback(() => {
-      setResult(null);
-      setPreviousFile(null);
-      setCurrentFile(null);
-      setError(null);
-      if (previousInputRef.current) previousInputRef.current.value = '';
-      if (currentInputRef.current) currentInputRef.current.value = '';
-    }, []),
-  });
 
   const breadcrumbItems = [
     { label: t("home") || "Home", href: "/" },
@@ -100,9 +58,6 @@ function ExcelComparison() {
     const formData = new FormData();
     formData.append('old_file', previousFile);
     formData.append('new_file', currentFile);
-    if (projectUuid) {
-      formData.append('project_uuid', projectUuid);
-    }
 
     try {
       const response = await fpaApiClient.post('/compare', formData, {
@@ -133,7 +88,7 @@ function ExcelComparison() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#181818] dark:to-[#0d0d0d] py-8 px-4">
-      <div className="container mx-auto px-6 max-w-7xl">
+      <div className="w-full max-w-[85vw] mx-auto">
         {/* Breadcrumb Navigation */}
         <Breadcrumb items={breadcrumbItems} className="mb-6" />
 
@@ -170,23 +125,6 @@ function ExcelComparison() {
             </div>
           </div>
 
-          {/* Project Selector */}
-          <ProjectSelector
-            project={project}
-            loadingProject={loadingProject}
-            projectsList={projectsList}
-            loadingProjects={loadingProjects}
-            showDropdown={showProjectDropdown}
-            onToggleDropdown={() => setShowProjectDropdown(!showProjectDropdown)}
-            dropdownRef={projectDropdownRef}
-            onSelectProject={handleSelectProject}
-            onCreateNew={() => {
-              setShowCreateProject(true);
-              setShowProjectDropdown(false);
-            }}
-            colorTheme="indigo"
-            className="mt-4"
-          />
         </motion.div>
 
         {/* Main Content Grid */}
@@ -598,6 +536,12 @@ function ExcelComparison() {
           )}
         </AnimatePresence>
 
+        {/* History Section */}
+        <ModuleHistory
+          moduleKey="excel-comparison"
+          className="mt-6"
+        />
+
         {/* Footer */}
         <motion.footer
           initial={{ opacity: 0 }}
@@ -609,36 +553,6 @@ function ExcelComparison() {
         </motion.footer>
       </div>
 
-      {/* Create Project Dialog */}
-      <CreateProjectDialog
-        open={showCreateProject}
-        onClose={handleCloseCreateDialog}
-        onSubmit={handleCreateProject}
-        form={createProjectForm}
-        onFormChange={setCreateProjectForm}
-        showPassword={showCreatePassword}
-        onToggleShowPassword={() => setShowCreatePassword(!showCreatePassword)}
-        creating={creatingProject}
-        error={projectError}
-        colorTheme="indigo"
-      />
-
-      {/* Password Dialog */}
-      <PasswordDialog
-        open={passwordDialog.open}
-        onClose={handleClosePasswordDialog}
-        onSubmit={handleVerifyPassword}
-        title={t('Protected Project')}
-        subtitle={passwordDialog.project?.project_name}
-        description={t('This project is password protected. Please enter the password to continue.')}
-        password={passwordDialog.password}
-        onPasswordChange={(value) => setPasswordDialog(prev => ({ ...prev, password: value }))}
-        showPassword={showPassword}
-        onToggleShowPassword={() => setShowPassword(!showPassword)}
-        loading={verifyingPassword}
-        error={passwordError}
-        colorTheme="indigo"
-      />
     </div>
   );
 }

@@ -1,13 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import Breadcrumb from '@components/common/Breadcrumb';
-import ProjectSelector from '@components/common/ProjectSelector';
-import CreateProjectDialog from '@components/common/CreateProjectDialog';
-import PasswordDialog from '@components/common/PasswordDialog';
-import { useProjectManagement } from '@hooks/useProjectManagement';
+import ModuleHistory from '@components/common/ModuleHistory';
 import { fpaApiClient, FPA_API_BASE_URL } from '@configs/APIs';
 
 function GLAVarianceAnalysis() {
@@ -19,44 +16,6 @@ function GLAVarianceAnalysis() {
 
   const { t } = useTranslation();
   const navigate = useNavigate();
-
-  // Use the project management hook
-  const {
-    project,
-    projectUuid,
-    loadingProject,
-    projectsList,
-    loadingProjects,
-    showProjectDropdown,
-    projectDropdownRef,
-    showCreateProject,
-    createProjectForm,
-    showNewProjectPassword,
-    creatingProject,
-    passwordDialog,
-    passwordError,
-    verifyingPassword,
-    showPassword,
-    setShowProjectDropdown,
-    setShowCreateProject,
-    setCreateProjectForm,
-    setShowNewProjectPassword,
-    setPasswordDialog,
-    setShowPassword,
-    handleSelectProject,
-    handleVerifyPassword,
-    handleCreateProject,
-    cancelPasswordDialog,
-    resetCreateForm,
-    toggleProjectDropdown,
-  } = useProjectManagement({
-    basePath: '/gla-variance-analysis',
-    onProjectChange: useCallback(() => {
-      setResult(null);
-      setFile(null);
-      setError(null);
-    }, []),
-  });
 
   useEffect(() => {
     document.title = `GLA Variance Analysis - BW Industrial`;
@@ -97,10 +56,6 @@ function GLAVarianceAnalysis() {
     const formData = new FormData();
     formData.append('file', file);
 
-    if (projectUuid) {
-      formData.append('project_uuid', projectUuid);
-    }
-
     try {
       const response = await fpaApiClient.post('/gla-variance/analyze', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -131,7 +86,7 @@ function GLAVarianceAnalysis() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#181818] dark:to-[#0d0d0d] py-8 px-4">
-      <div className="container mx-auto px-6 max-w-5xl">
+      <div className="w-full max-w-[85vw] mx-auto">
         <Breadcrumb items={breadcrumbItems} className="mb-6" />
 
         {/* Back Button */}
@@ -165,24 +120,6 @@ function GLAVarianceAnalysis() {
             </div>
           </div>
 
-          {/* Project Selector */}
-          <div className="mt-4">
-            <ProjectSelector
-              project={project}
-              loadingProject={loadingProject}
-              showDropdown={showProjectDropdown}
-              onToggleDropdown={toggleProjectDropdown}
-              dropdownRef={projectDropdownRef}
-              projectsList={projectsList}
-              loadingProjects={loadingProjects}
-              onSelectProject={handleSelectProject}
-              onCreateNew={() => {
-                setShowCreateProject(true);
-                setShowProjectDropdown(false);
-              }}
-              colorTheme="emerald"
-            />
-          </div>
         </motion.div>
 
         {/* File Upload Panel */}
@@ -550,6 +487,13 @@ function GLAVarianceAnalysis() {
           )}
         </AnimatePresence>
 
+        {/* History Section */}
+        <ModuleHistory
+          moduleKey="gla"
+          refreshTrigger={result}
+          className="mt-6"
+        />
+
         {/* Footer */}
         <motion.footer
           initial={{ opacity: 0 }}
@@ -561,33 +505,6 @@ function GLAVarianceAnalysis() {
         </motion.footer>
       </div>
 
-      {/* Create Project Dialog */}
-      <CreateProjectDialog
-        open={showCreateProject}
-        onClose={resetCreateForm}
-        onSubmit={handleCreateProject}
-        form={createProjectForm}
-        onFormChange={setCreateProjectForm}
-        showPassword={showNewProjectPassword}
-        onToggleShowPassword={() => setShowNewProjectPassword(!showNewProjectPassword)}
-        creating={creatingProject}
-        colorTheme="emerald"
-      />
-
-      {/* Password Verification Dialog */}
-      <PasswordDialog
-        open={passwordDialog.open}
-        onClose={cancelPasswordDialog}
-        onSubmit={handleVerifyPassword}
-        title={t('Protected Project')}
-        subtitle={passwordDialog.project?.project_name}
-        password={passwordDialog.password}
-        onPasswordChange={(value) => setPasswordDialog(prev => ({ ...prev, password: value }))}
-        showPassword={showPassword}
-        onToggleShowPassword={() => setShowPassword(!showPassword)}
-        error={passwordError}
-        verifying={verifyingPassword}
-      />
     </div>
   );
 }

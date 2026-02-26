@@ -14,14 +14,9 @@ import { ScrollContainer } from '@components/common';
 interface FileUploadSectionProps {
   fileMode: string;
   processing: boolean;
-  loadingProject: boolean;
   files: File[];
   dragActive: boolean;
   acceptString: string;
-  supportedBanks: string[];
-  supportedBanksPDF: string[];
-  struckBanks: Set<string>;
-  struckBanksPDF: Set<string>;
   encryptedFiles: Record<string, boolean>;
   encryptedZipFiles: Record<string, boolean>;
   filePasswords: Record<string, string>;
@@ -29,7 +24,6 @@ interface FileUploadSectionProps {
   zipPdfPasswords: Record<string, string>;
   checkingPdf: boolean;
   checkingZip: boolean;
-  projectUuid: string | null;
   onModeChange: (mode: string) => void;
   onDrag: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
@@ -45,14 +39,9 @@ interface FileUploadSectionProps {
 export default function FileUploadSection({
   fileMode,
   processing,
-  loadingProject,
   files,
   dragActive,
   acceptString,
-  supportedBanks,
-  supportedBanksPDF,
-  struckBanks,
-  struckBanksPDF,
   encryptedFiles,
   encryptedZipFiles,
   filePasswords,
@@ -60,7 +49,6 @@ export default function FileUploadSection({
   zipPdfPasswords,
   checkingPdf,
   checkingZip,
-  projectUuid,
   onModeChange,
   onDrag,
   onDrop,
@@ -129,16 +117,14 @@ export default function FileUploadSection({
         {/* Drag & Drop Zone */}
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
-            loadingProject
-              ? 'border-gray-300 dark:border-gray-700 opacity-50 cursor-not-allowed'
-              : dragActive
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                : 'border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600'
+            dragActive
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+              : 'border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600'
           }`}
-          onDragEnter={loadingProject ? undefined : onDrag}
-          onDragLeave={loadingProject ? undefined : onDrag}
-          onDragOver={loadingProject ? undefined : onDrag}
-          onDrop={loadingProject ? undefined : onDrop}
+          onDragEnter={onDrag}
+          onDragLeave={onDrag}
+          onDragOver={onDrag}
+          onDrop={onDrop}
         >
           {fileMode === 'zip' ? (
             <ArchiveBoxIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
@@ -150,15 +136,15 @@ export default function FileUploadSection({
           </p>
           <label className="inline-block">
             <input
-              key={`file-input-${projectUuid || 'standalone'}-${fileMode}`}
+              key={`file-input-${fileMode}`}
               type="file"
               multiple
               accept={acceptString}
               onChange={onFileInput}
               className="hidden"
-              disabled={processing || loadingProject}
+              disabled={processing}
             />
-            <span className={`px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer inline-block transition-colors ${loadingProject ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <span className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer inline-block transition-colors">
               {t('Browse Files')}
             </span>
           </label>
@@ -166,58 +152,6 @@ export default function FileUploadSection({
             {t('Supported formats')}: {fileMode === 'excel' ? '.xlsx, .xls, .zip' : fileMode === 'pdf' ? '.pdf, .zip' : '.zip'}
           </p>
         </div>
-
-        {/* Supported Banks - Excel mode */}
-        {fileMode === 'excel' && (
-          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
-              {t('Supported Banks')} ({supportedBanks.length} {t('banks')})
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {supportedBanks.map(bank => {
-                const normalizedBank = bank?.toString() || '';
-                const isStruck = struckBanks.has(normalizedBank.toUpperCase());
-                return (
-                  <span
-                    key={normalizedBank}
-                    className={`px-2 py-1 bg-white dark:bg-gray-800 rounded text-xs font-medium border border-blue-200 dark:border-blue-700 ${isStruck
-                      ? 'line-through text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600'
-                      : 'text-blue-700 dark:text-blue-300'
-                    }`}
-                  >
-                    {normalizedBank}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Supported Banks - PDF mode */}
-        {fileMode === 'pdf' && (
-          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
-              {t('Supported Banks')} ({supportedBanksPDF.length} {t('banks')})
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {supportedBanksPDF.map(bank => {
-                const normalizedBank = bank?.toString() || '';
-                const isStruck = struckBanksPDF.has(normalizedBank.toUpperCase());
-                return (
-                  <span
-                    key={normalizedBank}
-                    className={`px-2 py-1 bg-white dark:bg-gray-800 rounded text-xs font-medium border border-blue-200 dark:border-blue-700 ${isStruck
-                      ? 'line-through text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600'
-                      : 'text-blue-700 dark:text-blue-300'
-                    }`}
-                  >
-                    {normalizedBank}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* ZIP Mode Info */}
         {fileMode === 'zip' && (
@@ -245,50 +179,21 @@ export default function FileUploadSection({
               </div>
             </div>
 
-            {/* Supported Banks for Excel */}
-            <div className="mb-3">
-              <p className="text-xs font-medium text-purple-800 dark:text-purple-200 mb-1.5">
-                Excel ({supportedBanks.length} {t('banks')}):
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {supportedBanks.map(bank => (
-                  <span
-                    key={bank}
-                    className="px-2 py-0.5 bg-white dark:bg-gray-800 rounded text-xs font-medium text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700"
-                  >
-                    {bank}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Supported Banks for PDF */}
-            <div>
-              <p className="text-xs font-medium text-purple-800 dark:text-purple-200 mb-1.5">
-                PDF ({supportedBanksPDF.length} {t('banks')}):
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {supportedBanksPDF.map(bank => (
-                  <span
-                    key={bank}
-                    className="px-2 py-0.5 bg-white dark:bg-gray-800 rounded text-xs font-medium text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700"
-                  >
-                    {bank}
-                  </span>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
         {/* File List */}
-        {files.length > 0 && (
-          <div className="mt-4">
+        <div className="mt-4">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               {t('Selected Files')} ({files.length})
               {(checkingPdf || checkingZip) && <span className="ml-2 text-xs text-blue-600">{t('Checking encryption...')}</span>}
             </h3>
-            <ScrollContainer maxHeight="max-h-60" className="space-y-2">
+            <ScrollContainer maxHeight="max-h-none" className="h-48 space-y-2 overflow-y-scroll pr-1">
+              {files.length === 0 && (
+                <div className="h-full rounded-lg border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                  {t('No files selected yet')}
+                </div>
+              )}
               {files.map((file, index) => {
                 const isZipFile = file.name.toLowerCase().endsWith('.zip');
                 const isZipEncrypted = encryptedZipFiles[file.name];
@@ -395,7 +300,6 @@ export default function FileUploadSection({
               })}
             </ScrollContainer>
           </div>
-        )}
 
         {/* Action Buttons */}
         <div className="mt-6 flex gap-3">

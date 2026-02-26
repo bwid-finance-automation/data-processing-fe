@@ -4,11 +4,10 @@ import { apiClient, FINANCE_API_BASE_URL } from '../../configs/APIs';
  * Parse bank statements - Upload and process multiple bank statement Excel files
  * @param {File[]} files - Array of Excel files to process
  * @param {Object} zipPasswords - Object mapping ZIP file names to passwords (optional)
- * @param {string} projectUuid - Optional project UUID to link statements to
  * @param {Object} zipPdfPasswords - Object mapping PDF filenames inside ZIP to passwords (optional)
  * @returns {Promise} Response with session_id, download_url, and summary
  */
-export const parseBankStatements = async (files, zipPasswords = {}, projectUuid = null, zipPdfPasswords = {}) => {
+export const parseBankStatements = async (files, zipPasswords = {}, zipPdfPasswords = {}) => {
   const formData = new FormData();
 
   // Build ZIP passwords string in same order as ZIP files appear
@@ -28,10 +27,6 @@ export const parseBankStatements = async (files, zipPasswords = {}, projectUuid 
   // Append PDF passwords for files inside ZIP (as JSON)
   if (Object.keys(zipPdfPasswords).length > 0) {
     formData.append('zip_pdf_passwords', JSON.stringify(zipPdfPasswords));
-  }
-
-  if (projectUuid) {
-    formData.append('project_uuid', projectUuid);
   }
 
   try {
@@ -57,11 +52,10 @@ export const parseBankStatements = async (files, zipPasswords = {}, projectUuid 
  * @param {File[]} files - Array of PDF files to process
  * @param {Object} filePasswords - Object mapping PDF file names to passwords (optional)
  * @param {Object} zipPasswords - Object mapping ZIP file names to passwords (optional)
- * @param {string} projectUuid - Optional project UUID to link statements to
  * @param {Object} zipPdfPasswords - Object mapping PDF filenames inside ZIP to passwords (optional)
  * @returns {Promise} Response with session_id, download_url, and summary
  */
-export const parseBankStatementsPDF = async (files, filePasswords = {}, zipPasswords = {}, projectUuid = null, zipPdfPasswords = {}) => {
+export const parseBankStatementsPDF = async (files, filePasswords = {}, zipPasswords = {}, zipPdfPasswords = {}) => {
   const formData = new FormData();
 
   // Build passwords string for PDF files in same order as they appear
@@ -92,10 +86,6 @@ export const parseBankStatementsPDF = async (files, filePasswords = {}, zipPassw
   // Append PDF passwords for files inside ZIP (as JSON)
   if (Object.keys(zipPdfPasswords).length > 0) {
     formData.append('zip_pdf_passwords', JSON.stringify(zipPdfPasswords));
-  }
-
-  if (projectUuid) {
-    formData.append('project_uuid', projectUuid);
   }
 
   try {

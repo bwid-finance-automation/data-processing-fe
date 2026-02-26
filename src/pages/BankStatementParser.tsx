@@ -1,28 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { DocumentTextIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { Breadcrumb, ProjectSelector, CreateProjectDialog, PasswordDialog } from '@components/common';
-import { useProjectManagement } from '@hooks';
-import { getProjectBankStatements } from '../services/project/project-apis';
+import { Breadcrumb } from '@components/common';
 import {
   parseBankStatements,
   parseBankStatementsPDF,
   downloadBankStatementResults,
-  downloadBankStatementFromHistory,
-  getUploadedFiles,
-  downloadUploadedFile,
   verifyZipPassword,
   analyzeZipContents
 } from '../services/bank-statement/bank-statement-apis';
+import ModuleHistory from '../components/common/ModuleHistory';
 import ZipContentsDialog from '../components/bank-statement/ZipContentsDialog';
 import FilePasswordDialog from '../components/bank-statement/FilePasswordDialog';
 import FileUploadSection from '../components/bank-statement/FileUploadSection';
 import ResultsSection from '../components/bank-statement/ResultsSection';
-import ParseHistorySection from '../components/bank-statement/ParseHistorySection';
 import TutorialGuide from '../components/bank-statement/TutorialGuide';
 
 // Configure PDF.js worker
@@ -30,7 +24,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const BankStatementParser = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
@@ -41,47 +34,7 @@ const BankStatementParser = () => {
   const [fileMode, setFileMode] = useState('excel');
   const [showTour, setShowTour] = useState(false);
 
-  // Use the custom hook for project management
-  const {
-    project,
-    projectUuid,
-    loadingProject,
-    projectsList,
-    loadingProjects,
-    showProjectDropdown,
-    setShowProjectDropdown,
-    projectDropdownRef,
-    showCreateProject,
-    setShowCreateProject,
-    createProjectForm,
-    setCreateProjectForm,
-    creatingProject,
-    projectError,
-    showCreatePassword,
-    setShowCreatePassword,
-    passwordDialog: projectPasswordDialog,
-    setPasswordDialog: setProjectPasswordDialog,
-    passwordError: projectPasswordError,
-    verifyingPassword: verifyingProjectPassword,
-    showPassword: showProjectPassword,
-    setShowPassword: setShowProjectPassword,
-    handleSelectProject: baseHandleSelectProject,
-    handleVerifyPassword: handleProjectPasswordSubmit,
-    handleCreateProject,
-    handleCloseCreateDialog,
-    handleClosePasswordDialog: handleProjectPasswordCancel,
-  } = useProjectManagement({
-    basePath: '/bank-statement-parser',
-    onProjectChange: useCallback(() => {
-      // Clear results when switching projects
-      setResults(null);
-      setFiles([]);
-      setError(null);
-      setExpandedHistorySessions({});
-    }, []),
-  });
-
-  // PDF password management (separate from project password)
+  // PDF password management
   const [encryptedFiles, setEncryptedFiles] = useState({});
   const [filePasswords, setFilePasswords] = useState({});
   const [filePasswordDialog, setFilePasswordDialog] = useState({ open: false, fileName: '', password: '', fileType: 'pdf' });
@@ -106,74 +59,12 @@ const BankStatementParser = () => {
   const [zipPdfPasswords, setZipPdfPasswords] = useState({});
   const [pendingZipFiles, setPendingZipFiles] = useState([]);
 
-  // Uploaded files history
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [loadingUploadedFiles, setLoadingUploadedFiles] = useState(false);
+  const uploadSectionRef = useRef<HTMLDivElement | null>(null);
+  const resultsSectionRef = useRef<HTMLDivElement | null>(null);
+  const [historyHeight, setHistoryHeight] = useState<number | null>(null);
 
   // Parse history (local)
   const [_parseHistory, setParseHistory] = useState([]);
-
-  // Project bank statements (from API)
-  const [projectBankStatements, setProjectBankStatements] = useState([]);
-  const [loadingProjectHistory, setLoadingProjectHistory] = useState(false);
-
-  // Download history session state
-  const [downloadingSessionId, setDownloadingSessionId] = useState(null);
-  const [expandedHistorySessions, setExpandedHistorySessions] = useState({});
-
-  // History filter states
-  const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
-  const [historyBankFilter, setHistoryBankFilter] = useState('all');
-  const [historyFileTypeFilter, setHistoryFileTypeFilter] = useState('all');
-
-  // Fetch project bank statements when project is selected and verified
-  useEffect(() => {
-    const fetchProjectBankStatements = async () => {
-      if (!project || !projectUuid) {
-        setProjectBankStatements([]);
-        return;
-      }
-
-      setLoadingProjectHistory(true);
-      try {
-        const data = await getProjectBankStatements(projectUuid);
-        const statements = data?.sessions || data?.bank_statements || data?.cases || data;
-        setProjectBankStatements(Array.isArray(statements) ? statements : []);
-      } catch (err) {
-        console.error('Error fetching project bank statements:', err);
-        setProjectBankStatements([]);
-      } finally {
-        setLoadingProjectHistory(false);
-      }
-    };
-
-    fetchProjectBankStatements();
-  }, [project, projectUuid, results?.session_id]);
-
-  // Handle download from history
-  const handleDownloadFromHistory = async (sessionId) => {
-    if (downloadingSessionId) return; // Prevent multiple downloads
-
-    setDownloadingSessionId(sessionId);
-    try {
-      const { blob, filename } = await downloadBankStatementFromHistory(sessionId);
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error downloading from history:', err);
-      setError(t('Failed to download. Please try again.'));
-    } finally {
-      setDownloadingSessionId(null);
-    }
-  };
 
   const supportedBanksFallback = ['ACB', 'VIB', 'VCB', 'TCB', 'SC', 'KBANK', 'SINOPAC', 'OCB', 'WOORI', 'MBB', 'BIDV', 'VTB', 'UOB'];
   const supportedBanksPDF = ['KBANK', 'SC', 'TCB', 'VIB', 'ACB', 'UOB'];
@@ -764,8 +655,8 @@ const BankStatementParser = () => {
       // ZIP mode uses parseBankStatements which handles both Excel and PDF inside ZIP
       // Pass zipPdfPasswords for encrypted PDFs inside ZIP files
       const response = fileMode === 'pdf'
-        ? await parseBankStatementsPDF(files, filePasswords, zipPasswords, projectUuid, zipPdfPasswords)
-        : await parseBankStatements(files, zipPasswords, projectUuid, zipPdfPasswords);
+        ? await parseBankStatementsPDF(files, filePasswords, zipPasswords, zipPdfPasswords)
+        : await parseBankStatements(files, zipPasswords, zipPdfPasswords);
 
       const endTime = performance.now();
       const elapsed = (endTime - startTime) / 1000; // Convert to seconds
@@ -886,80 +777,6 @@ const BankStatementParser = () => {
     });
   };
 
-  // Get unique banks from history for filter dropdown
-  const uniqueBanksInHistory = [...new Set(
-    projectBankStatements.flatMap(session => session.banks || [])
-  )].sort();
-
-  const _historyTotals = projectBankStatements.reduce((acc, session) => {
-    const uploadedCount = session.uploaded_files?.length || 0;
-    const parsedCount = session.files?.length || 0;
-    const derivedFileCount = session.file_count || Math.max(uploadedCount, parsedCount) || uploadedCount || parsedCount;
-    acc.files += derivedFileCount;
-    acc.transactions += session.total_transactions || 0;
-
-    if (session.processed_at) {
-      const processedDate = new Date(session.processed_at);
-      if (!acc.latest || processedDate > acc.latest) {
-        acc.latest = processedDate;
-      }
-    }
-    return acc;
-  }, { files: 0, transactions: 0, latest: null });
-
-  // Filter history based on selected filters
-  const filteredProjectBankStatements = projectBankStatements.filter(session => {
-    // Time filter
-    if (historyTimeFilter !== 'all') {
-      const sessionDate = new Date(session.processed_at);
-      const now = new Date();
-      if (historyTimeFilter === '24h') {
-        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        if (sessionDate < twentyFourHoursAgo) return false;
-      } else if (historyTimeFilter === 'week') {
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        if (sessionDate < oneWeekAgo) return false;
-      }
-    }
-
-    // Bank filter
-    if (historyBankFilter !== 'all') {
-      if (!session.banks || !session.banks.includes(historyBankFilter)) return false;
-    }
-
-    // File type filter - check both uploaded_files and files arrays
-    if (historyFileTypeFilter !== 'all') {
-      const uploadedFiles = session.uploaded_files || [];
-      const files = session.files || [];
-
-      // Check uploaded files for ZIP
-      const hasZip = uploadedFiles.some(f => f.file_name?.toLowerCase().endsWith('.zip'));
-
-      // Check for PDF in uploaded files OR extracted from ZIP OR in parsed files
-      const uploadedPdf = uploadedFiles.some(f => f.file_name?.toLowerCase().endsWith('.pdf'));
-      const extractedPdf = uploadedFiles.some(f => (f.metadata?.extracted_pdf_count || 0) > 0);
-      const parsedPdf = files.some(f => f.file_name?.toLowerCase().endsWith('.pdf'));
-      const hasPdf = uploadedPdf || extractedPdf || parsedPdf;
-
-      // Check for Excel in uploaded files OR extracted from ZIP OR in parsed files
-      const uploadedExcel = uploadedFiles.some(f => {
-        const name = f.file_name?.toLowerCase();
-        return name?.endsWith('.xlsx') || name?.endsWith('.xls');
-      });
-      const extractedExcel = uploadedFiles.some(f => (f.metadata?.extracted_excel_count || 0) > 0);
-      const parsedExcel = files.some(f => {
-        const name = f.file_name?.toLowerCase();
-        return name?.endsWith('.xlsx') || name?.endsWith('.xls');
-      });
-      const hasExcel = uploadedExcel || extractedExcel || parsedExcel;
-
-      if (historyFileTypeFilter === 'pdf' && !hasPdf) return false;
-      if (historyFileTypeFilter === 'excel' && !hasExcel) return false;
-      if (historyFileTypeFilter === 'zip' && !hasZip) return false;
-    }
-
-    return true;
-  });
 
   // Load parse history from localStorage on mount
   useEffect(() => {
@@ -1005,53 +822,47 @@ const BankStatementParser = () => {
     }
   }, [results?.session_id]);
 
-  // Fetch uploaded files when processing completes
+  // Keep Recent History height synced to Upload section height (desktop),
+  // so opening history won't push footer down.
   useEffect(() => {
-    const fetchUploadedFiles = async () => {
-      if (results?.session_id) {
-        setLoadingUploadedFiles(true);
-        try {
-          const filesData = await getUploadedFiles(results.session_id);
-          setUploadedFiles(filesData.files || []);
-        } catch (err) {
-          console.error('Error fetching uploaded files:', err);
-          setUploadedFiles([]);
-        } finally {
-          setLoadingUploadedFiles(false);
-        }
-      } else {
-        setUploadedFiles([]);
-      }
-    };
-    fetchUploadedFiles();
-  }, [results?.session_id]);
+    const uploadEl = uploadSectionRef.current;
+    const resultsEl = resultsSectionRef.current;
+    if (!uploadEl || !resultsEl || typeof ResizeObserver === 'undefined') return;
 
-  // Handle downloading original uploaded file
-  const handleDownloadOriginalFile = async (fileId, filename) => {
-    try {
-      const response = await downloadUploadedFile(fileId);
-      const blob = response.data;
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error downloading file:', err);
-      setError(t('Failed to download original file'));
-    }
-  };
+    const syncHistoryHeight = () => {
+      if (window.innerWidth < 1024) {
+        setHistoryHeight(null);
+        return;
+      }
+
+      const uploadHeight = uploadEl.getBoundingClientRect().height;
+      const resultsHeight = resultsEl.getBoundingClientRect().height;
+      const verticalGap = 24; // Tailwind gap-6
+      const computed = Math.max(0, Math.floor(uploadHeight - resultsHeight - verticalGap));
+
+      setHistoryHeight(Number.isFinite(computed) ? computed : null);
+    };
+
+    syncHistoryHeight();
+
+    const observer = new ResizeObserver(syncHistoryHeight);
+    observer.observe(uploadEl);
+    observer.observe(resultsEl);
+    window.addEventListener('resize', syncHistoryHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', syncHistoryHeight);
+    };
+  }, []);
 
 
 
   return (
-    <div className="min-h-screen bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
+    <div className="bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
       {/* Header */}
       <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="w-full max-w-[85vw] mx-auto py-6">
           <Breadcrumb items={breadcrumbItems} />
           <div className="mt-4 flex items-center justify-between" data-tour="bs-header">
             <div className="flex items-center gap-3">
@@ -1074,45 +885,21 @@ const BankStatementParser = () => {
             </button>
           </div>
 
-          {/* Project Selector */}
-          <div data-tour="bs-project">
-            <ProjectSelector
-              project={project}
-              loadingProject={loadingProject}
-              projectsList={projectsList}
-              loadingProjects={loadingProjects}
-              showDropdown={showProjectDropdown}
-              onToggleDropdown={() => setShowProjectDropdown(!showProjectDropdown)}
-              dropdownRef={projectDropdownRef}
-              onSelectProject={baseHandleSelectProject}
-              onCreateNew={() => {
-                setShowCreateProject(true);
-                setShowProjectDropdown(false);
-              }}
-              colorTheme="blue"
-              className="mt-4"
-            />
-          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="w-full max-w-[85vw] mx-auto py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
 
           {/* Upload Section */}
-          <div data-tour="bs-upload">
+          <div data-tour="bs-upload" ref={uploadSectionRef}>
             <FileUploadSection
               fileMode={fileMode}
               processing={processing}
-              loadingProject={loadingProject}
               files={files}
               dragActive={dragActive}
               acceptString={acceptString}
-              supportedBanks={supportedBanks}
-              supportedBanksPDF={supportedBanksPDF}
-              struckBanks={struckBanks}
-              struckBanksPDF={struckBanksPDF}
               encryptedFiles={encryptedFiles}
               encryptedZipFiles={encryptedZipFiles}
               filePasswords={filePasswords}
@@ -1120,7 +907,6 @@ const BankStatementParser = () => {
               zipPdfPasswords={zipPdfPasswords}
               checkingPdf={checkingPdf}
               checkingZip={checkingZip}
-              projectUuid={projectUuid}
               onModeChange={handleModeChange}
               onDrag={handleDrag}
               onDrop={handleDrop}
@@ -1134,49 +920,36 @@ const BankStatementParser = () => {
             />
           </div>
 
-          {/* Results Section */}
-          <div data-tour="bs-results">
-            <ResultsSection
-              results={results}
-              processing={processing}
-              error={error}
-              processingTime={processingTime}
-              fileMode={fileMode}
-              files={files}
-              uploadedFiles={uploadedFiles}
-              loadingUploadedFiles={loadingUploadedFiles}
-              onDownload={handleDownload}
-              onDownloadOriginalFile={handleDownloadOriginalFile}
-              formatFileSize={formatFileSize}
-            />
+          {/* Results + History Section */}
+          <div className="flex flex-col gap-6">
+            <div ref={resultsSectionRef} data-tour="bs-results">
+              <ResultsSection
+                results={results}
+                processing={processing}
+                error={error}
+                processingTime={processingTime}
+                fileMode={fileMode}
+                files={files}
+                supportedBanks={supportedBanks}
+                supportedBanksPDF={supportedBanksPDF}
+                struckBanks={struckBanks}
+                struckBanksPDF={struckBanksPDF}
+                onDownload={handleDownload}
+              />
+            </div>
+            <div
+              className="lg:min-h-0"
+              data-tour="bs-history"
+              style={historyHeight !== null ? { height: `${historyHeight}px` } : undefined}
+            >
+              <ModuleHistory
+                moduleKey="bank-statements"
+                refreshTrigger={results?.session_id}
+                className={historyHeight !== null ? 'h-full min-h-0' : ''}
+              />
+            </div>
           </div>
 
-        </div>
-
-        {/* Parse History Section */}
-        <div data-tour="bs-history" className="mt-6">
-          <ParseHistorySection
-            projectUuid={projectUuid}
-            projectBankStatements={projectBankStatements}
-            filteredProjectBankStatements={filteredProjectBankStatements}
-            loadingProjectHistory={loadingProjectHistory}
-            historyTimeFilter={historyTimeFilter}
-            historyBankFilter={historyBankFilter}
-            historyFileTypeFilter={historyFileTypeFilter}
-            uniqueBanksInHistory={uniqueBanksInHistory}
-            expandedHistorySessions={expandedHistorySessions}
-            downloadingSessionId={downloadingSessionId}
-            onTimeFilterChange={setHistoryTimeFilter}
-            onBankFilterChange={setHistoryBankFilter}
-            onFileTypeFilterChange={setHistoryFileTypeFilter}
-            onToggleExpand={(sessionId) => setExpandedHistorySessions(prev => ({
-              ...prev,
-              [sessionId]: !prev[sessionId]
-            }))}
-            onDownloadFromHistory={handleDownloadFromHistory}
-            onNavigateToSession={(sessionId) => navigate(`/bank-statement-parser/session/${sessionId}`)}
-            formatDate={formatDate}
-          />
         </div>
       </div>
 
@@ -1208,36 +981,6 @@ const BankStatementParser = () => {
         zipFileName={zipContentsDialog.zipFileName}
       />
 
-      {/* Create Project Dialog */}
-      <CreateProjectDialog
-        open={showCreateProject}
-        onClose={handleCloseCreateDialog}
-        onSubmit={handleCreateProject}
-        form={createProjectForm}
-        onFormChange={setCreateProjectForm}
-        showPassword={showCreatePassword}
-        onToggleShowPassword={() => setShowCreatePassword(!showCreatePassword)}
-        creating={creatingProject}
-        error={projectError}
-        colorTheme="blue"
-      />
-
-      {/* Project Password Dialog */}
-      <PasswordDialog
-        open={projectPasswordDialog.open}
-        onClose={handleProjectPasswordCancel}
-        onSubmit={handleProjectPasswordSubmit}
-        title={t('Protected Project')}
-        subtitle={projectPasswordDialog.project?.project_name}
-        description={t('This project is password protected. Please enter the password to continue.')}
-        password={projectPasswordDialog.password}
-        onPasswordChange={(value) => setProjectPasswordDialog(prev => ({ ...prev, password: value }))}
-        showPassword={showProjectPassword}
-        onToggleShowPassword={() => setShowProjectPassword(!showProjectPassword)}
-        loading={verifyingProjectPassword}
-        error={projectPasswordError}
-        colorTheme="blue"
-      />
     </div>
   );
 };

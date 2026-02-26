@@ -24,6 +24,7 @@ import {
   DocumentPlusIcon,
   SparklesIcon,
   TableCellsIcon,
+  ScaleIcon,
   ExclamationCircleIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
@@ -42,6 +43,7 @@ import {
   uploadMovementFile,
   runSettlementAutomation,
   runOpenNewAutomation,
+  runReconcileChecks,
   getAutomationSessionStatus,
   downloadAutomationResult,
   resetAutomationSession,
@@ -88,14 +90,17 @@ const CashReport = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showTour, setShowTour] = useState(false);
-  const [automationTab, setAutomationTab] = useState('settlement'); // 'settlement' | 'open_new'
-  const [hasDownloadedResult, setHasDownloadedResult] = useState(false);
+  const [automationTab, setAutomationTab] = useState('settlement'); // 'settlement' | 'open_new' | 'reconcile'
+  const [_hasDownloadedResult, setHasDownloadedResult] = useState(false);
 
   // Per-module error state (#9)
   const [uploadError, setUploadError] = useState(null);
   const [movementError, setMovementError] = useState(null);
   const [settlementError, setSettlementError] = useState(null);
   const [openNewError, setOpenNewError] = useState(null);
+  const [reconcileError, setReconcileError] = useState(null);
+  const [reconcileRunning, setReconcileRunning] = useState(false);
+  const [reconcileResult, setReconcileResult] = useState(null);
 
   // Preview modal state (#11)
   const [settlementPreview, setSettlementPreview] = useState(null);    // null | preview data object
@@ -199,6 +204,13 @@ const CashReport = () => {
     void loadSessions();
   }, [loadSessions]);
 
+  // Clear in-memory reconcile data when switching session
+  useEffect(() => {
+    setReconcileError(null);
+    setReconcileRunning(false);
+    setReconcileResult(null);
+  }, [session?.session_id]);
+
   // Close export dropdown on outside click (#2)
   useEffect(() => {
     if (!showExportMenu) return;
@@ -227,6 +239,8 @@ const CashReport = () => {
     settlementSSE.resetAll();
     openNewSSE.resetAll();
     setHasDownloadedResult(false);
+    setReconcileResult(null);
+    setReconcileError(null);
 
     // Start SSE stream for upload progress
     uploadSSE.startUploadStream(() => streamUploadProgress(session.session_id));
@@ -300,6 +314,8 @@ const CashReport = () => {
     if (!session?.session_id) return;
 
     setSettlementError(null);
+    setReconcileResult(null);
+    setReconcileError(null);
     setShowProgress(true);
 
     // Start SSE workflow stream
@@ -323,6 +339,8 @@ const CashReport = () => {
     if (!session?.session_id) return;
 
     setOpenNewError(null);
+    setReconcileResult(null);
+    setReconcileError(null);
     setShowProgress(true);
 
     // Start SSE workflow stream
@@ -368,6 +386,34 @@ const CashReport = () => {
       toast.error(t('Failed to load open-new preview'));
     } finally {
       setPreviewingOpenNew(false);
+    }
+  };
+
+  const handleRunReconcile = async () => {
+    if (!session?.session_id) return;
+
+    setReconcileRunning(true);
+    setReconcileError(null);
+    setReconcileResult(null);
+
+    try {
+      const result = await runReconcileChecks(session.session_id);
+      setReconcileResult(result);
+
+      const step8Balanced = !!result?.step8_internal_transfer_reconcile?.is_balanced;
+      const step9Balanced = !!result?.step9_cash_balance_reconcile?.is_balanced;
+      if (step8Balanced && step9Balanced) {
+        toast.success(t('Reconcile completed. No differences found.'));
+      } else {
+        toast.warning(t('Reconcile completed with differences.'));
+      }
+    } catch (err) {
+      console.error('Error running reconcile:', err);
+      const msg = err.response?.data?.detail || t('Failed to run reconcile checks');
+      setReconcileError(msg);
+      toast.error(msg);
+    } finally {
+      setReconcileRunning(false);
     }
   };
 
@@ -423,6 +469,9 @@ const CashReport = () => {
           setMovementError(null);
           setSettlementError(null);
           setOpenNewError(null);
+          setReconcileError(null);
+          setReconcileRunning(false);
+          setReconcileResult(null);
           setHasDownloadedResult(false);
 
           await loadSessionStatus(session.session_id);
@@ -463,6 +512,9 @@ const CashReport = () => {
           setMovementError(null);
           setSettlementError(null);
           setOpenNewError(null);
+          setReconcileError(null);
+          setReconcileRunning(false);
+          setReconcileResult(null);
           setHasDownloadedResult(false);
 
           setSession(null);
@@ -613,6 +665,8 @@ const CashReport = () => {
     settlementSSE.resetAll();
     openNewSSE.resetAll();
     setHasDownloadedResult(false);
+    setReconcileResult(null);
+    setReconcileError(null);
 
     // Start SSE stream for upload progress
     movementSSE.startUploadStream(() => streamUploadProgress(session.session_id));
@@ -692,20 +746,27 @@ const CashReport = () => {
 
   const hasSession = !!session?.session_id;
   const movementRows = session?.movement_rows || session?.statistics?.movement_rows || 0;
+  const canRunReconcile = hasSession
+    && movementRows > 0
+    && !uploading
+    && !uploadingMovement
+    && !settlementSSE.isRunning
+    && !openNewSSE.isRunning;
 
   // Detect if any settlement/open-new activity has started
   const hasSettlementStarted = settlementSSE.isRunning || settlementSSE.currentStep || settlementSSE.result || settlementSSE.error;
   const hasOpenNewStarted = openNewSSE.isRunning || openNewSSE.currentStep || openNewSSE.result || openNewSSE.error;
-  const isAutomationTabLocked = settlementSSE.isRunning || openNewSSE.isRunning;
+  const isAutomationTabLocked = settlementSSE.isRunning || openNewSSE.isRunning || reconcileRunning;
 
   // Dynamic session sub-state badge (#1)
   const sessionBadge = (() => {
     if (uploading || uploadingMovement) return { label: t('Uploading'), color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' };
     if (settlementSSE.isRunning) return { label: t('Settlement running'), color: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400' };
     if (openNewSSE.isRunning) return { label: t('Open-new running'), color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' };
+    if (reconcileRunning) return { label: t('Reconcile running'), color: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400' };
     if (resetting) return { label: t('Resetting'), color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' };
-    if (settlementSSE.result || openNewSSE.result) return { label: t('Completed'), color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' };
-    if (settlementError || openNewError || uploadError || movementError) return { label: t('Error'), color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' };
+    if (settlementSSE.result || openNewSSE.result || reconcileResult) return { label: t('Completed'), color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' };
+    if (settlementError || openNewError || reconcileError || uploadError || movementError) return { label: t('Error'), color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' };
     if (movementRows > 0) return { label: t('Ready'), color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' };
     return { label: t('Draft'), color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' };
   })();
@@ -886,7 +947,7 @@ const CashReport = () => {
                               onClick={() => setAutomationTab('settlement')}
                               disabled={isAutomationTabLocked}
                               aria-label={t('Settlement tab')}
-                              className={`relative flex-1 px-5 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                              className={`relative flex-1 px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
                                 automationTab === 'settlement'
                                   ? 'bg-white dark:bg-[#2a2a2a] text-indigo-700 dark:text-indigo-300 shadow-md'
                                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -908,7 +969,7 @@ const CashReport = () => {
                               onClick={() => setAutomationTab('open_new')}
                               disabled={isAutomationTabLocked}
                               aria-label={t('Open New tab')}
-                              className={`relative flex-1 px-5 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                              className={`relative flex-1 px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
                                 automationTab === 'open_new'
                                   ? 'bg-white dark:bg-[#2a2a2a] text-purple-700 dark:text-purple-300 shadow-md'
                                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -926,12 +987,40 @@ const CashReport = () => {
                                 <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
                               )}
                             </button>
+                            <button
+                              onClick={() => setAutomationTab('reconcile')}
+                              disabled={isAutomationTabLocked}
+                              aria-label={t('Reconcile tab')}
+                              className={`relative flex-1 px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                                automationTab === 'reconcile'
+                                  ? 'bg-white dark:bg-[#2a2a2a] text-cyan-700 dark:text-cyan-300 shadow-md'
+                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                              } disabled:opacity-60 disabled:cursor-not-allowed`}
+                            >
+                              <ScaleIcon className="w-3.5 h-3.5" />
+                              {t('Reconcile')}
+                              {reconcileRunning && (
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
+                                </span>
+                              )}
+                              {reconcileResult && !reconcileRunning && (
+                                <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
+                              )}
+                            </button>
                           </div>
 
                           {/* Action card */}
                           <div className="w-full bg-white/80 dark:bg-white/[0.04] backdrop-blur-md p-2 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.07)] dark:shadow-none border border-gray-200/50 dark:border-gray-700/30 relative overflow-hidden">
                             {/* Ambient glow matching active tab */}
-                            <div className={`absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 blur-3xl opacity-[0.15] rounded-full pointer-events-none transition-colors duration-700 ${automationTab === 'settlement' ? 'bg-indigo-500' : 'bg-purple-500'}`} />
+                            <div className={`absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 blur-3xl opacity-[0.15] rounded-full pointer-events-none transition-colors duration-700 ${
+                              automationTab === 'settlement'
+                                ? 'bg-indigo-500'
+                                : automationTab === 'open_new'
+                                  ? 'bg-purple-500'
+                                  : 'bg-cyan-500'
+                            }`} />
 
                             <div className="relative z-10">
                               <AnimatePresence mode="wait">
@@ -947,7 +1036,7 @@ const CashReport = () => {
                                     <div className="flex gap-2">
                                       <button
                                         onClick={handlePreviewSettlement}
-                                        disabled={previewingSettlement || settlementSSE.isRunning || openNewSSE.isRunning}
+                                        disabled={previewingSettlement || settlementSSE.isRunning || openNewSSE.isRunning || reconcileRunning}
                                         aria-label={t('Preview settlement candidates')}
                                         title={t('Preview what settlement will do (dry run)')}
                                         className="flex items-center justify-center gap-1.5 w-[100px] py-3 bg-white dark:bg-[#2a2a2a] text-indigo-600 dark:text-indigo-400 font-bold rounded-2xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-gray-100 dark:border-gray-800 shadow-sm transition-all disabled:opacity-50 text-sm flex-shrink-0"
@@ -960,7 +1049,7 @@ const CashReport = () => {
                                       </button>
                                       <button
                                         onClick={handleRunSettlement}
-                                        disabled={settlementSSE.isRunning || openNewSSE.isRunning}
+                                        disabled={settlementSSE.isRunning || openNewSSE.isRunning || reconcileRunning}
                                         className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-black dark:hover:bg-white text-white dark:text-gray-900 rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
                                       >
                                         {settlementSSE.isRunning
@@ -970,9 +1059,8 @@ const CashReport = () => {
                                         {settlementSSE.isRunning ? t('Running Settlement...') : t('Run Settlement')}
                                       </button>
                                     </div>
-
                                   </motion.div>
-                                ) : (
+                                ) : automationTab === 'open_new' ? (
                                   <motion.div
                                     key="open_new"
                                     initial={{ opacity: 0, y: 6 }}
@@ -1000,7 +1088,7 @@ const CashReport = () => {
                                     <div className="flex gap-2">
                                       <button
                                         onClick={handlePreviewOpenNew}
-                                        disabled={previewingOpenNew || openNewSSE.isRunning || settlementSSE.isRunning}
+                                        disabled={previewingOpenNew || openNewSSE.isRunning || settlementSSE.isRunning || reconcileRunning}
                                         aria-label={t('Preview open-new candidates')}
                                         title={t('Preview what open-new will do (dry run)')}
                                         className="flex items-center justify-center gap-1.5 w-[100px] py-3 bg-white dark:bg-[#2a2a2a] text-purple-600 dark:text-purple-400 font-bold rounded-2xl hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-gray-100 dark:border-gray-800 shadow-sm transition-all disabled:opacity-50 text-sm flex-shrink-0"
@@ -1013,7 +1101,7 @@ const CashReport = () => {
                                       </button>
                                       <button
                                         onClick={handleRunOpenNew}
-                                        disabled={openNewSSE.isRunning || settlementSSE.isRunning}
+                                        disabled={openNewSSE.isRunning || settlementSSE.isRunning || reconcileRunning}
                                         className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-black dark:hover:bg-white text-white dark:text-gray-900 rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
                                       >
                                         {openNewSSE.isRunning
@@ -1023,7 +1111,56 @@ const CashReport = () => {
                                         {openNewSSE.isRunning ? t('Running Open New...') : t('Run Open New')}
                                       </button>
                                     </div>
+                                  </motion.div>
+                                ) : (
+                                  <motion.div
+                                    key="reconcile"
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -6 }}
+                                    transition={{ duration: 0.18 }}
+                                    className="flex flex-col gap-2"
+                                  >
+                                    <button
+                                      onClick={handleRunReconcile}
+                                      disabled={!canRunReconcile || reconcileRunning}
+                                      className="w-full flex items-center justify-center gap-2 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
+                                    >
+                                      {reconcileRunning
+                                        ? <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                                        : <ScaleIcon className="w-5 h-5" />
+                                      }
+                                      {reconcileRunning ? t('Running Reconcile...') : t('Run Reconcile')}
+                                    </button>
 
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="rounded-xl px-3 py-2 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-100 dark:border-cyan-800/40">
+                                        <p className="text-[10px] uppercase tracking-wide text-cyan-700 dark:text-cyan-300 font-semibold">
+                                          {t('Step 8')}
+                                        </p>
+                                        <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5">
+                                          {reconcileResult
+                                            ? (reconcileResult?.step8_internal_transfer_reconcile?.is_balanced ? t('Balanced') : t('Has differences'))
+                                            : t('No data')}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-xl px-3 py-2 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-100 dark:border-cyan-800/40">
+                                        <p className="text-[10px] uppercase tracking-wide text-cyan-700 dark:text-cyan-300 font-semibold">
+                                          {t('Step 9')}
+                                        </p>
+                                        <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5">
+                                          {reconcileResult
+                                            ? (reconcileResult?.step9_cash_balance_reconcile?.is_balanced ? t('Balanced') : t('Has differences'))
+                                            : t('No data')}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {reconcileResult && (
+                                      <div className="rounded-xl px-3 py-2 bg-white dark:bg-[#2a2a2a] border border-gray-100 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-300">
+                                        {t('Total Accounts')}: {(reconcileResult?.step9_cash_balance_reconcile?.total_accounts || 0).toLocaleString()} | {t('Not Reconciled')}: {(reconcileResult?.step9_cash_balance_reconcile?.not_reconciled_count || 0).toLocaleString()}
+                                      </div>
+                                    )}
                                   </motion.div>
                                 )}
                               </AnimatePresence>
@@ -1302,6 +1439,7 @@ const CashReport = () => {
               { key: 'movement', error: movementError, label: t('Movement upload error'), onClear: () => setMovementError(null) },
               { key: 'settlement', error: settlementError, label: t('Settlement error'), onClear: () => setSettlementError(null) },
               { key: 'openNew', error: openNewError, label: t('Open-new error'), onClear: () => setOpenNewError(null) },
+              { key: 'reconcile', error: reconcileError, label: t('Reconcile error'), onClear: () => setReconcileError(null) },
             ].filter(e => !!e.error).map(({ key, error: errMsg, label, onClear }) => (
               <motion.div
                 key={key}

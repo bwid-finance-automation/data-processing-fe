@@ -14,8 +14,7 @@ import Login from "@pages/Login";
 import AuthCallback from "@pages/AuthCallback";
 import Department from "@pages/Department";
 import Project from "@pages/Project";
-import ProjectManagement from "@pages/ProjectManagement";
-import ProjectWorkspace from "@pages/ProjectWorkspace";
+import History from "@pages/History";
 import VarianceAnalysis from "@pages/VarianceAnalysis";
 import ExcelComparison from "@pages/ExcelComparison";
 import GLAVarianceAnalysis from "@pages/GLAVarianceAnalysis";
@@ -96,24 +95,11 @@ function UserRoutes() {
           />
 
           <Route
-            path="/projects"
+            path="/history"
             element={
-              <ProtectedRoute>
-                <PageWrapper>
-                  <ProjectManagement />
-                </PageWrapper>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/projects/:uuid"
-            element={
-              <ProtectedRoute>
-                <PageWrapper>
-                  <ProjectWorkspace />
-                </PageWrapper>
-              </ProtectedRoute>
+              <PageWrapper>
+                <History />
+              </PageWrapper>
             }
           />
 

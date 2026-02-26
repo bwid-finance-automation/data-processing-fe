@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { processPythonAnalysis, getAIConfig } from '@services/variance/variance-apis';
 
-const PythonAnalysis = ({ projectUuid }) => {
+const PythonAnalysis = () => {
   const { t } = useTranslation();
   const [excelFiles, setExcelFiles] = useState([]);
   const [loanInterestFile, setLoanInterestFile] = useState(null);
@@ -78,10 +78,6 @@ const PythonAnalysis = ({ projectUuid }) => {
       formData.append('unit_for_lease_file', unitForLeaseFile);
     }
 
-    // Add project_uuid if provided (for project integration)
-    if (projectUuid) {
-      formData.append('project_uuid', projectUuid);
-    }
 
     try {
       const blob = await processPythonAnalysis(formData, (progressEvent) => {

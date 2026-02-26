@@ -281,6 +281,23 @@ export const runOpenNewAutomation = async (sessionId, lookupFiles = []) => {
 };
 
 /**
+ * Run Step 8 + Step 9 reconcile checks using real workbook data.
+ * @param {string} sessionId - Session ID
+ * @returns {Promise} Reconcile result payload
+ */
+export const runReconcileChecks = async (sessionId) => {
+  try {
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/cash-report/run-reconcile/${sessionId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error running reconcile checks:', error);
+    throw error;
+  }
+};
+
+/**
  * Stream open-new automation progress events via SSE
  * @param {string} sessionId - Session ID
  * @returns {EventSource} SSE connection

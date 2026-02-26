@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
@@ -10,8 +10,6 @@ import {
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { ProjectSelector, CreateProjectDialog, PasswordDialog } from '@components/common';
-import { useProjectManagement } from '@hooks';
 import {
   createSession,
   uploadInputFile,
@@ -25,12 +23,11 @@ import {
   getSystemStatus,
   getMasterDataStatus,
 } from '@services/billingApi';
+import ModuleHistory from '@components/common/ModuleHistory';
 
 export default function UtilityBilling() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
-  const projectUuid = searchParams.get('project');
   const [sessionId, setSessionId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -50,41 +47,6 @@ export default function UtilityBilling() {
   // Processing results
   const [processingResult, setProcessingResult] = useState(null);
 
-  // Use the custom hook for project management
-  const {
-    project,
-    loadingProject,
-    projectsList,
-    loadingProjects,
-    showProjectDropdown,
-    setShowProjectDropdown,
-    projectDropdownRef,
-    showCreateProject,
-    setShowCreateProject,
-    createProjectForm,
-    setCreateProjectForm,
-    creatingProject,
-    projectError,
-    showCreatePassword,
-    setShowCreatePassword,
-    passwordDialog,
-    setPasswordDialog,
-    passwordError,
-    verifyingPassword,
-    showPassword,
-    setShowPassword,
-    handleSelectProject,
-    handleVerifyPassword,
-    handleCreateProject,
-    handleCloseCreateDialog,
-    handleClosePasswordDialog,
-  } = useProjectManagement({
-    basePath: '/utility-billing',
-    onProjectChange: useCallback(() => {
-      setProcessingResult(null);
-    }, []),
-  });
-
   // Initialize session
   useEffect(() => {
     initializeSession();
@@ -98,7 +60,7 @@ export default function UtilityBilling() {
   const initializeSession = async () => {
     try {
       setLoading(true);
-      const response = await createSession(projectUuid);
+      const response = await createSession();
       setSessionId(response.session_id);
       toast.success(t('sessionCreated'));
     } catch (error) {
@@ -393,7 +355,7 @@ export default function UtilityBilling() {
 
   return (
     <div className="min-h-screen theme-bg-app py-8 px-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full max-w-[85vw] mx-auto">
         {/* Header */}
         <button
           onClick={() => navigate('/project/2')}
@@ -411,23 +373,6 @@ export default function UtilityBilling() {
             {t('utilityBillingSubtitle')}
           </p>
 
-          {/* Project Selector */}
-          <ProjectSelector
-            project={project}
-            loadingProject={loadingProject}
-            projectsList={projectsList}
-            loadingProjects={loadingProjects}
-            showDropdown={showProjectDropdown}
-            onToggleDropdown={() => setShowProjectDropdown(!showProjectDropdown)}
-            dropdownRef={projectDropdownRef}
-            onSelectProject={handleSelectProject}
-            onCreateNew={() => {
-              setShowCreateProject(true);
-              setShowProjectDropdown(false);
-            }}
-            colorTheme="cyan"
-            className="mt-4"
-          />
         </div>
 
         {/* Status Cards */}
@@ -570,6 +515,12 @@ export default function UtilityBilling() {
           <FileList title={t('outputFiles')} files={outputFiles} fileType="output" />
         </div>
 
+        {/* History Section */}
+        <ModuleHistory
+          moduleKey="utility-billing"
+          className="mt-6"
+        />
+
         {/* Footer */}
         <motion.footer
           initial={{ opacity: 0 }}
@@ -581,36 +532,6 @@ export default function UtilityBilling() {
         </motion.footer>
       </div>
 
-      {/* Create Project Dialog */}
-      <CreateProjectDialog
-        open={showCreateProject}
-        onClose={handleCloseCreateDialog}
-        onSubmit={handleCreateProject}
-        form={createProjectForm}
-        onFormChange={setCreateProjectForm}
-        showPassword={showCreatePassword}
-        onToggleShowPassword={() => setShowCreatePassword(!showCreatePassword)}
-        creating={creatingProject}
-        error={projectError}
-        colorTheme="cyan"
-      />
-
-      {/* Password Dialog */}
-      <PasswordDialog
-        open={passwordDialog.open}
-        onClose={handleClosePasswordDialog}
-        onSubmit={handleVerifyPassword}
-        title={t('Protected Project')}
-        subtitle={passwordDialog.project?.project_name}
-        description={t('This project is password protected. Please enter the password to continue.')}
-        password={passwordDialog.password}
-        onPasswordChange={(value) => setPasswordDialog(prev => ({ ...prev, password: value }))}
-        showPassword={showPassword}
-        onToggleShowPassword={() => setShowPassword(!showPassword)}
-        loading={verifyingPassword}
-        error={passwordError}
-        colorTheme="cyan"
-      />
     </div>
   );
 }
