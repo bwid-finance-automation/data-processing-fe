@@ -10,6 +10,7 @@ import {
   DocumentChartBarIcon,
   FunnelIcon,
   ExclamationTriangleIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import {
   getBankStatementHistory,
@@ -34,7 +35,7 @@ interface ModuleHistoryProps {
   className?: string;
 }
 
-const fetchFnMap: Record<ModuleKey, (skip: number, limit: number) => Promise<any>> = {
+const fetchFnMap: Record<ModuleKey, (skip: number, limit: number, ...args: any[]) => Promise<any>> = {
   'bank-statements': getBankStatementHistory,
   'contracts': getContractHistory,
   'gla': getGLAHistory,
@@ -258,135 +259,166 @@ function extractBanks(items: BankStatementSessionItem[]): string[] {
   return Array.from(bankSet).sort();
 }
 
-function BankFilterBar({ banks, selected, onSelect }: { banks: string[]; selected: string | null; onSelect: (b: string | null) => void }) {
+type DatePreset = 'today' | 'yesterday' | 'this-week' | null;
+
+function getDateRange(preset: DatePreset): { from: string; to: string } {
+  if (!preset) return { from: '', to: '' };
+  const now = new Date();
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (preset) {
+    case 'today':
+      return { from: fmt(today), to: fmt(today) };
+    case 'yesterday': {
+      const yd = new Date(today.getTime() - 86400000);
+      return { from: fmt(yd), to: fmt(yd) };
+    }
+    case 'this-week': {
+      const day = today.getDay();
+      const monday = new Date(today.getTime() - ((day === 0 ? 6 : day - 1) * 86400000));
+      return { from: fmt(monday), to: fmt(today) };
+    }
+    default:
+      return { from: '', to: '' };
+  }
+}
+
+function DateFilterBar({
+  selected,
+  onSelect,
+}: {
+  selected: DatePreset;
+  onSelect: (preset: DatePreset) => void;
+}) {
   const { t } = useTranslation();
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const hasFilter = selected !== null;
 
-  const options = useMemo(
-    () => banks.map((bank) => ({ label: bank, value: bank })),
-    [banks]
-  );
-
-  const checkScroll = () => {
-    if (scrollContainerRef.current && isExpanded) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-      setCanScrollLeft(scrollLeft > 0);
-      setCanScrollRight(Math.ceil(scrollLeft + clientWidth) < scrollWidth);
-    }
-  };
-
-  useEffect(() => {
-    if (!isExpanded) {
-      setCanScrollLeft(false);
-      setCanScrollRight(false);
-      return;
-    }
-
-    window.addEventListener('resize', checkScroll);
-    const timeout = setTimeout(checkScroll, 550);
-    return () => {
-      window.removeEventListener('resize', checkScroll);
-      clearTimeout(timeout);
-    };
-  }, [options, isExpanded]);
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({
-        left: direction === 'left' ? -200 : 200,
-        behavior: 'smooth'
-      });
-    }
-  };
-
-  if (banks.length === 0) return null;
-
-  const isAllSelected = selected === null;
+  const presets: { label: string; value: DatePreset }[] = [
+    { label: t('Today'), value: 'today' },
+    { label: t('Yesterday'), value: 'yesterday' },
+    { label: t('This week'), value: 'this-week' },
+  ];
 
   return (
     <div className="flex items-center w-full">
-      {/* Toggle button */}
       <button
         onClick={() => {
-          if (!isAllSelected) {
+          if (hasFilter) {
             onSelect(null);
-            setIsExpanded(true);
           } else {
             setIsExpanded(!isExpanded);
           }
         }}
         className={`flex-shrink-0 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-300 shadow-sm border outline-none ${
-          isAllSelected
-            ? isExpanded
+          hasFilter
+            ? 'bg-indigo-100 border-indigo-200 text-indigo-700 dark:bg-indigo-500/30 dark:border-indigo-500/40 dark:text-indigo-300'
+            : isExpanded
               ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-500/20 dark:border-indigo-500/30 dark:text-indigo-300'
               : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-[#252525] dark:border-gray-700 dark:text-gray-200 dark:hover:bg-[#2a2a2a]'
-            : 'bg-indigo-100 border-indigo-200 text-indigo-700 dark:bg-indigo-500/30 dark:border-indigo-500/40 dark:text-indigo-300'
         }`}
       >
-        <FunnelIcon className="w-3.5 h-3.5" />
-        <span className="whitespace-nowrap">{t('All')}</span>
+        <CalendarDaysIcon className="w-3.5 h-3.5" />
+        <span className="whitespace-nowrap">{t('Date')}</span>
         <ChevronRightIcon
-          className={`w-3 h-3 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isExpanded ? 'rotate-180' : ''}`}
+          className={`w-3 h-3 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isExpanded || hasFilter ? 'rotate-180' : ''}`}
         />
       </button>
 
-      {/* Sliding horizontal scroll container */}
       <div
         className={`flex items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden ${
-          isExpanded || !isAllSelected ? 'max-w-[800px] opacity-100 ml-2 flex-1' : 'max-w-0 opacity-0 ml-0'
+          isExpanded || hasFilter ? 'max-w-[500px] opacity-100 ml-2 flex-1' : 'max-w-0 opacity-0 ml-0'
         }`}
       >
-        <div className="relative flex items-center w-full group">
-          {/* Left arrow */}
-          <div className={`absolute left-0 z-10 bg-gradient-to-r from-white via-white/90 to-transparent dark:from-[#1c1c1c] dark:via-[#1c1c1c]/90 dark:to-transparent pr-4 py-1 transition-opacity duration-300 ${canScrollLeft ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <button
-              type="button"
-              onClick={() => scroll('left')}
-              className="h-6 w-6 flex items-center justify-center rounded-full border border-gray-200/80 dark:border-gray-700/80 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-white dark:bg-[#252525] shadow-sm transition-colors outline-none"
-            >
-              <ChevronRightIcon className="h-3.5 w-3.5 rotate-180" />
-            </button>
-          </div>
-
-          {/* Bank list */}
-          <div
-            ref={scrollContainerRef}
-            onScroll={checkScroll}
-            className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar scroll-smooth w-full py-0.5"
-          >
-            {options.map((option) => {
-              const isActive = selected === option.value;
-              return (
-                <button
-                  key={option.value}
-                  onClick={() => onSelect(isActive ? null : option.value)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium transition-colors border outline-none ${
-                    isActive
-                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-500/20 dark:border-indigo-500/30 dark:text-indigo-300'
-                      : 'bg-transparent border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Right arrow */}
-          <div className={`absolute right-0 z-10 bg-gradient-to-l from-white via-white/90 to-transparent dark:from-[#1c1c1c] dark:via-[#1c1c1c]/90 dark:to-transparent pl-4 py-1 transition-opacity duration-300 ${canScrollRight ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <button
-              type="button"
-              onClick={() => scroll('right')}
-              className="h-6 w-6 flex items-center justify-center rounded-full border border-gray-200/80 dark:border-gray-700/80 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-white dark:bg-[#252525] shadow-sm transition-colors outline-none"
-            >
-              <ChevronRightIcon className="h-3.5 w-3.5" />
-            </button>
-          </div>
+        <div className="flex items-center gap-1.5">
+          {presets.map((p) => {
+            const isActive = selected === p.value;
+            return (
+              <button
+                key={p.value}
+                onClick={() => onSelect(isActive ? null : p.value)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium transition-colors border outline-none ${
+                  isActive
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-500/20 dark:border-indigo-500/30 dark:text-indigo-300'
+                    : 'bg-transparent border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                {p.label}
+              </button>
+            );
+          })}
         </div>
       </div>
+    </div>
+  );
+}
+
+function BankFilterBar({ banks, selected, onSelect }: { banks: string[]; selected: string | null; onSelect: (b: string | null) => void }) {
+  const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
+
+  if (banks.length === 0) return null;
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-300 shadow-sm border outline-none ${
+          selected
+            ? 'bg-indigo-100 border-indigo-200 text-indigo-700 dark:bg-indigo-500/30 dark:border-indigo-500/40 dark:text-indigo-300'
+            : isOpen
+              ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-500/20 dark:border-indigo-500/30 dark:text-indigo-300'
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-[#252525] dark:border-gray-700 dark:text-gray-200 dark:hover:bg-[#2a2a2a]'
+        }`}
+      >
+        <FunnelIcon className="w-3.5 h-3.5" />
+        <span className="whitespace-nowrap truncate max-w-[80px]">{selected || t('Banks')}</span>
+        <ChevronRightIcon
+          className={`w-3 h-3 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isOpen ? 'rotate-90' : ''}`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 z-30 min-w-[140px] max-h-[200px] overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#252525] shadow-lg py-1 custom-scrollbar">
+          <button
+            onClick={() => { onSelect(null); setIsOpen(false); }}
+            className={`w-full text-left px-3 py-1.5 text-[11px] font-medium transition-colors ${
+              !selected
+                ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+            }`}
+          >
+            {t('All')}
+          </button>
+          {banks.map((bank) => (
+            <button
+              key={bank}
+              onClick={() => { onSelect(bank); setIsOpen(false); }}
+              className={`w-full text-left px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                selected === bank
+                  ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              {bank}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -404,11 +436,15 @@ export default function ModuleHistory({ moduleKey, refreshTrigger, className = '
   const [expanded, setExpanded] = useState(isAlwaysOpen);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [bankFilter, setBankFilter] = useState<string | null>(null);
+  const [datePreset, setDatePreset] = useState<DatePreset>(null);
 
-  const fetchData = async () => {
+  const fetchData = async (preset?: DatePreset) => {
     setLoading(true);
     try {
-      const data = await fetchFnMap[moduleKey](0, 20);
+      const { from, to } = getDateRange(preset ?? null);
+      const data = moduleKey === 'bank-statements'
+        ? await fetchFnMap[moduleKey](0, 20, from || null, to || null)
+        : await fetchFnMap[moduleKey](0, 20);
       const list = data.sessions || data.contracts || [];
       setItems(list);
       setTotal(data.total || list.length);
@@ -425,7 +461,7 @@ export default function ModuleHistory({ moduleKey, refreshTrigger, className = '
 
   useEffect(() => {
     if ((expanded || isAlwaysOpen) && !hasLoaded) {
-      fetchData();
+      fetchData(datePreset);
     }
   }, [expanded, hasLoaded, isAlwaysOpen]);
 
@@ -437,9 +473,16 @@ export default function ModuleHistory({ moduleKey, refreshTrigger, className = '
 
   useEffect(() => {
     if (refreshTrigger && hasLoaded) {
-      fetchData();
+      fetchData(datePreset);
     }
   }, [refreshTrigger, hasLoaded]);
+
+  // Re-fetch when date filter changes (bank-statements only)
+  useEffect(() => {
+    if (moduleKey === 'bank-statements' && hasLoaded) {
+      fetchData(datePreset);
+    }
+  }, [datePreset]);
 
   // Bank filter (bank-statements only)
   const banks = useMemo(() =>
@@ -551,10 +594,13 @@ export default function ModuleHistory({ moduleKey, refreshTrigger, className = '
             </div>
           ) : (
             <>
-              {/* Bank filter chips */}
-              {moduleKey === 'bank-statements' && banks.length > 1 && (
-                <div className="pt-2 px-1 flex-shrink-0">
-                  <BankFilterBar banks={banks} selected={bankFilter} onSelect={setBankFilter} />
+              {/* Filters row */}
+              {moduleKey === 'bank-statements' && (
+                <div className="pt-2 px-1 flex-shrink-0 flex items-center gap-2">
+                  {banks.length > 1 && (
+                    <BankFilterBar banks={banks} selected={bankFilter} onSelect={setBankFilter} />
+                  )}
+                  <DateFilterBar selected={datePreset} onSelect={setDatePreset} />
                 </div>
               )}
 
@@ -586,6 +632,12 @@ export default function ModuleHistory({ moduleKey, refreshTrigger, className = '
                 {filteredItems.length === 0 && bankFilter && (
                   <div className="flex flex-col items-center justify-center py-6 gap-2 text-gray-400">
                     <p className="text-[12px]">{t('No results for')} "{bankFilter}"</p>
+                  </div>
+                )}
+                {items.length === 0 && datePreset && !bankFilter && (
+                  <div className="flex flex-col items-center justify-center py-6 gap-2 text-gray-400">
+                    <CalendarDaysIcon className="h-5 w-5 opacity-40" />
+                    <p className="text-[12px]">{t('No results for this date range')}</p>
                   </div>
                 )}
               </div>

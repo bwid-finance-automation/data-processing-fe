@@ -93,11 +93,14 @@ export const getHistorySummary = async (): Promise<HistorySummaryResponse> => {
 
 export const getBankStatementHistory = async (
   skip = 0,
-  limit = 20
+  limit = 20,
+  dateFrom?: string | null,
+  dateTo?: string | null
 ): Promise<BankStatementHistoryResponse> => {
-  const response = await historyApiClient.get('/bank-statements', {
-    params: { skip, limit },
-  });
+  const params: Record<string, any> = { skip, limit };
+  if (dateFrom) params.date_from = dateFrom;
+  if (dateTo) params.date_to = dateTo;
+  const response = await historyApiClient.get('/bank-statements', { params });
   return response.data;
 };
 

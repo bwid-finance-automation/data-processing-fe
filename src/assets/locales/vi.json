@@ -756,6 +756,11 @@
   "Quick Period": "Chọn nhanh Kỳ",
   "Template File": "Tệp Mẫu",
   "Click to upload .xlsx template": "Nhấp để tải lên mẫu .xlsx",
+  "Please select template file to clean": "Vui lòng chọn tệp template cần làm sạch",
+  "Cleaning template...": "Đang làm sạch template...",
+  "Clean template (3000 rows)": "Làm sạch template (3000 dòng)",
+  "Template cleaned successfully": "Làm sạch template thành công",
+  "Failed to clean template": "Không thể làm sạch template",
   "Create a new session to start generating cash reports": "Tạo phiên mới để bắt đầu tạo báo cáo tiền mặt",
   "Create Session": "Tạo Phiên",
   "cashReportTourWelcome": "Chào mừng đến với Cash Report! Công cụ này giúp bạn tự động tạo báo cáo tiền mặt theo kỳ chỉ trong vài bước đơn giản.",
@@ -886,5 +891,10 @@
 
   "or": "hoặc",
   "Enter password": "Nhập mật khẩu",
-  "Back to Home": "Quay về trang chủ"
+  "Back to Home": "Quay về trang chủ",
+  "Today": "Hôm nay",
+  "Yesterday": "Hôm qua",
+  "This week": "Tuần này",
+  "No results for this date range": "Không có kết quả cho khoảng thời gian này",
+  "Banks": "Ngân hàng"
 }
