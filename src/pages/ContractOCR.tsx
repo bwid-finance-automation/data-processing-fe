@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DocumentMagnifyingGlassIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { Breadcrumb } from '@components/common';
 import FileUpload from '@components/contract-ocr/FileUpload';
 import ProcessingStatus from '@components/contract-ocr/ProcessingStatus';
 import ResultsTable from '@components/contract-ocr/ResultsTable';
@@ -23,6 +25,13 @@ export default function ContractOCR() {
   useEffect(() => {
     document.title = `${t('contractOCRProject')} - BW Industrial`;
   }, [t]);
+
+  const breadcrumbItems = [
+    { label: t('Home'), href: '/' },
+    { label: t('Department'), href: '/department' },
+    { label: t('Finance & Accounting Department'), href: '/project/2' },
+    { label: t('contractOCRProject') }
+  ];
 
   const handleFilesSelected = (selectedFiles) => {
     setFiles(selectedFiles);
@@ -136,29 +145,36 @@ export default function ContractOCR() {
   };
 
   return (
-    <div className="min-h-screen theme-bg-app py-8 px-6">
-      <div className="w-full max-w-[85vw] mx-auto">
-        {/* Back Button */}
-        <motion.button
-          onClick={() => navigate('/project/2')}
-          whileHover={{ x: -5 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 mb-6 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 theme-surface rounded-lg border border-[color:var(--app-border)] hover:border-gray-300 dark:hover:border-gray-600 transition-all"
-        >
-          <span className="text-lg font-bold">←</span>
-          <span className="font-medium">{t('backButton')}</span>
-        </motion.button>
-
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold theme-text-primary mb-2">
-            {t('contractOCRProject')}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {t('contractOCRDesc')}
-          </p>
+    <div className="min-h-screen bg-[#f7f6f3] dark:bg-[#181818]">
+      {/* Header */}
+      <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
+        <div className="w-full max-w-[85vw] mx-auto py-6">
+          <Breadcrumb items={breadcrumbItems} />
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <DocumentMagnifyingGlassIcon className="h-8 w-8 text-violet-600 dark:text-violet-400" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#f5efe6]">
+                  {t('contractOCRProject')}
+                </h1>
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
+                  {t('contractOCRDesc')}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/project/2')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-sm transition-colors"
+            >
+              <ArrowLeftIcon className="w-4 h-4" />
+              {t('backButton')}
+            </button>
+          </div>
         </div>
+      </div>
 
+      {/* Main Content */}
+      <div className="w-full max-w-[85vw] mx-auto p-6">
         {/* File Upload Section */}
         <div className="mb-8">
           <FileUpload

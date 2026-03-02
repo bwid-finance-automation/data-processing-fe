@@ -8,7 +8,7 @@ import {
   Squares2X2Icon,
   WalletIcon,
 } from "@heroicons/react/24/outline";
-import { ChevronRightIcon } from "@heroicons/react/24/solid";
+import { Breadcrumb } from "@components/common";
 
 export default function Department() {
   const navigate = useNavigate();
@@ -58,34 +58,29 @@ export default function Department() {
     document.title = `${departmentsLabel} - BW Industrial`;
   }, [departmentsLabel]);
 
+  const breadcrumbItems = [
+    { label: safeT("workspaceLabel", "Workspace"), href: "/" },
+    { label: departmentsLabel },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 selection:bg-indigo-100 dark:selection:bg-indigo-800/40 selection:text-indigo-900 dark:selection:text-indigo-100">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-indigo-500/5 dark:bg-indigo-400/10 blur-[120px]" />
-        <div className="absolute top-[20%] -right-[5%] w-[30%] h-[30%] rounded-full bg-blue-500/5 dark:bg-blue-400/10 blur-[100px]" />
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12">
-        <header className="mb-10 sm:mb-12">
-          <nav className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 mb-8">
-            <button
-              type="button"
-              onClick={() => navigate("/")}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-            >
-              {safeT("workspaceLabel", "Workspace")}
-            </button>
-            <ChevronRightIcon className="h-4 w-4" />
-            <span className="text-slate-900 dark:text-white">{departmentsLabel}</span>
-          </nav>
-
-          <div className="flex flex-col lg:flex-row lg:items-end gap-6 lg:gap-8">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-500">
-                {departmentsLabel}
-              </span>
-            </h1>
-
+    <div className="bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
+      {/* Header */}
+      <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
+        <div className="w-full max-w-[85vw] mx-auto py-6">
+          <Breadcrumb items={breadcrumbItems} />
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Squares2X2Icon className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#f5efe6]">
+                  {departmentsLabel}
+                </h1>
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
+                  {safeT("departmentsDesc", "Manage your teams and projects")}
+                </p>
+              </div>
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               {[
                 { label: safeT("teamsLabel", "Teams"), value: String(departments.length).padStart(2, "0"), Icon: Squares2X2Icon },
@@ -108,8 +103,11 @@ export default function Department() {
               ))}
             </div>
           </div>
-        </header>
+        </div>
+      </div>
 
+      {/* Main Content */}
+      <div className="w-full max-w-[85vw] mx-auto py-8">
         {/* Card Grid - MAGAZINE STYLE */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
           {departments.map((dept) => (
@@ -161,7 +159,6 @@ export default function Department() {
             </div>
           ))}
         </div>
-
       </div>
     </div>
   );

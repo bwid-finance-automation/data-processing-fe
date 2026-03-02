@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowLeftIcon,
   ArrowDownTrayIcon,
   DocumentTextIcon,
   BanknotesIcon,
@@ -14,6 +13,7 @@ import {
   CheckCircleIcon,
   DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline';
+import { Breadcrumb } from '@components/common';
 
 import { getSessionDetails, downloadBankStatementFromHistory, downloadUploadedFile } from '../services/bank-statement/bank-statement-apis';
 
@@ -48,6 +48,12 @@ const BankStatementSessionDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(false);
+
+  const breadcrumbItems = [
+    { label: t('Home') || 'Home', href: '/' },
+    { label: t('Bank Statement Parser'), href: '/bank-statement' },
+    { label: t('Session Detail') },
+  ];
 
   useEffect(() => {
     const fetchSessionDetails = async () => {
@@ -135,34 +141,37 @@ const BankStatementSessionDetail = () => {
   const { uploaded_files, extracted_from_zip, statements } = session;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            <ArrowLeftIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {t('Bank Statement Session')}
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">
-              {sessionId}
-            </p>
+      <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
+        <div className="w-full max-w-[85vw] mx-auto py-6">
+          <Breadcrumb items={breadcrumbItems} />
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <DocumentTextIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#f5efe6]">
+                  {t('Session Detail')}
+                </h1>
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
+                  {sessionId}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleDownloadResult}
+              disabled={downloading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5" />
+              {downloading ? t('Downloading...') : t('Download Excel')}
+            </button>
           </div>
         </div>
-        <button
-          onClick={handleDownloadResult}
-          disabled={downloading}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-        >
-          <ArrowDownTrayIcon className="h-5 w-5" />
-          {downloading ? t('Downloading...') : t('Download Excel')}
-        </button>
       </div>
+
+      {/* Main Content */}
+      <div className="w-full max-w-[85vw] mx-auto p-6">
 
       {/* Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -445,6 +454,8 @@ const BankStatementSessionDetail = () => {
             </motion.div>
           ))}
         </div>
+      </div>
+
       </div>
     </div>
   );

@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
-  ArrowLeftIcon,
   ArrowRightIcon,
   ArrowsRightLeftIcon,
   BanknotesIcon,
@@ -14,7 +13,7 @@ import {
   PresentationChartLineIcon,
   TableCellsIcon,
 } from "@heroicons/react/24/outline";
-import { ChevronRightIcon } from "@heroicons/react/24/solid";
+import { Breadcrumb } from "@components/common";
 
 export default function Project() {
   const { departmentId } = useParams();
@@ -136,53 +135,30 @@ export default function Project() {
     document.title = `${departmentName} - BW Industrial`;
   }, [departmentName]);
 
+  const breadcrumbItems = [
+    { label: safeT("workspaceLabel", "Workspace"), href: "/" },
+    { label: safeT("departments", "Departments"), href: "/department" },
+    { label: departmentName },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 selection:bg-indigo-100 dark:selection:bg-indigo-800/40 selection:text-indigo-900 dark:selection:text-indigo-100">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-indigo-500/5 dark:bg-indigo-400/10 blur-[120px]" />
-        <div className="absolute top-[20%] -right-[5%] w-[30%] h-[30%] rounded-full bg-blue-500/5 dark:bg-blue-400/10 blur-[100px]" />
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12">
-        <header className="mb-8 sm:mb-10">
-          <nav className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 mb-6">
-            <button
-              type="button"
-              onClick={() => navigate("/")}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-            >
-              {safeT("workspaceLabel", "Workspace")}
-            </button>
-            <ChevronRightIcon className="h-4 w-4" />
-            <button
-              type="button"
-              onClick={() => navigate("/department")}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-            >
-              {safeT("departments", "Departments")}
-            </button>
-            <ChevronRightIcon className="h-4 w-4" />
-            <span className="text-slate-900 dark:text-white truncate">{departmentName}</span>
-          </nav>
-
-          <div className="flex flex-col lg:flex-row lg:items-end gap-4 lg:gap-8">
-            <div className="min-w-0">
-              <button
-                type="button"
-                onClick={() => navigate("/department")}
-                className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
-              >
-                <ArrowLeftIcon className="h-4 w-4" />
-                {safeT("backButton", "Back")}
-              </button>
-
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-500">
+    <div className="bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
+      {/* Header */}
+      <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
+        <div className="w-full max-w-[85vw] mx-auto py-6">
+          <Breadcrumb items={breadcrumbItems} />
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FolderIcon className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#f5efe6]">
                   {departmentName}
-                </span>
-              </h1>
+                </h1>
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
+                  {safeT("departmentProjectsDesc", "Manage projects and tools")}
+                </p>
+              </div>
             </div>
-
             <div className="flex flex-wrap items-center gap-3">
               {[
                 { label: projectsLabel, value: String(projects.length).padStart(2, "0"), Icon: FolderIcon },
@@ -205,8 +181,11 @@ export default function Project() {
               ))}
             </div>
           </div>
-        </header>
+        </div>
+      </div>
 
+      {/* Main Content */}
+      <div className="w-full max-w-[85vw] mx-auto py-8">
         {filteredProjects.length === 0 ? (
           <div className="text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 py-16 px-6 bg-white/80 dark:bg-slate-900/70">
             <div className="mx-auto mb-4 h-16 w-16 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
@@ -264,3 +243,4 @@ export default function Project() {
     </div>
   );
 }
+

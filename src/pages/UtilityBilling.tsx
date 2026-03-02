@@ -4,12 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
   ArrowLeftIcon,
+  BoltIcon,
   CloudArrowUpIcon,
   DocumentIcon,
   TrashIcon,
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { Breadcrumb } from '@components/common';
 import {
   createSession,
   uploadInputFile,
@@ -46,6 +48,13 @@ export default function UtilityBilling() {
 
   // Processing results
   const [processingResult, setProcessingResult] = useState(null);
+
+  const breadcrumbItems = [
+    { label: t('Home'), href: '/' },
+    { label: t('Department'), href: '/department' },
+    { label: t('Finance & Accounting Department'), href: '/project/2' },
+    { label: t('utilityBillingTitle') }
+  ];
 
   // Initialize session
   useEffect(() => {
@@ -354,27 +363,36 @@ export default function UtilityBilling() {
   }
 
   return (
-    <div className="min-h-screen theme-bg-app py-8 px-6">
-      <div className="w-full max-w-[85vw] mx-auto">
-        {/* Header */}
-        <button
-          onClick={() => navigate('/project/2')}
-          className="flex items-center gap-2 mb-6 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition"
-        >
-          <ArrowLeftIcon className="w-5 h-5" />
-          <span>{t('backToProjects')}</span>
-        </button>
-
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold theme-text-primary mb-2">
-            {t('utilityBillingTitle')}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {t('utilityBillingSubtitle')}
-          </p>
-
+    <div className="min-h-screen bg-[#f7f6f3] dark:bg-[#181818]">
+      {/* Header */}
+      <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
+        <div className="w-full max-w-[85vw] mx-auto py-6">
+          <Breadcrumb items={breadcrumbItems} />
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <BoltIcon className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#f5efe6]">
+                  {t('utilityBillingTitle')}
+                </h1>
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
+                  {t('utilityBillingSubtitle')}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/project/2')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-sm transition-colors"
+            >
+              <ArrowLeftIcon className="w-4 h-4" />
+              {t('backToProjects')}
+            </button>
+          </div>
         </div>
+      </div>
 
+      {/* Main Content */}
+      <div className="w-full max-w-[85vw] mx-auto p-6">
         {/* Status Cards */}
         {systemStatus && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

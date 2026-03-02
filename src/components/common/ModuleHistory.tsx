@@ -33,6 +33,7 @@ interface ModuleHistoryProps {
   moduleKey: ModuleKey;
   refreshTrigger?: any;
   className?: string;
+  hideHeader?: boolean;
 }
 
 const fetchFnMap: Record<ModuleKey, (skip: number, limit: number, ...args: any[]) => Promise<any>> = {
@@ -427,7 +428,7 @@ function BankFilterBar({ banks, selected, onSelect }: { banks: string[]; selecte
 /*  Main component                                     */
 /* -------------------------------------------------- */
 
-export default function ModuleHistory({ moduleKey, refreshTrigger, className = '' }: ModuleHistoryProps) {
+export default function ModuleHistory({ moduleKey, refreshTrigger, className = '', hideHeader = false }: ModuleHistoryProps) {
   const { t } = useTranslation();
   const isAlwaysOpen = moduleKey === 'bank-statements';
   const [items, setItems] = useState<any[]>([]);
@@ -526,57 +527,59 @@ export default function ModuleHistory({ moduleKey, refreshTrigger, className = '
       `}</style>
 
       {/* Header */}
-      <div className="flex-shrink-0">
-        <button
-          onClick={() => {
-            if (!isAlwaysOpen) setExpanded(!expanded);
-          }}
-          className={`w-full flex items-center justify-between px-4 py-3.5 transition-colors focus:outline-none ${
-            isAlwaysOpen
-              ? 'cursor-default'
-              : 'hover:bg-gray-50/50 dark:hover:bg-white/[0.02]'
-          }`}
-        >
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <ClockIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-            <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
-              {t('Recent History')}
-            </h3>
-            {hasLoaded && (
-              <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-[10px] font-medium text-gray-600 dark:text-gray-400">
-                {total}
-              </span>
-            )}
-          </div>
+      {!hideHeader && (
+        <div className="flex-shrink-0">
+          <button
+            onClick={() => {
+              if (!isAlwaysOpen) setExpanded(!expanded);
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3.5 transition-colors focus:outline-none ${
+              isAlwaysOpen
+                ? 'cursor-default'
+                : 'hover:bg-gray-50/50 dark:hover:bg-white/[0.02]'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <ClockIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+              <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
+                {t('Recent History')}
+              </h3>
+              {hasLoaded && (
+                <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-[10px] font-medium text-gray-600 dark:text-gray-400">
+                  {total}
+                </span>
+              )}
+            </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {(expanded || isAlwaysOpen) && hasLoaded && items.length > 0 && (
-              <span
-                className={`hidden md:inline text-[10px] truncate ${
-                  showDeletionWarning
-                    ? 'text-amber-700 dark:text-amber-300 font-medium'
-                    : 'text-gray-400 dark:text-gray-500'
-                }`}
-              >
-                {showDeletionWarning && (
-                  <ExclamationTriangleIcon className="inline h-3.5 w-3.5 mr-1 align-[-1px]" />
-                )}
-                {t('History is automatically deleted after 14 days')}
-              </span>
-            )}
-            {!isAlwaysOpen && (
-              <ChevronRightIcon
-                className={`h-4 w-4 text-gray-400 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${expanded ? 'rotate-90' : ''}`}
-              />
-            )}
-          </div>
-        </button>
-      </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {(expanded || isAlwaysOpen) && hasLoaded && items.length > 0 && (
+                <span
+                  className={`hidden md:inline text-[10px] truncate ${
+                    showDeletionWarning
+                      ? 'text-amber-700 dark:text-amber-300 font-medium'
+                      : 'text-gray-400 dark:text-gray-500'
+                  }`}
+                >
+                  {showDeletionWarning && (
+                    <ExclamationTriangleIcon className="inline h-3.5 w-3.5 mr-1 align-[-1px]" />
+                  )}
+                  {t('History is automatically deleted after 14 days')}
+                </span>
+              )}
+              {!isAlwaysOpen && (
+                <ChevronRightIcon
+                  className={`h-4 w-4 text-gray-400 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${expanded ? 'rotate-90' : ''}`}
+                />
+              )}
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Expandable content */}
       {(expanded || isAlwaysOpen) && (
         <div
-          className={`min-h-0 flex flex-col overflow-hidden border-t border-gray-100 dark:border-gray-800/60 px-2 pb-2 ${
+          className={`min-h-0 flex flex-col overflow-hidden ${hideHeader ? '' : 'border-t border-gray-100 dark:border-gray-800/60'} px-2 pb-2 ${
             moduleKey === 'bank-statements'
               ? 'max-h-[420px] lg:max-h-none lg:flex-1'
               : 'max-h-[420px]'

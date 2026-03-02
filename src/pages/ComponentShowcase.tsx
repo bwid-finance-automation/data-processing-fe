@@ -36,22 +36,29 @@ export default function ComponentShowcase() {
   ];
 
   return (
-    <div className="min-h-screen theme-bg-app py-8 px-6">
-      <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-4xl font-bold theme-text-primary mb-2 gradient-text">
-            {t("showcaseTitle")}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {t("showcaseSubtitle")}
-          </p>
-        </motion.div>
+    <div className="min-h-screen bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
+      {/* Header */}
+      <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
+        <div className="w-full max-w-[85vw] mx-auto py-6">
+          <Breadcrumb items={breadcrumbItems} />
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <SparklesIcon className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#f5efe6]">
+                  {t("showcaseTitle")}
+                </h1>
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
+                  {t("showcaseSubtitle")}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        <Breadcrumb items={breadcrumbItems} className="mb-8" />
+      {/* Main Content */}
+      <div className="w-full max-w-[85vw] mx-auto p-6">
 
         {/* Buttons Section */}
         <motion.section

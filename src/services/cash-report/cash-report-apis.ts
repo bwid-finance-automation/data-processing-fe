@@ -281,49 +281,6 @@ export const runOpenNewAutomation = async (sessionId, lookupFiles = []) => {
 };
 
 /**
- * Clean template file before session initialization.
- * Applies 3 cleanups on backend:
- * - truncate Movement rows
- * - remove queries + connections
- * - break workbook links
- * @param {File} file - Template .xlsx file
- * @param {number} maxRows - Maximum Movement rows to keep (default: 3000)
- * @returns {Promise<{blob: Blob, filename: string}>}
- */
-export const cleanTemplateFile = async (file, maxRows = 3000) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('max_rows', String(maxRows));
-
-  try {
-    const response = await apiClient.post(
-      `${FINANCE_API_BASE_URL}/cash-report/clean-template`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        responseType: 'blob',
-      }
-    );
-
-    const contentDisposition = response.headers['content-disposition'];
-    let filename = `${file.name.replace(/\.xlsx$/i, '')}_Cleaned.xlsx`;
-    if (contentDisposition) {
-      const match = contentDisposition.match(/filename=(.+)/);
-      if (match) {
-        filename = match[1].replace(/"/g, '');
-      }
-    }
-
-    return { blob: response.data, filename };
-  } catch (error) {
-    console.error('Error cleaning template file:', error);
-    throw error;
-  }
-};
-
-/**
  * Run Step 8 + Step 9 reconcile checks using real workbook data.
  * @param {string} sessionId - Session ID
  * @returns {Promise} Reconcile result payload

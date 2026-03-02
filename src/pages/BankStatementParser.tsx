@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { DocumentTextIcon, BookOpenIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, BookOpenIcon, ClockIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -59,9 +60,7 @@ const BankStatementParser = () => {
   const [zipPdfPasswords, setZipPdfPasswords] = useState({});
   const [pendingZipFiles, setPendingZipFiles] = useState([]);
 
-  const uploadSectionRef = useRef<HTMLDivElement | null>(null);
-  const resultsSectionRef = useRef<HTMLDivElement | null>(null);
-  const [historyHeight, setHistoryHeight] = useState<number | null>(null);
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
 
   // Parse history (local)
   const [_parseHistory, setParseHistory] = useState([]);
@@ -822,39 +821,6 @@ const BankStatementParser = () => {
     }
   }, [results?.session_id]);
 
-  // Keep Recent History height synced to Upload section height (desktop),
-  // so opening history won't push footer down.
-  useEffect(() => {
-    const uploadEl = uploadSectionRef.current;
-    const resultsEl = resultsSectionRef.current;
-    if (!uploadEl || !resultsEl || typeof ResizeObserver === 'undefined') return;
-
-    const syncHistoryHeight = () => {
-      if (window.innerWidth < 1024) {
-        setHistoryHeight(null);
-        return;
-      }
-
-      const uploadHeight = uploadEl.getBoundingClientRect().height;
-      const resultsHeight = resultsEl.getBoundingClientRect().height;
-      const verticalGap = 24; // Tailwind gap-6
-      const computed = Math.max(0, Math.floor(uploadHeight - resultsHeight - verticalGap));
-
-      setHistoryHeight(Number.isFinite(computed) ? computed : null);
-    };
-
-    syncHistoryHeight();
-
-    const observer = new ResizeObserver(syncHistoryHeight);
-    observer.observe(uploadEl);
-    observer.observe(resultsEl);
-    window.addEventListener('resize', syncHistoryHeight);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', syncHistoryHeight);
-    };
-  }, []);
 
 
 
@@ -893,7 +859,7 @@ const BankStatementParser = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
 
           {/* Upload Section */}
-          <div data-tour="bs-upload" ref={uploadSectionRef}>
+          <div data-tour="bs-upload">
             <FileUploadSection
               fileMode={fileMode}
               processing={processing}
@@ -920,34 +886,22 @@ const BankStatementParser = () => {
             />
           </div>
 
-          {/* Results + History Section */}
-          <div className="flex flex-col gap-6">
-            <div ref={resultsSectionRef} data-tour="bs-results">
-              <ResultsSection
-                results={results}
-                processing={processing}
-                error={error}
-                processingTime={processingTime}
-                fileMode={fileMode}
-                files={files}
-                supportedBanks={supportedBanks}
-                supportedBanksPDF={supportedBanksPDF}
-                struckBanks={struckBanks}
-                struckBanksPDF={struckBanksPDF}
-                onDownload={handleDownload}
-              />
-            </div>
-            <div
-              className="lg:min-h-0"
-              data-tour="bs-history"
-              style={historyHeight !== null ? { height: `${historyHeight}px` } : undefined}
-            >
-              <ModuleHistory
-                moduleKey="bank-statements"
-                refreshTrigger={results?.session_id}
-                className={historyHeight !== null ? 'h-full min-h-0' : ''}
-              />
-            </div>
+          {/* Results Section */}
+          <div data-tour="bs-results">
+            <ResultsSection
+              results={results}
+              processing={processing}
+              error={error}
+              processingTime={processingTime}
+              fileMode={fileMode}
+              files={files}
+              supportedBanks={supportedBanks}
+              supportedBanksPDF={supportedBanksPDF}
+              struckBanks={struckBanks}
+              struckBanksPDF={struckBanksPDF}
+              onDownload={handleDownload}
+              onShowHistory={() => setShowHistoryDialog(true)}
+            />
           </div>
 
         </div>
@@ -980,6 +934,50 @@ const BankStatementParser = () => {
         isLoading={zipContentsDialog.isLoading}
         zipFileName={zipContentsDialog.zipFileName}
       />
+
+      {/* History Dialog */}
+      <AnimatePresence>
+        {showHistoryDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowHistoryDialog(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="bg-[#f7f6f3] dark:bg-[#181818] rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-xl mx-4 max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <ClockIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  {t('Recent History')}
+                </h3>
+                <button
+                  onClick={() => setShowHistoryDialog(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-md transition-colors"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden p-4">
+                <ModuleHistory
+                  moduleKey="bank-statements"
+                  refreshTrigger={results?.session_id}
+                  className="h-full min-h-0"
+                  hideHeader
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

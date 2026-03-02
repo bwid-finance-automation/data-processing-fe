@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { TableCellsIcon } from '@heroicons/react/24/outline';
 import Breadcrumb from '@components/common/Breadcrumb';
 import ModuleHistory from '@components/common/ModuleHistory';
 import { fpaApiClient, FPA_API_BASE_URL } from '@configs/APIs';
@@ -87,46 +88,35 @@ function ExcelComparison() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#181818] dark:to-[#0d0d0d] py-8 px-4">
-      <div className="w-full max-w-[85vw] mx-auto">
-        {/* Breadcrumb Navigation */}
-        <Breadcrumb items={breadcrumbItems} className="mb-6" />
-
-        {/* Back Button */}
-        <motion.button
-          onClick={() => navigate("/project/1")}
-          whileHover={{ x: -5 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 mb-6 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-[#222] dark:hover:text-[#f5efe6] bg-white dark:bg-[#222] rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all shadow-sm"
-        >
-          <span className="text-lg font-bold">←</span>
-          <span className="font-medium">{t("backButton")}</span>
-        </motion.button>
-
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center gap-4 mb-2">
-            <div className="p-3 bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 rounded-xl shadow-lg">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#0d0d0d]">
+      {/* Header */}
+      <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
+        <div className="w-full max-w-[85vw] mx-auto py-6">
+          <Breadcrumb items={breadcrumbItems} />
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <TableCellsIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#f5efe6]">
+                  {t("excelComparisonTitle") || "Excel Comparison Tool"}
+                </h1>
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
+                  {t("excelComparisonSubtitle") || "Compare Excel files and get highlighted results instantly"}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-4xl font-bold gradient-text">
-                {t("excelComparisonTitle") || "Excel Comparison Tool"}
-              </h1>
-              <p className="text-base text-gray-600 dark:text-gray-400 mt-1">
-                {t("excelComparisonSubtitle") || "Compare Excel files and get highlighted results instantly"}
-              </p>
-            </div>
+            <button
+              onClick={() => navigate("/project/1")}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-sm transition-colors"
+            >
+              <span>&#8592;</span>
+              <span>{t("backButton")}</span>
+            </button>
           </div>
+        </div>
+      </div>
 
-        </motion.div>
-
+      <div className="w-full max-w-[85vw] mx-auto p-6">
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
           {/* Previous File Upload Panel */}
@@ -543,16 +533,10 @@ function ExcelComparison() {
         />
 
         {/* Footer */}
-        <motion.footer
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700"
-        >
+        <footer className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700">
           <p>{t('dataComparisonFooter')}</p>
-        </motion.footer>
+        </footer>
       </div>
-
     </div>
   );
 }

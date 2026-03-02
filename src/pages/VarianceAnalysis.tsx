@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChartBarSquareIcon } from "@heroicons/react/24/outline";
 import AIAnalysis from "@components/variance/AIAnalysis";
 import Account511Analysis from "@components/variance/Account511Analysis";
 import Breadcrumb from "@components/common/Breadcrumb";
@@ -24,36 +25,35 @@ export default function VarianceAnalysis() {
   ];
 
   return (
-    <div className="min-h-screen theme-bg-app">
-      <div className="w-full max-w-[85vw] mx-auto py-5">
-        {/* Breadcrumb Navigation */}
-        <Breadcrumb items={breadcrumbItems} className="mb-4" />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#0d0d0d]">
+      {/* Header */}
+      <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
+        <div className="w-full max-w-[85vw] mx-auto py-6">
+          <Breadcrumb items={breadcrumbItems} />
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ChartBarSquareIcon className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#f5efe6]">
+                  {t('varianceAnalysisTitle')}
+                </h1>
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
+                  {t('varianceAnalysisSubtitle')}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate("/project/2")}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-sm transition-colors"
+            >
+              <span>&#8592;</span>
+              <span>{t("backButton")}</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
-        {/* Back Button */}
-        <motion.button
-          onClick={() => navigate("/project/2")}
-          whileHover={{ x: -5 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 mb-4 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 theme-surface rounded-lg border border-[color:var(--app-border)] hover:border-gray-300 dark:hover:border-gray-600 transition-all"
-        >
-          <span className="text-lg font-bold">←</span>
-          <span className="font-medium">{t("backButton")}</span>
-        </motion.button>
-
-        {/* Header Section */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-5"
-        >
-          <h1 className="text-2xl font-bold text-[#222] dark:text-[#f5efe6] mb-1 gradient-text">
-            {t('varianceAnalysisTitle')}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
-            {t('varianceAnalysisSubtitle')}
-          </p>
-        </motion.div>
-
+      <div className="w-full max-w-[85vw] mx-auto p-6">
         {/* Tab Navigation */}
         <div className="theme-surface p-1.5 rounded-lg shadow-md border border-[color:var(--app-border)] flex gap-1.5 mb-5">
           <motion.button
@@ -136,14 +136,8 @@ export default function VarianceAnalysis() {
       </div>
 
       {/* Footer */}
-      <footer className="mt-8 py-4 text-center text-gray-600 dark:text-gray-400 text-xs border-t border-[color:var(--app-border)]">
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          {t('Variance Analysis')}
-        </motion.p>
+      <footer className="mt-8 py-4 text-center text-gray-600 dark:text-gray-400 text-xs border-t border-gray-200 dark:border-gray-700">
+        <p>{t('Variance Analysis')}</p>
       </footer>
     </div>
   );

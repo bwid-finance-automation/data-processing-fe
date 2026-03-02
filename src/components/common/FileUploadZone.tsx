@@ -174,12 +174,12 @@ const FileUploadZone = memo(function FileUploadZone({
           </div>
           <div className={compact ? 'text-left' : 'text-center'}>
             <p className={`${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-700 dark:text-gray-200`}>
-              {hasFiles
+              {hasFiles && showFileList
                 ? (multiple ? `${selectedFiles.length} ${t('file(s) selected')}` : selectedFiles[0]?.name)
                 : (label || t('Click to choose files'))}
             </p>
             <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-gray-500 dark:text-gray-400 mt-0.5`}>
-              {hasFiles
+              {hasFiles && showFileList
                 ? formatFileSize(selectedFiles.reduce((acc, f) => acc + f.size, 0))
                 : (hint || t('or drag and drop'))}
             </p>

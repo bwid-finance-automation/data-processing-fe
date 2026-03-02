@@ -16,7 +16,6 @@ import {
   DocumentChartBarIcon,
   ChevronRightIcon,
   ChevronLeftIcon,
-  ChevronDownIcon,
   ArrowsRightLeftIcon,
   CircleStackIcon,
   MagnifyingGlassIcon,
@@ -29,7 +28,7 @@ import {
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
-import { Breadcrumb, FileUploadZone, ActionMenu } from '@components/common';
+import { Breadcrumb, FileUploadZone, ActionMenu, FilesDialogButton } from '@components/common';
 import TutorialGuide from '../components/cash-report/TutorialGuide';
 import ConfirmDialog from '../components/cash-report/ConfirmDialog';
 import CreateSessionModal from '../components/cash-report/CreateSessionModal';
@@ -85,7 +84,6 @@ const CashReport = () => {
   // UI state
   const [showProgress, setShowProgress] = useState(false);
 
-  const [showUploadedFiles, setShowUploadedFiles] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -767,22 +765,19 @@ const CashReport = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#0d0d0d] p-6">
-      <div className="w-full max-w-[85vw] mx-auto">
-        <Breadcrumb items={breadcrumbItems} />
-
-        {/* Header */}
-        <div className="mt-6 mb-8" data-tour="header">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#0d0d0d]">
+      {/* Header */}
+      <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
+        <div className="w-full max-w-[85vw] mx-auto py-6">
+          <Breadcrumb items={breadcrumbItems} />
+          <div className="mt-4 flex items-center justify-between" data-tour="header">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
-                <BanknotesIcon className="w-8 h-8 text-white" />
-              </div>
+              <BanknotesIcon className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#f5efe6]">
                   {t('Cash Report Automation')}
                 </h1>
-                <p className="text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
                   {t('Automate biweekly cash report generation')}
                 </p>
               </div>
@@ -796,67 +791,80 @@ const CashReport = () => {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="w-full max-w-[85vw] mx-auto p-6">
 
         {/* ── Master Control Panel ── */}
         {hasSession && (
-          <div>
-            <div className="bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden" data-tour="master">
+          <div className="relative max-w-4xl mx-auto" data-tour="master">
+            {/* Decorative blur gradient */}
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-2/3 h-24 bg-gradient-to-r from-indigo-400/20 via-purple-400/20 to-pink-400/20 dark:from-indigo-500/10 dark:via-purple-500/10 dark:to-pink-500/10 blur-3xl rounded-full pointer-events-none" />
+
+            <div className="relative bg-white dark:bg-[#1e1e1e] rounded-3xl shadow-lg shadow-gray-200/50 dark:shadow-black/20 border border-gray-200/80 dark:border-gray-800 overflow-hidden">
             {loadingSessions ? (
               <div className="flex items-center justify-center py-12">
                 <ArrowPathIcon className="w-6 h-6 animate-spin text-gray-400" />
               </div>
             ) : (
               <div>
-                {/* ── Top Bar ── */}
-                <div className="px-6 lg:px-8 pt-6 pb-4 flex items-center justify-between gap-4 flex-wrap">
-                  {/* Left: period name + badge */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight truncate">
-                      {session?.config?.period_name || '—'}
-                    </h2>
-                    <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${sessionBadge.color}`}>
-                      {sessionBadge.label}
-                    </span>
+                {/* ── Row 1: Session Info ── */}
+                <div className="px-6 pt-6 pb-4 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    {/* Calendar icon container */}
+                    <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/20">
+                      <CalendarIcon className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2.5">
+                        <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight truncate">
+                          {session?.config?.period_name || '—'}
+                        </h2>
+                        {/* Animated status dot */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="relative flex h-2 w-2">
+                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                              sessionBadge.label === 'Ready' ? 'bg-emerald-400' : 'bg-amber-400'
+                            }`} />
+                            <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                              sessionBadge.label === 'Ready' ? 'bg-emerald-500' : 'bg-amber-500'
+                            }`} />
+                          </span>
+                          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                            {sessionBadge.label}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Metadata line */}
+                      <div className="hidden sm:flex items-center gap-2 mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        <span>{formatDate(session?.config?.opening_date)}</span>
+                        <ChevronRightIcon className="w-3 h-3 text-gray-300 dark:text-gray-600" />
+                        <span>{formatDate(session?.config?.ending_date)}</span>
+                        <span className="inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold text-[11px]">
+                          <TableCellsIcon className="w-3 h-3" />
+                          {movementRows.toLocaleString()} {t('Transactions')}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Right: resetting hint + Export + ActionMenu */}
                   <div className="flex items-center gap-2 shrink-0">
                     {resetting && (
                       <span className="text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
                         {resetSlow ? t('Cleaning up...') : t('Resetting...')}
                       </span>
                     )}
-
-                    {/* Toggle Files Button */}
-                    {session?.uploaded_files?.length > 0 && (
-                      <button
-                        onClick={() => setShowUploadedFiles(!showUploadedFiles)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                          showUploadedFiles
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                        }`}
-                        title={showUploadedFiles ? t('Hide Uploaded Files') : t('Show Uploaded Files')}
-                      >
-                        <DocumentTextIcon className="w-4 h-4" />
-                        <span className="hidden sm:inline">{t('Files')}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-xs ${showUploadedFiles ? 'bg-emerald-200/50 dark:bg-emerald-800/50' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                          {session.uploaded_files.length}
-                        </span>
-                      </button>
-                    )}
-
-                    {/* Export dropdown */}
                     <div className="relative" data-export-menu data-tour="export">
                       <button
                         onClick={() => setShowExportMenu(prev => !prev)}
                         disabled={downloading}
                         aria-label={t('Export options')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200/60 dark:border-gray-700/50 transition-colors disabled:opacity-50"
                       >
-                        {downloading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
+                        <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                          {downloading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
+                        </div>
                         {t('Export')}
-                        <ChevronDownIcon className={`w-3 h-3 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
                       </button>
                       <AnimatePresence>
                         {showExportMenu && (
@@ -865,15 +873,17 @@ const CashReport = () => {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -4, scale: 0.97 }}
                             transition={{ duration: 0.12 }}
-                            className="absolute right-0 mt-1 w-52 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 overflow-hidden"
+                            className="absolute right-0 mt-1.5 w-56 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-black/30 z-20 overflow-hidden p-1.5"
                           >
                             {exportOptions.map((opt, i) => (
                               <button
                                 key={i}
                                 onClick={() => { handleDownload(opt.step); setShowExportMenu(false); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors text-left"
                               >
-                                <ArrowDownTrayIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                <div className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                                  <ArrowDownTrayIcon className="w-3.5 h-3.5 text-gray-500" />
+                                </div>
                                 {opt.label}
                               </button>
                             ))}
@@ -881,253 +891,202 @@ const CashReport = () => {
                         )}
                       </AnimatePresence>
                     </div>
-
                     <ActionMenu items={actionMenuItems} />
                   </div>
                 </div>
 
-                {/* ── Info Strip ── */}
-                <div className="px-6 lg:px-8 pb-5 flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-                    <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{formatDate(session?.config?.opening_date)} — {formatDate(session?.config?.ending_date)}</span>
-                  </div>
-                  <div className="h-3.5 w-px bg-gray-200 dark:bg-gray-700" />
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">{t('Transactions')}</span>
-                    <span className="font-semibold text-gray-800 dark:text-gray-200">{movementRows.toLocaleString()}</span>
-                  </div>
+                {/* Mobile info strip (hidden on sm+) */}
+                <div className="sm:hidden px-6 pb-3 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                  <span>{formatDate(session?.config?.opening_date)}</span>
+                  <ChevronRightIcon className="w-3 h-3 text-gray-300 dark:text-gray-600" />
+                  <span>{formatDate(session?.config?.ending_date)}</span>
+                  <span className="inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold text-[11px]">
+                    {movementRows.toLocaleString()} {t('Transactions')}
+                  </span>
                 </div>
 
-                {/* ── Primary Actions & Uploaded Files ── */}
-                <div className="px-6 lg:px-8 pb-6 flex flex-col md:flex-row items-stretch gap-4">
-
-                  {/* Primary Actions Container */}
-                  {movementRows > 0 && (
-                    <div
-                      className={`relative py-5 px-4 rounded-[2rem] bg-gradient-to-b from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#111] border border-gray-200/60 dark:border-gray-800/60 flex flex-col items-center gap-4 min-w-0 transition-all duration-300 ease-in-out ${showUploadedFiles && session?.uploaded_files?.length > 0 ? 'md:w-[60%]' : 'w-full'}`}
-                      data-tour="automation"
-                    >
-
-                          {/* Floating pill tab switcher */}
-                          <div className="flex w-full p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-full border border-gray-200 dark:border-gray-700/50 shadow-inner">
-                            <button
-                              onClick={() => setAutomationTab('settlement')}
-                              disabled={isAutomationTabLocked}
-                              aria-label={t('Settlement tab')}
-                              className={`relative flex-1 px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                                automationTab === 'settlement'
-                                  ? 'bg-white dark:bg-[#2a2a2a] text-indigo-700 dark:text-indigo-300 shadow-md'
-                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                              } disabled:opacity-60 disabled:cursor-not-allowed`}
-                            >
-                              <ArrowsRightLeftIcon className="w-3.5 h-3.5" />
-                              {t('Settlement')}
-                              {settlementSSE.isRunning && (
-                                <span className="relative flex h-1.5 w-1.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
-                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500" />
-                                </span>
-                              )}
-                              {settlementSSE.result && !settlementSSE.isRunning && (
-                                <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => setAutomationTab('open_new')}
-                              disabled={isAutomationTabLocked}
-                              aria-label={t('Open New tab')}
-                              className={`relative flex-1 px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                                automationTab === 'open_new'
-                                  ? 'bg-white dark:bg-[#2a2a2a] text-purple-700 dark:text-purple-300 shadow-md'
-                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                              } disabled:opacity-60 disabled:cursor-not-allowed`}
-                            >
-                              <BanknotesIcon className="w-3.5 h-3.5" />
-                              {t('Open New')}
-                              {openNewSSE.isRunning && (
-                                <span className="relative flex h-1.5 w-1.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
-                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-500" />
-                                </span>
-                              )}
-                              {openNewSSE.result && !openNewSSE.isRunning && (
-                                <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
-                              )}
-                            </button>
-                            <button
-                              disabled
-                              aria-label={t('Reconcile tab')}
-                              title={t('Reconcile is currently locked')}
-                              className="relative flex-1 px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center justify-center gap-1.5 text-gray-400 dark:text-gray-500 opacity-60 cursor-not-allowed"
-                            >
-                              <LockClosedIcon className="w-3.5 h-3.5" />
-                              {t('Reconcile')}
-                            </button>
-                          </div>
-
-                          {/* Action card */}
-                          <div className="w-full bg-white/80 dark:bg-white/[0.04] backdrop-blur-md p-2 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.07)] dark:shadow-none border border-gray-200/50 dark:border-gray-700/30 relative overflow-hidden">
-                            {/* Ambient glow matching active tab */}
-                            <div className={`absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 blur-3xl opacity-[0.15] rounded-full pointer-events-none transition-colors duration-700 ${
-                              automationTab === 'settlement'
-                                ? 'bg-indigo-500'
-                                : automationTab === 'open_new'
-                                  ? 'bg-purple-500'
-                                  : 'bg-cyan-500'
-                            }`} />
-
-                            <div className="relative z-10">
-                              <AnimatePresence mode="wait">
-                                {automationTab === 'settlement' ? (
-                                  <motion.div
-                                    key="settlement"
-                                    initial={{ opacity: 0, y: 6 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -6 }}
-                                    transition={{ duration: 0.18 }}
-                                    className="flex flex-col gap-2"
-                                  >
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={handlePreviewSettlement}
-                                        disabled={previewingSettlement || settlementSSE.isRunning || openNewSSE.isRunning || reconcileRunning}
-                                        aria-label={t('Preview settlement candidates')}
-                                        title={t('Preview what settlement will do (dry run)')}
-                                        className="flex items-center justify-center gap-1.5 w-[100px] py-3 bg-white dark:bg-[#2a2a2a] text-indigo-600 dark:text-indigo-400 font-bold rounded-2xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-gray-100 dark:border-gray-800 shadow-sm transition-all disabled:opacity-50 text-sm flex-shrink-0"
-                                      >
-                                        {previewingSettlement
-                                          ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                                          : <EyeIcon className="w-4 h-4" />
-                                        }
-                                        {t('Preview')}
-                                      </button>
-                                      <button
-                                        onClick={handleRunSettlement}
-                                        disabled={settlementSSE.isRunning || openNewSSE.isRunning || reconcileRunning}
-                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-black dark:hover:bg-white text-white dark:text-gray-900 rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
-                                      >
-                                        {settlementSSE.isRunning
-                                          ? <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                                          : <ArrowsRightLeftIcon className="w-5 h-5" />
-                                        }
-                                        {settlementSSE.isRunning ? t('Running Settlement...') : t('Run Settlement')}
-                                      </button>
-                                    </div>
-                                  </motion.div>
-                                ) : automationTab === 'open_new' ? (
-                                  <motion.div
-                                    key="open_new"
-                                    initial={{ opacity: 0, y: 6 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -6 }}
-                                    transition={{ duration: 0.18 }}
-                                    className="flex flex-col gap-2"
-                                  >
-                                    {/* Lookup files upload — compact row */}
-                                    <FileUploadZone
-                                      onFilesSelected={handleLookupFilesSelected}
-                                      accept=".xlsx,.xls,.pdf"
-                                      multiple
-                                      compact
-                                      horizontal
-                                      selectedFiles={lookupFiles}
-                                      label={t('Upload Lookup Files')}
-                                      hint={t('Drag & drop or click')}
-                                      colorTheme="purple"
-                                      showFileList={true}
-                                      onRemoveFile={removeLookupFile}
-                                      id="lookup-files-upload"
-                                    />
-
-                                    {/* Preview + Run Open New buttons row */}
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={handlePreviewOpenNew}
-                                        disabled={previewingOpenNew || openNewSSE.isRunning || settlementSSE.isRunning || reconcileRunning}
-                                        aria-label={t('Preview open-new candidates')}
-                                        title={t('Preview what open-new will do (dry run)')}
-                                        className="flex items-center justify-center gap-1.5 w-[100px] py-3 bg-white dark:bg-[#2a2a2a] text-purple-600 dark:text-purple-400 font-bold rounded-2xl hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-gray-100 dark:border-gray-800 shadow-sm transition-all disabled:opacity-50 text-sm flex-shrink-0"
-                                      >
-                                        {previewingOpenNew
-                                          ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                                          : <EyeIcon className="w-4 h-4" />
-                                        }
-                                        {t('Preview')}
-                                      </button>
-                                      <button
-                                        onClick={handleRunOpenNew}
-                                        disabled={openNewSSE.isRunning || settlementSSE.isRunning || reconcileRunning}
-                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 dark:bg-gray-100 hover:bg-black dark:hover:bg-white text-white dark:text-gray-900 rounded-2xl font-bold shadow-md transition-all disabled:opacity-50"
-                                      >
-                                        {openNewSSE.isRunning
-                                          ? <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                                          : <BanknotesIcon className="w-5 h-5" />
-                                        }
-                                        {openNewSSE.isRunning ? t('Running Open New...') : t('Run Open New')}
-                                      </button>
-                                    </div>
-                                  </motion.div>
-                                ) : (
-                                  <motion.div
-                                    key="reconcile"
-                                    initial={{ opacity: 0, y: 6 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -6 }}
-                                    transition={{ duration: 0.18 }}
-                                    className="flex flex-col items-center justify-center gap-3 py-6 text-center"
-                                  >
-                                    <LockClosedIcon className="w-10 h-10 text-gray-300 dark:text-gray-600" />
-                                    <p className="text-sm font-semibold text-gray-400 dark:text-gray-500">
-                                      {t('Reconcile is currently locked')}
-                                    </p>
-                                    <p className="text-xs text-gray-400 dark:text-gray-500">
-                                      {t('This feature is temporarily unavailable.')}
-                                    </p>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          </div>
+                {/* ── Row 2: Automation Actions ── */}
+                {movementRows > 0 && (
+                  <div className="px-6 pb-6 space-y-3" data-tour="automation">
+                    {/* Full-width segmented control tabs */}
+                    <div className="relative flex p-1 bg-gray-100 dark:bg-black/40 rounded-2xl">
+                      <button
+                        onClick={() => setAutomationTab('settlement')}
+                        disabled={isAutomationTabLocked}
+                        aria-label={t('Settlement tab')}
+                        className="relative z-10 flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {automationTab === 'settlement' && (
+                          <motion.div
+                            layoutId="activeTab"
+                            className="absolute inset-0 bg-white dark:bg-[#2a2a2a] rounded-xl shadow-sm"
+                            transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                          />
+                        )}
+                        <span className={`relative z-10 flex items-center gap-1.5 ${
+                          automationTab === 'settlement'
+                            ? 'text-indigo-700 dark:text-indigo-300'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                        }`}>
+                          <ArrowsRightLeftIcon className="w-4 h-4" />
+                          {t('Settlement')}
+                          {settlementSSE.isRunning && (
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500" />
+                            </span>
+                          )}
+                          {settlementSSE.result && !settlementSSE.isRunning && (
+                            <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
+                          )}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => setAutomationTab('open_new')}
+                        disabled={isAutomationTabLocked}
+                        aria-label={t('Open New tab')}
+                        className="relative z-10 flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {automationTab === 'open_new' && (
+                          <motion.div
+                            layoutId="activeTab"
+                            className="absolute inset-0 bg-white dark:bg-[#2a2a2a] rounded-xl shadow-sm"
+                            transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                          />
+                        )}
+                        <span className={`relative z-10 flex items-center gap-1.5 ${
+                          automationTab === 'open_new'
+                            ? 'text-purple-700 dark:text-purple-300'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                        }`}>
+                          <BanknotesIcon className="w-4 h-4" />
+                          {t('Open New')}
+                          {openNewSSE.isRunning && (
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-500" />
+                            </span>
+                          )}
+                          {openNewSSE.result && !openNewSSE.isRunning && (
+                            <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
+                          )}
+                        </span>
+                      </button>
+                      <button
+                        disabled
+                        aria-label={t('Reconcile tab')}
+                        title={t('Reconcile is currently locked')}
+                        className="relative z-10 flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 text-gray-400 dark:text-gray-500 opacity-60 cursor-not-allowed"
+                      >
+                        <LockClosedIcon className="w-4 h-4" />
+                        {t('Reconcile')}
+                      </button>
                     </div>
-                  )}
 
-                  {/* Uploaded Files Side Panel — CSS-only transition, always mounted */}
-                  {session?.uploaded_files?.length > 0 && (
-                    <div
-                      className={`hidden md:block overflow-hidden transition-all duration-300 ease-in-out ${
-                        showUploadedFiles ? 'md:w-[40%] opacity-100' : 'w-0 opacity-0'
-                      }`}
-                    >
-                      <div className="h-full py-4 px-3 rounded-[2rem] bg-gradient-to-b from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#111] border border-gray-200/60 dark:border-gray-800/60 min-w-[220px] flex flex-col">
-                        <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                          <h4 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 tracking-wider flex items-center gap-1.5">
-                            <DocumentTextIcon className="w-3.5 h-3.5" />
-                            {t('Files')}
-                          </h4>
-                          <span className="text-[10px] text-gray-400 font-mono whitespace-nowrap">
-                            {((session?.uploaded_files?.reduce((acc, f) => acc + (f.file_size || 0), 0) || 0) / 1024 / 1024).toFixed(2)} MB
-                          </span>
-                        </div>
-                        <div className="space-y-1.5 overflow-y-auto pr-1 flex-1 min-h-0">
-                          {session.uploaded_files.map((file, idx) => (
-                            <div
-                              key={`${file.filename}-${idx}`}
-                              className="flex items-center gap-2 px-2.5 py-2 bg-white dark:bg-white/[0.04] rounded-lg border border-gray-200 dark:border-gray-700/40 hover:border-blue-400 dark:hover:border-blue-600 transition-colors"
-                            >
-                              <div className="p-1 bg-blue-50 dark:bg-blue-900/20 rounded text-blue-600 dark:text-blue-400 flex-shrink-0">
-                                <DocumentTextIcon className="w-3.5 h-3.5" />
-                              </div>
-                              <p className="text-[11px] font-medium text-gray-900 dark:text-white truncate" title={file.filename}>
-                                {file.filename}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    {/* Tab content area */}
+                    <AnimatePresence mode="wait">
+                      {automationTab === 'settlement' ? (
+                        <motion.div
+                          key="settlement"
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex items-center gap-2 justify-end"
+                        >
+                          <button
+                            onClick={handlePreviewSettlement}
+                            disabled={previewingSettlement || settlementSSE.isRunning || openNewSSE.isRunning || reconcileRunning}
+                            aria-label={t('Preview settlement candidates')}
+                            title={t('Preview what settlement will do (dry run)')}
+                            className="flex items-center gap-1.5 px-4 py-2.5 bg-white dark:bg-[#2a2a2a] text-indigo-600 dark:text-indigo-400 font-bold rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700/50 shadow-sm transition-all disabled:opacity-50 text-sm"
+                          >
+                            {previewingSettlement
+                              ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                              : <EyeIcon className="w-4 h-4" />
+                            }
+                            {t('Preview')}
+                          </button>
+                          <button
+                            onClick={handleRunSettlement}
+                            disabled={settlementSSE.isRunning || openNewSSE.isRunning || reconcileRunning}
+                            className="flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-xl font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50 text-sm"
+                          >
+                            {settlementSSE.isRunning
+                              ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                              : <ArrowsRightLeftIcon className="w-4 h-4" />
+                            }
+                            {settlementSSE.isRunning ? t('Running Settlement...') : t('Run Settlement')}
+                          </button>
+                        </motion.div>
+                      ) : automationTab === 'open_new' ? (
+                        <motion.div
+                          key="open_new"
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex items-center gap-2"
+                        >
+                          <FileUploadZone
+                            onFilesSelected={handleLookupFilesSelected}
+                            accept=".xlsx,.xls,.pdf"
+                            multiple
+                            compact
+                            selectedFiles={lookupFiles}
+                            label={t('Upload Lookup Files')}
+                            hint={t('Drag & drop or click')}
+                            colorTheme="purple"
+                            showFileList={false}
+                            id="lookup-files-upload"
+                            className="flex-1 min-w-0"
+                          />
+                          <FilesDialogButton
+                            files={lookupFiles}
+                            onRemoveFile={removeLookupFile}
+                            colorTheme="purple"
+                          />
+                          <button
+                            onClick={handlePreviewOpenNew}
+                            disabled={previewingOpenNew || openNewSSE.isRunning || settlementSSE.isRunning || reconcileRunning}
+                            aria-label={t('Preview open-new candidates')}
+                            title={t('Preview what open-new will do (dry run)')}
+                            className="flex items-center gap-1.5 px-4 py-2.5 bg-white dark:bg-[#2a2a2a] text-purple-600 dark:text-purple-400 font-bold rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-purple-200 dark:border-purple-700/50 shadow-sm transition-all disabled:opacity-50 text-sm shrink-0"
+                          >
+                            {previewingOpenNew
+                              ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                              : <EyeIcon className="w-4 h-4" />
+                            }
+                            {t('Preview')}
+                          </button>
+                          <button
+                            onClick={handleRunOpenNew}
+                            disabled={openNewSSE.isRunning || settlementSSE.isRunning || reconcileRunning}
+                            className="flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl font-bold shadow-md shadow-purple-500/20 transition-all disabled:opacity-50 text-sm shrink-0"
+                          >
+                            {openNewSSE.isRunning
+                              ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                              : <PlayIcon className="w-4 h-4" />
+                            }
+                            {openNewSSE.isRunning ? t('Running Open New...') : t('Run Open New')}
+                          </button>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="reconcile"
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex items-center justify-center gap-2 py-2 text-gray-400 dark:text-gray-500"
+                        >
+                          <LockClosedIcon className="w-4 h-4" />
+                          <span className="text-sm font-medium">{t('Reconcile is currently locked')}</span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
 
               </div>
             )}
@@ -1227,14 +1186,30 @@ const CashReport = () => {
 
                   {/* LEFT: Bank Statements */}
                   <div className="flex-1 min-w-0 flex flex-col">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                      {t('Upload Bank Statements')}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      {t('Upload parsed bank statement Excel files')}
-                    </p>
+                    <div className="flex items-start justify-between mb-1">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {t('Upload Bank Statements')}
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {t('Upload parsed bank statement Excel files')}
+                        </p>
+                      </div>
+                      <FilesDialogButton
+                        files={[
+                          ...(session?.uploaded_files || []).map(f => ({ name: f.filename, size: f.file_size || 0 })),
+                          ...files,
+                        ]}
+                        onRemoveFile={files.length > 0 ? (index) => {
+                          const uploadedCount = session?.uploaded_files?.length || 0;
+                          if (index >= uploadedCount) handleRemoveFile(index - uploadedCount);
+                        } : undefined}
+                        disabled={uploading || uploadingMovement}
+                        colorTheme="emerald"
+                      />
+                    </div>
 
-                    <div className="flex-1">
+                    <div className="flex-1 mt-2">
                       <FileUploadZone
                         onFilesSelected={handleFilesSelected}
                         accept=".xlsx,.xls"
@@ -1245,6 +1220,7 @@ const CashReport = () => {
                         colorTheme="emerald"
                         label={t('Drop Excel files here')}
                         hint={t('Parsed bank statements (.xlsx)')}
+                        showFileList={false}
                       />
                     </div>
 
@@ -1275,14 +1251,24 @@ const CashReport = () => {
 
                   {/* RIGHT: Movement Data */}
                   <div className="flex-1 min-w-0 flex flex-col">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                      {t('Upload Movement Data')}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      {t('Upload pre-classified Movement file')}
-                    </p>
+                    <div className="flex items-start justify-between mb-1">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {t('Upload Movement Data')}
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {t('Upload pre-classified Movement file')}
+                        </p>
+                      </div>
+                      <FilesDialogButton
+                        files={movementFile ? [movementFile] : []}
+                        onRemoveFile={handleRemoveMovementFile}
+                        disabled={uploadingMovement || uploading}
+                        colorTheme="purple"
+                      />
+                    </div>
 
-                    <div className="flex-1">
+                    <div className="flex-1 mt-2">
                       <FileUploadZone
                         onFilesSelected={handleMovementFileSelected}
                         accept=".xlsx,.xls"
@@ -1292,6 +1278,7 @@ const CashReport = () => {
                         colorTheme="purple"
                         label={t('Drop Movement file here')}
                         hint={t('Movement Data (.xlsx)')}
+                        showFileList={false}
                       />
                     </div>
 
