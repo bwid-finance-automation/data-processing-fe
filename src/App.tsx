@@ -52,7 +52,7 @@ function PageWrapper({ children }: PageWrapperProps) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="min-h-[80vh]"
+      className="flex-1 flex flex-col"
     >
       {children}
     </motion.div>

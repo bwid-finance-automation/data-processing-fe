@@ -141,7 +141,7 @@ const BankStatementSessionDetail = () => {
   const { uploaded_files, extracted_from_zip, statements } = session;
 
   return (
-    <div className="bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
+    <div className="flex-1 bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
       {/* Header */}
       <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
         <div className="w-full max-w-[85vw] mx-auto py-6">

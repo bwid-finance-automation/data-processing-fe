@@ -10,7 +10,7 @@ export default function NotFound() {
   }, [t]);
 
   return (
-    <div>
+    <div className="flex-1">
       <h1>{t("notFoundTitle")}</h1>
       <p>{t("notFoundDesc")}</p>
       <Link to="/">{t("goBackHome")}</Link>

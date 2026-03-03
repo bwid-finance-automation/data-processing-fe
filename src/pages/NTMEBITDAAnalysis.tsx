@@ -143,7 +143,7 @@ function NTMEBITDAAnalysis() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#0d0d0d]">
+    <div className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#0d0d0d]">
       {/* Header */}
       <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
         <div className="w-full max-w-[85vw] mx-auto py-6">
@@ -603,11 +603,6 @@ function NTMEBITDAAnalysis() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Footer */}
-        <footer className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700">
-          <p>NTM EBITDA Variance Analysis Tool - BW Industrial Development</p>
-        </footer>
       </div>
     </div>
   );

@@ -353,7 +353,7 @@ export default function UtilityBilling() {
 
   if (loading && !sessionId) {
     return (
-      <div className="min-h-screen theme-bg-app flex items-center justify-center">
+      <div className="flex-1 theme-bg-app flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">{t('initializingSession')}</p>
@@ -363,7 +363,7 @@ export default function UtilityBilling() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f6f3] dark:bg-[#181818]">
+    <div className="flex-1 bg-[#f7f6f3] dark:bg-[#181818]">
       {/* Header */}
       <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
         <div className="w-full max-w-[85vw] mx-auto py-6">
@@ -538,16 +538,6 @@ export default function UtilityBilling() {
           moduleKey="utility-billing"
           className="mt-6"
         />
-
-        {/* Footer */}
-        <motion.footer
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400 text-sm border-t border-[color:var(--app-border)]"
-        >
-          <p>{t('utilityBillingSystem')}</p>
-        </motion.footer>
       </div>
 
     </div>

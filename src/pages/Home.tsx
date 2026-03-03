@@ -41,7 +41,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen theme-bg-app">
+    <div className="flex-1 theme-bg-app">
       <HeroSection content={content} />
 
       <div className="max-w-7xl mx-auto px-6 py-16">

@@ -142,7 +142,7 @@ export default function Project() {
   ];
 
   return (
-    <div className="bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
+    <div className="flex-1 bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
       {/* Header */}
       <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
         <div className="w-full max-w-[85vw] mx-auto py-6">
@@ -185,7 +185,7 @@ export default function Project() {
       </div>
 
       {/* Main Content */}
-      <div className="w-full max-w-[85vw] mx-auto py-8">
+      <div className="w-full max-w-[85vw] mx-auto py-12">
         {filteredProjects.length === 0 ? (
           <div className="text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 py-16 px-6 bg-white/80 dark:bg-slate-900/70">
             <div className="mx-auto mb-4 h-16 w-16 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">

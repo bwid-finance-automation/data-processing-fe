@@ -25,7 +25,7 @@ export default function VarianceAnalysis() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#0d0d0d]">
+    <div className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#0d0d0d]">
       {/* Header */}
       <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
         <div className="w-full max-w-[85vw] mx-auto py-6">
@@ -134,11 +134,6 @@ export default function VarianceAnalysis() {
           className="mt-6"
         />
       </div>
-
-      {/* Footer */}
-      <footer className="mt-8 py-4 text-center text-gray-600 dark:text-gray-400 text-xs border-t border-gray-200 dark:border-gray-700">
-        <p>{t('Variance Analysis')}</p>
-      </footer>
     </div>
   );
 }

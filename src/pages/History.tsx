@@ -296,7 +296,7 @@ const History = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
+    <div className="flex-1 bg-[#f7f6f3] dark:bg-[#181818] transition-colors duration-200">
       {/* Header */}
       <div className="bg-white dark:bg-[#222] border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
