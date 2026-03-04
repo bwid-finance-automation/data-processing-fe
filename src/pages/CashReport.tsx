@@ -531,7 +531,6 @@ const CashReport = () => {
         const cellA1 = firstSheet?.['A1']?.v?.toString().toLowerCase() || '';
 
         if (cellA1.includes('source')) {
-          // Auto-redirect: set as movement file and inform user (#5)
           setMovementFile(file);
           toast.info(t('Moved to Movement Data upload zone'));
           return;
@@ -590,7 +589,13 @@ const CashReport = () => {
         const { sheetNames, sheets } = await readExcelHeaders(file);
 
         if (sheetNames.includes('Template details')) {
-          toast.error(t('This is a bank statement file. Please upload it in the Bank Statements zone'));
+          const uploadedNames = new Set((session?.uploaded_files || []).map(f => f.filename));
+          if (!uploadedNames.has(file.name)) {
+            setFiles(prev => [...prev, file]);
+            toast.info(t('Moved to Bank Statements upload zone'));
+          } else {
+            toast.warning(t('This file was already uploaded'));
+          }
           return;
         }
 
@@ -607,7 +612,7 @@ const CashReport = () => {
 
       setMovementFile(file);
     }
-  }, [t, readExcelHeaders]);
+  }, [t, readExcelHeaders, session?.uploaded_files]);
 
   const handleRemoveMovementFile = useCallback(() => {
     setMovementFile(null);
@@ -1229,6 +1234,7 @@ const CashReport = () => {
                         disabled={uploading || uploadingMovement}
                         selectedFiles={files}
                         onRemoveFile={handleRemoveFile}
+                        onClear={() => setFiles([])}
                         colorTheme="emerald"
                         label={t('Drop Excel files here')}
                         hint={t('Parsed bank statements (.xlsx)')}
@@ -1295,6 +1301,7 @@ const CashReport = () => {
                         multiple={false}
                         selectedFiles={movementFile ? [movementFile] : []}
                         onRemoveFile={handleRemoveMovementFile}
+                        onClear={handleRemoveMovementFile}
                         colorTheme="purple"
                         label={t('Drop Movement file here')}
                         hint={t('Movement Data (.xlsx)')}

@@ -66,6 +66,7 @@ type FileUploadZoneProps = {
   compact?: boolean;
   horizontal?: boolean;
   onRemoveFile?: (index: number) => void;
+  onClear?: () => void;
   className?: string;
   id?: string;
 };
@@ -88,6 +89,7 @@ const FileUploadZone = memo(function FileUploadZone({
   compact = false,
   horizontal = false,
   onRemoveFile,
+  onClear,
   className = '',
   id,
 }: FileUploadZoneProps) {
@@ -138,7 +140,7 @@ const FileUploadZone = memo(function FileUploadZone({
       onDragLeave={handleDrag}
       onDragOver={handleDrag}
       onDrop={handleDrop}
-      className={horizontal ? 'w-1/2 min-w-0 flex-shrink-0' : ''}
+      className={`${horizontal ? 'w-1/2 min-w-0 flex-shrink-0' : ''} relative`}
     >
       <input
         ref={inputRef}
@@ -191,6 +193,15 @@ const FileUploadZone = memo(function FileUploadZone({
           </div>
         </div>
       </label>
+      {hasFiles && onClear && !disabled && (
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClear(); }}
+          className="absolute top-2 right-2 p-1 rounded-full bg-gray-800/60 dark:bg-gray-600/80 text-white hover:bg-red-500 dark:hover:bg-red-500 transition-colors"
+        >
+          <XMarkIcon className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 
