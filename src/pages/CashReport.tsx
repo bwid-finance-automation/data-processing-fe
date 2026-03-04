@@ -161,15 +161,13 @@ const CashReport = () => {
     { label: t('Cash Report'), href: '/cash-report' }
   ];
 
-  // Format date using current i18n locale
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleDateString(i18n.language, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
   };
 
   const loadSessionStatus = useCallback(async (sessionId) => {
@@ -592,14 +590,7 @@ const CashReport = () => {
         const { sheetNames, sheets } = await readExcelHeaders(file);
 
         if (sheetNames.includes('Template details')) {
-          // Auto-redirect: add to bank statements queue and inform user (#5)
-          const uploadedNames = new Set((session?.uploaded_files || []).map(f => f.filename));
-          if (!uploadedNames.has(file.name)) {
-            setFiles(prev => [...prev, file]);
-            toast.info(t('Moved to Bank Statements upload zone'));
-          } else {
-            toast.warning(t('This file was already uploaded'));
-          }
+          toast.error(t('This is a bank statement file. Please upload it in the Bank Statements zone'));
           return;
         }
 
@@ -616,7 +607,7 @@ const CashReport = () => {
 
       setMovementFile(file);
     }
-  }, [t, readExcelHeaders, session?.uploaded_files]);
+  }, [t, readExcelHeaders]);
 
   const handleRemoveMovementFile = useCallback(() => {
     setMovementFile(null);
@@ -716,7 +707,18 @@ const CashReport = () => {
   }, []);
 
   const hasSession = !!session?.session_id;
-  const movementRows = session?.movement_rows || session?.statistics?.movement_rows || 0;
+  const parseCount = (value, fallback = 0) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return Number(fallback) || 0;
+    return Math.trunc(parsed);
+  };
+  const transactionCount = parseCount(
+    session?.breakdown?.transactions,
+    session?.movement_rows || session?.statistics?.movement_rows || 0,
+  );
+  const settlementCount = parseCount(session?.breakdown?.settlement, 0);
+  const openNewCount = parseCount(session?.breakdown?.open_new, 0);
+  const movementRows = transactionCount;
   // canRunReconcile removed — Reconcile step is currently locked
 
   // Detect if any settlement/open-new activity has started
@@ -840,9 +842,13 @@ const CashReport = () => {
                         <span>{formatDate(session?.config?.opening_date)}</span>
                         <ChevronRightIcon className="w-3 h-3 text-gray-300 dark:text-gray-600" />
                         <span>{formatDate(session?.config?.ending_date)}</span>
-                        <span className="inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold text-[11px]">
+                        <span className="inline-flex items-center gap-1.5 ml-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold text-[11px]">
                           <TableCellsIcon className="w-3 h-3" />
-                          {movementRows.toLocaleString()} {t('Transactions')}
+                          <span>{transactionCount.toLocaleString()} {t('Transactions')}</span>
+                          <span className="text-indigo-300 dark:text-indigo-700">|</span>
+                          <span>{settlementCount.toLocaleString()} {t('Settlement')}</span>
+                          <span className="text-indigo-300 dark:text-indigo-700">|</span>
+                          <span>{openNewCount.toLocaleString()} {t('Open New')}</span>
                         </span>
                       </div>
                     </div>
@@ -900,8 +906,12 @@ const CashReport = () => {
                   <span>{formatDate(session?.config?.opening_date)}</span>
                   <ChevronRightIcon className="w-3 h-3 text-gray-300 dark:text-gray-600" />
                   <span>{formatDate(session?.config?.ending_date)}</span>
-                  <span className="inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold text-[11px]">
-                    {movementRows.toLocaleString()} {t('Transactions')}
+                  <span className="inline-flex items-center gap-1.5 ml-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold text-[11px]">
+                    <span>{transactionCount.toLocaleString()} {t('Transactions')}</span>
+                    <span className="text-indigo-300 dark:text-indigo-700">|</span>
+                    <span>{settlementCount.toLocaleString()} {t('Settlement')}</span>
+                    <span className="text-indigo-300 dark:text-indigo-700">|</span>
+                    <span>{openNewCount.toLocaleString()} {t('Open New')}</span>
                   </span>
                 </div>
 
@@ -1197,11 +1207,13 @@ const CashReport = () => {
                       </div>
                       <FilesDialogButton
                         files={[
-                          ...(session?.uploaded_files || []).map(f => ({ name: f.filename, size: f.file_size || 0 })),
+                          ...(session?.uploaded_files || [])
+                            .filter(f => f.file_type !== 'movement')
+                            .map(f => ({ name: f.filename, size: f.file_size || 0 })),
                           ...files,
                         ]}
                         onRemoveFile={files.length > 0 ? (index) => {
-                          const uploadedCount = session?.uploaded_files?.length || 0;
+                          const uploadedCount = (session?.uploaded_files || []).filter(f => f.file_type !== 'movement').length;
                           if (index >= uploadedCount) handleRemoveFile(index - uploadedCount);
                         } : undefined}
                         disabled={uploading || uploadingMovement}
@@ -1261,8 +1273,16 @@ const CashReport = () => {
                         </p>
                       </div>
                       <FilesDialogButton
-                        files={movementFile ? [movementFile] : []}
-                        onRemoveFile={handleRemoveMovementFile}
+                        files={[
+                          ...(session?.uploaded_files || [])
+                            .filter(f => f.file_type === 'movement')
+                            .map(f => ({ name: f.filename, size: f.file_size || 0 })),
+                          ...(movementFile ? [movementFile] : []),
+                        ]}
+                        onRemoveFile={movementFile ? (index) => {
+                          const uploadedCount = (session?.uploaded_files || []).filter(f => f.file_type === 'movement').length;
+                          if (index >= uploadedCount) handleRemoveMovementFile();
+                        } : undefined}
                         disabled={uploadingMovement || uploading}
                         colorTheme="purple"
                       />
