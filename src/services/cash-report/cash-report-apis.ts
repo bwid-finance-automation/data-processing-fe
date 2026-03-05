@@ -481,6 +481,28 @@ export const streamTestProgress = () => {
   );
 };
 
+/**
+ * Approve session classifications and export verified transactions
+ * to Transactions.csv ground-truth corpus.
+ *
+ * Call ONLY after verifying Summary "Test E.O.P" = TRUE in Excel.
+ * @param {string} sessionId
+ * @param {boolean} [force=false] - Skip server-side validation checks
+ */
+export const approveTransactions = async (sessionId, force = false) => {
+  try {
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/cash-report/approve-transactions/${sessionId}`,
+      null,
+      { params: force ? { force: true } : {} }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error approving transactions:', error);
+    throw error;
+  }
+};
+
 export const previewMovementData = async (sessionId, limit = 20) => {
   try {
     const response = await apiClient.get(
