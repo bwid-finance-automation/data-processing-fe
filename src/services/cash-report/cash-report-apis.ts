@@ -1,5 +1,33 @@
 import { apiClient, FINANCE_API_BASE_URL } from '../../configs/APIs';
 
+export interface LearnedRule {
+  id: string;
+  kind: string;
+  direction: string;
+  description?: string;
+  keyword?: string;
+  nature: string;
+  debit?: string;
+  credit?: string;
+  amount_condition?: string;
+  support_count?: number;
+  times_confirmed?: number;
+  source_session_id?: string;
+  user_id?: number | null;
+  learned_from?: string;
+  updated_at?: string | null;
+}
+
+export interface LearnedRulesResponse {
+  success: boolean;
+  kind: string;
+  total: number;
+  reference_rules: number;
+  keyword_rules: number;
+  backend: string;
+  rules: LearnedRule[];
+}
+
 /**
  * Initialize a new cash report session
  * @param {Object} config - Session configuration
@@ -512,6 +540,53 @@ export const previewMovementData = async (sessionId, limit = 20) => {
     return response.data;
   } catch (error) {
     console.error('Error previewing data:', error);
+    throw error;
+  }
+};
+
+export const uploadMovementAndPreview = async (sessionId, file, filterByDate = true) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('filter_by_date', String(filterByDate));
+
+  try {
+    const response = await apiClient.post(
+      `${FINANCE_API_BASE_URL}/cash-report/upload-movement-preview/${sessionId}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error uploading Movement preview:', error);
+    throw error;
+  }
+};
+
+export const listLearnedRules = async (kind = 'all'): Promise<LearnedRulesResponse> => {
+  try {
+    const response = await apiClient.get(
+      `${FINANCE_API_BASE_URL}/cash-report/learned-rules`,
+      { params: { kind } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error listing learned rules:', error);
+    throw error;
+  }
+};
+
+export const deleteLearnedRule = async (ruleId: string) => {
+  try {
+    const response = await apiClient.delete(
+      `${FINANCE_API_BASE_URL}/cash-report/learned-rules/${encodeURIComponent(ruleId)}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting learned rule:', error);
     throw error;
   }
 };

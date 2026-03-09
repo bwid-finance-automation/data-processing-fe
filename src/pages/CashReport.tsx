@@ -35,12 +35,15 @@ import ConfirmDialog from '../components/cash-report/ConfirmDialog';
 import CreateSessionModal from '../components/cash-report/CreateSessionModal';
 import SettlementPreviewModal from '../components/cash-report/SettlementPreviewModal';
 import OpenNewPreviewModal from '../components/cash-report/OpenNewPreviewModal';
+import LearnedRulesModal from '../components/cash-report/LearnedRulesModal';
+import ClassificationReviewModal from '../components/cash-report/ClassificationReviewModal';
 import DesktopProgressPanel from '../components/cash-report/DesktopProgressPanel';
 import MobileProgressPanel from '../components/cash-report/MobileProgressPanel';
 import useSSEProgress from '../hooks/useSSEProgress';
 import {
   uploadBankStatements,
   uploadMovementFile,
+  uploadMovementAndPreview,
   runSettlementAutomation,
   runOpenNewAutomation,
   getAutomationSessionStatus,
@@ -54,6 +57,8 @@ import {
   previewSettlement,
   previewOpenNew,
   approveTransactions,
+  uploadAndPreview,
+  confirmClassifications,
 } from '../services/cash-report/cash-report-apis';
 
 const CashReport = () => {
@@ -92,6 +97,9 @@ const CashReport = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [showLearnedRules, setShowLearnedRules] = useState(false);
+  const [uploadPreview, setUploadPreview] = useState(null);
+  const [uploadPreviewSource, setUploadPreviewSource] = useState<'bank' | 'movement' | null>(null);
   const [automationTab, setAutomationTab] = useState('settlement'); // 'settlement' | 'open_new' | 'reconcile'
   const [_hasDownloadedResult, setHasDownloadedResult] = useState(false);
 
@@ -109,6 +117,8 @@ const CashReport = () => {
   const [openNewPreview, setOpenNewPreview] = useState(null);          // null | preview data object
   const [previewingSettlement, setPreviewingSettlement] = useState(false);
   const [previewingOpenNew, setPreviewingOpenNew] = useState(false);
+  const [previewingUpload, setPreviewingUpload] = useState(false);
+  const [confirmingPreview, setConfirmingPreview] = useState(false);
 
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -290,6 +300,81 @@ const CashReport = () => {
     } finally {
       setUploading(false);
       uploadSSE.close();
+    }
+  };
+
+  const handleUploadPreview = async () => {
+    if (!session?.session_id || files.length === 0) {
+      toast.error(t('Please select files to review'));
+      return;
+    }
+
+    setPreviewingUpload(true);
+    setUploadError(null);
+    try {
+      const result = await uploadAndPreview(session.session_id, files, true);
+      setUploadPreview(result);
+      setUploadPreviewSource('bank');
+      toast.success(t('Preview ready. Review Nature before confirming.'));
+    } catch (err) {
+      console.error('Error generating preview:', err);
+      const msg = (err as any)?.response?.data?.detail || t('Failed to generate preview');
+      setUploadError(msg);
+      toast.error(msg);
+    } finally {
+      setPreviewingUpload(false);
+    }
+  };
+
+  const handleConfirmPreview = async (modifications) => {
+    if (!session?.session_id) return;
+
+    setConfirmingPreview(true);
+    try {
+      const result = await confirmClassifications(session.session_id, modifications);
+      setUploadPreview(null);
+      if (uploadPreviewSource === 'movement') {
+        setMovementFile(null);
+      } else {
+        setFiles([]);
+      }
+      setUploadPreviewSource(null);
+      await loadSessionStatus(session.session_id);
+      toast.success(
+        t('Confirmed. Learned {{reference}} corrections and {{keyword}} promoted rules.', {
+          reference: result.learned_corrections_saved ?? 0,
+          keyword: result.learned_keyword_rules_saved ?? 0,
+        })
+      );
+    } catch (err) {
+      console.error('Error confirming preview:', err);
+      const detail = (err as any)?.response?.data?.detail || t('Failed to confirm preview');
+      toast.error(detail);
+    } finally {
+      setConfirmingPreview(false);
+    }
+  };
+
+  const handleUploadMovementPreview = async () => {
+    if (!session?.session_id || !movementFile) {
+      toast.error(t('Please select a Movement file to review'));
+      return;
+    }
+
+    setPreviewingUpload(true);
+    setMovementError(null);
+    try {
+      const result = await uploadMovementAndPreview(session.session_id, movementFile, true);
+      setUploadPreview(result);
+      setUploadPreviewSource('movement');
+      toast.success(t('Movement preview ready. Review Nature before confirming.'));
+    } catch (err) {
+      console.error('Error generating Movement preview:', err);
+      const msg = (err as any)?.response?.data?.detail || t('Failed to generate Movement preview');
+      setMovementError(msg);
+      toast.error(msg);
+    } finally {
+      setPreviewingUpload(false);
     }
   };
 
@@ -811,13 +896,22 @@ const CashReport = () => {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setShowTour(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-sm transition-colors"
-            >
-              <BookOpenIcon className="w-4 h-4" />
-              {t('Tutorial')}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowLearnedRules(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30 shadow-sm transition-colors"
+              >
+                <SparklesIcon className="w-4 h-4" />
+                {t('Learned Rules')}
+              </button>
+              <button
+                onClick={() => setShowTour(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-sm transition-colors"
+              >
+                <BookOpenIcon className="w-4 h-4" />
+                {t('Tutorial')}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1275,25 +1369,49 @@ const CashReport = () => {
                       />
                     </div>
 
-                    <button
-                      onClick={() => {
-                        handleUpload();
-                      }}
-                      disabled={uploading || uploadingMovement || files.length === 0}
-                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {uploading ? (
-                        <>
-                          <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                          {t('Uploading...')}
-                        </>
-                      ) : (
-                        <>
-                          <CloudArrowUpIcon className="w-5 h-5" />
-                          {t('Upload {{count}} file(s)', { count: files.length })}
-                        </>
-                      )}
-                    </button>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      <button
+                        onClick={() => {
+                          handleUploadPreview();
+                        }}
+                        disabled={previewingUpload || uploading || uploadingMovement || files.length === 0}
+                        className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg font-medium hover:from-amber-600 hover:to-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {previewingUpload ? (
+                          <>
+                            <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                            {t('Preparing Review...')}
+                          </>
+                        ) : (
+                          <>
+                            <EyeIcon className="w-5 h-5" />
+                            {t('Review Nature')}
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleUpload();
+                        }}
+                        disabled={uploading || uploadingMovement || previewingUpload || files.length === 0}
+                        className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {uploading ? (
+                          <>
+                            <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                            {t('Uploading...')}
+                          </>
+                        ) : (
+                          <>
+                            <CloudArrowUpIcon className="w-5 h-5" />
+                            {t('Quick Upload {{count}} file(s)', { count: files.length })}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {t('Use Review Nature if you want to edit Nature and let the system learn from your corrections. Quick Upload skips review.')}
+                    </p>
                   </div>
 
                   {/* Vertical Divider */}
@@ -1342,23 +1460,45 @@ const CashReport = () => {
                       />
                     </div>
 
-                    <button
-                      onClick={handleUploadMovement}
-                      disabled={uploadingMovement || uploading || !movementFile}
-                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-violet-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {uploadingMovement ? (
-                        <>
-                          <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                          {t('Uploading Movement Data...')}
-                        </>
-                      ) : (
-                        <>
-                          <CloudArrowUpIcon className="w-5 h-5" />
-                          {t('Upload Movement File')}
-                        </>
-                      )}
-                    </button>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      <button
+                        onClick={handleUploadMovementPreview}
+                        disabled={previewingUpload || uploading || uploadingMovement || !movementFile}
+                        className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg font-medium hover:from-amber-600 hover:to-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {previewingUpload ? (
+                          <>
+                            <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                            {t('Preparing Review...')}
+                          </>
+                        ) : (
+                          <>
+                            <EyeIcon className="w-5 h-5" />
+                            {t('Review Nature')}
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={handleUploadMovement}
+                        disabled={uploadingMovement || uploading || previewingUpload || !movementFile}
+                        className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-violet-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {uploadingMovement ? (
+                          <>
+                            <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                            {t('Uploading Movement Data...')}
+                          </>
+                        ) : (
+                          <>
+                            <CloudArrowUpIcon className="w-5 h-5" />
+                            {t('Quick Upload Movement')}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {t('Use Review Nature to review/classify Movement rows before writing and let the system learn from your changes. Quick Upload skips review.')}
+                    </p>
                   </div>
 
                 </div>
@@ -1473,6 +1613,21 @@ const CashReport = () => {
       <OpenNewPreviewModal
         preview={openNewPreview}
         onClose={() => setOpenNewPreview(null)}
+      />
+
+      <ClassificationReviewModal
+        preview={uploadPreview}
+        confirming={confirmingPreview}
+        onClose={() => {
+          setUploadPreview(null);
+          setUploadPreviewSource(null);
+        }}
+        onConfirm={handleConfirmPreview}
+      />
+
+      <LearnedRulesModal
+        open={showLearnedRules}
+        onClose={() => setShowLearnedRules(false)}
       />
 
       {/* Confirm Dialog */}
