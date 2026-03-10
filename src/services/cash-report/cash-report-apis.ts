@@ -418,20 +418,10 @@ export const uploadAndPreview = async (sessionId, files, filterByDate = true) =>
  * @returns {Promise} Write result
  */
 export const confirmClassifications = async (sessionId, modifications = null) => {
-  const formData = new FormData();
-  if (modifications && modifications.length > 0) {
-    formData.append('modifications', JSON.stringify(modifications));
-  }
-
   try {
     const response = await apiClient.post(
       `${FINANCE_API_BASE_URL}/cash-report/confirm-upload/${sessionId}`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
+      { modifications: modifications ?? [] }
     );
     return response.data;
   } catch (error) {

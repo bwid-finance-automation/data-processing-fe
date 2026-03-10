@@ -278,6 +278,11 @@ const CashReport = () => {
         } else {
           toast.success(t('Uploaded {{count}} transactions', { count: added }));
         }
+        if ((result?.duplicate_files || 0) > 0) {
+          toast.warning(t('{{count}} bank statement file(s) were skipped because they were already uploaded', { count: result.duplicate_files }));
+        }
+      } else if (result.warning === 'duplicate_file' || (result?.duplicate_files || 0) > 0) {
+        toast.warning(result.message || t('This bank statement file was already uploaded in this session'));
       } else if (result.warning === 'date_mismatch') {
         toast.error(result.message || t('All transactions were outside the session period. Please check if the correct period was selected.'));
       } else {
@@ -308,6 +313,10 @@ const CashReport = () => {
     setUploadError(null);
     try {
       const result = await uploadAndPreview(session.session_id, files, true);
+      if (result?.status === 'duplicate_file' || result?.duplicate_file) {
+        toast.warning(result?.message || t('This bank statement file was already uploaded in this session'));
+        return;
+      }
       setUploadPreview(result);
       setUploadPreviewSource('bank');
       toast.success(t('Preview ready. Review Nature before confirming.'));
@@ -327,6 +336,18 @@ const CashReport = () => {
     setConfirmingPreview(true);
     try {
       const result = await confirmClassifications(session.session_id, modifications);
+      if (result?.status === 'duplicate_file' || result?.duplicate_file) {
+        setUploadPreview(null);
+        if (uploadPreviewSource === 'movement') {
+          setMovementFile(null);
+        } else {
+          setFiles([]);
+        }
+        setUploadPreviewSource(null);
+        await loadSessionStatus(session.session_id);
+        toast.warning(result?.message || t('This file was already uploaded in this session'));
+        return;
+      }
       setUploadPreview(null);
       if (uploadPreviewSource === 'movement') {
         setMovementFile(null);
@@ -360,6 +381,10 @@ const CashReport = () => {
     setMovementError(null);
     try {
       const result = await uploadMovementAndPreview(session.session_id, movementFile, true);
+      if (result?.status === 'duplicate_file' || result?.duplicate_file) {
+        toast.warning(result?.message || t('This Movement file was already uploaded in this session'));
+        return;
+      }
       setUploadPreview(result);
       setUploadPreviewSource('movement');
       toast.success(t('Movement preview ready. Review Nature before confirming.'));
