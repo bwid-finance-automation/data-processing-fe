@@ -2,18 +2,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   XMarkIcon,
   ArrowDownTrayIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import UploadProgressPanel from './UploadProgressPanel';
+import type { OpenNewReviewSummary } from '../../services/cash-report/cash-report-apis';
 
 interface SSEState {
-  steps: any[];
+  steps: unknown[];
   isComplete: boolean;
   error: string | null;
   isRunning: boolean;
   currentStep: string;
   completedSteps: string[];
-  result: any;
+  result: Record<string, unknown> | null;
 }
 
 interface MobileProgressPanelProps {
@@ -30,6 +32,8 @@ interface MobileProgressPanelProps {
   openNewError: string | null;
   onClose: () => void;
   onDownload: (step: string) => void;
+  openNewReviewSummary?: OpenNewReviewSummary | null;
+  onOpenNewReview: () => void;
 }
 
 export default function MobileProgressPanel({
@@ -46,9 +50,13 @@ export default function MobileProgressPanel({
   openNewError,
   onClose,
   onDownload,
+  openNewReviewSummary,
+  onOpenNewReview,
 }: MobileProgressPanelProps) {
   const { t } = useTranslation();
   const isRunning = uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning;
+  const openNewPending = Number(openNewReviewSummary?.pending_accounts || 0);
+  const openNewCanExport = openNewReviewSummary?.can_export ?? true;
 
   return (
     <AnimatePresence>
@@ -140,14 +148,24 @@ export default function MobileProgressPanel({
                     <p className="text-xs text-red-500 mb-2">{openNewError}</p>
                   )}
                   {openNewSSE.result && (
-                    <button
-                      onClick={() => onDownload('open_new')}
-                      aria-label={t('Download open-new result')}
-                      className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
-                    >
-                      <ArrowDownTrayIcon className="w-4 h-4" />
-                      {t('Download Result')}
-                    </button>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => onDownload('open_new')}
+                        aria-label={t('Download open-new result')}
+                        className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                      >
+                        <ArrowDownTrayIcon className="w-4 h-4" />
+                        {t('Download Result')}
+                      </button>
+                      {openNewPending > 0 && (
+                        <button
+                          onClick={onOpenNewReview}
+                          className="w-full py-1.5 text-amber-600 dark:text-amber-400 text-xs font-medium hover:underline flex items-center justify-center gap-1"
+                        >
+                          {t('Review Open New')} ({openNewPending})
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

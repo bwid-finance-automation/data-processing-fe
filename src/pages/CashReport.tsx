@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import {
   DocumentTextIcon,
   CloudArrowUpIcon,
@@ -25,7 +25,6 @@ import {
   TableCellsIcon,
   ExclamationCircleIcon,
   EyeIcon,
-  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb, FileUploadZone, ActionMenu, FilesDialogButton } from '@components/common';
@@ -34,6 +33,7 @@ import ConfirmDialog from '../components/cash-report/ConfirmDialog';
 import CreateSessionModal from '../components/cash-report/CreateSessionModal';
 import SettlementPreviewModal from '../components/cash-report/SettlementPreviewModal';
 import OpenNewPreviewModal from '../components/cash-report/OpenNewPreviewModal';
+import OpenNewReviewModal from '../components/cash-report/OpenNewReviewModal';
 import LearnedRulesModal from '../components/cash-report/LearnedRulesModal';
 import ClassificationReviewModal from '../components/cash-report/ClassificationReviewModal';
 import DesktopProgressPanel from '../components/cash-report/DesktopProgressPanel';
@@ -45,7 +45,9 @@ import {
   uploadMovementAndPreview,
   runSettlementAutomation,
   runOpenNewAutomation,
+  runReconcileChecks,
   getAutomationSessionStatus,
+  getOpenNewReview,
   downloadAutomationResult,
   resetAutomationSession,
   deleteAutomationSession,
@@ -57,10 +59,13 @@ import {
   previewOpenNew,
   uploadAndPreview,
   confirmClassifications,
+  updateOpenNewReview,
+  type OpenNewReviewResponse,
+  type OpenNewReviewUpdateItem,
 } from '../services/cash-report/cash-report-apis';
 
 const CashReport = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   // SSE progress hooks (replaces ~20 individual state variables)
   const uploadSSE = useSSEProgress();
@@ -110,6 +115,10 @@ const CashReport = () => {
   // Preview modal state (#11)
   const [settlementPreview, setSettlementPreview] = useState(null);    // null | preview data object
   const [openNewPreview, setOpenNewPreview] = useState(null);          // null | preview data object
+  const [openNewReview, setOpenNewReview] = useState<OpenNewReviewResponse | null>(null);
+  const [showOpenNewReview, setShowOpenNewReview] = useState(false);
+  const [loadingOpenNewReview, setLoadingOpenNewReview] = useState(false);
+  const [savingOpenNewReview, setSavingOpenNewReview] = useState(false);
   const [previewingSettlement, setPreviewingSettlement] = useState(false);
   const [previewingOpenNew, setPreviewingOpenNew] = useState(false);
   const [previewingUpload, setPreviewingUpload] = useState(false);
@@ -132,6 +141,7 @@ const CashReport = () => {
 
   // Lookup files for open-new
   const [lookupFiles, setLookupFiles] = useState([]);
+  const [reconcileFiles, setReconcileFiles] = useState([]);
 
   // Refs for auto-scrolling to active step
   const settlementStepRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -180,14 +190,44 @@ const CashReport = () => {
     return `${dd}/${mm}/${yyyy}`;
   };
 
+  const getErrorDetail = (error, fallbackMessage) => {
+    const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+    return detail || fallbackMessage;
+  };
+
   const loadSessionStatus = useCallback(async (sessionId) => {
     try {
       const result = await getAutomationSessionStatus(sessionId);
       setSession(result);
+      return result;
     } catch (err) {
       console.error('Error loading session status:', err);
+      return null;
     }
   }, []);
+
+  const loadOpenNewReview = useCallback(async (sessionId, options: { openModal?: boolean; silent?: boolean } = {}) => {
+    if (!sessionId) return null;
+
+    setLoadingOpenNewReview(true);
+    try {
+      const result = await getOpenNewReview(sessionId);
+      setOpenNewReview(result);
+      if (options.openModal) {
+        setShowOpenNewReview(true);
+      }
+      return result;
+    } catch (err) {
+      console.error('Error loading open-new review:', err);
+      if (!options.silent) {
+        const msg = err.response?.data?.detail || t('Failed to load open-new review');
+        toast.error(msg);
+      }
+      return null;
+    } finally {
+      setLoadingOpenNewReview(false);
+    }
+  }, [t]);
 
   const loadSessions = useCallback(async () => {
     setLoadingSessions(true);
@@ -214,6 +254,11 @@ const CashReport = () => {
     setReconcileError(null);
     setReconcileRunning(false);
     setReconcileResult(null);
+    setReconcileFiles([]);
+    setOpenNewReview(null);
+    setShowOpenNewReview(false);
+    setLoadingOpenNewReview(false);
+    setSavingOpenNewReview(false);
   }, [session?.session_id]);
 
   // Close export dropdown on outside click (#2)
@@ -243,6 +288,8 @@ const CashReport = () => {
     // Reset settlement & open-new state if re-uploading
     settlementSSE.resetAll();
     openNewSSE.resetAll();
+    setOpenNewReview(null);
+    setShowOpenNewReview(false);
     setHasDownloadedResult(false);
     setReconcileResult(null);
     setReconcileError(null);
@@ -322,7 +369,7 @@ const CashReport = () => {
       toast.success(t('Preview ready. Review Nature before confirming.'));
     } catch (err) {
       console.error('Error generating preview:', err);
-      const msg = (err as any)?.response?.data?.detail || t('Failed to generate preview');
+      const msg = getErrorDetail(err, t('Failed to generate preview'));
       setUploadError(msg);
       toast.error(msg);
     } finally {
@@ -364,7 +411,7 @@ const CashReport = () => {
       );
     } catch (err) {
       console.error('Error confirming preview:', err);
-      const detail = (err as any)?.response?.data?.detail || t('Failed to confirm preview');
+      const detail = getErrorDetail(err, t('Failed to confirm preview'));
       toast.error(detail);
     } finally {
       setConfirmingPreview(false);
@@ -390,7 +437,7 @@ const CashReport = () => {
       toast.success(t('Movement preview ready. Review Nature before confirming.'));
     } catch (err) {
       console.error('Error generating Movement preview:', err);
-      const msg = (err as any)?.response?.data?.detail || t('Failed to generate Movement preview');
+      const msg = getErrorDetail(err, t('Failed to generate Movement preview'));
       setMovementError(msg);
       toast.error(msg);
     } finally {
@@ -414,6 +461,38 @@ const CashReport = () => {
     { key: 'catalog', title: t('Add to Catalogs'), desc: t('Creating rows in Acc_Char, Saving Account, Cash Balance'), icon: TableCellsIcon },
     { key: 'cleanup', title: t('Cleanup & Finalize'), desc: t('Highlighting results'), icon: SparklesIcon },
   ];
+
+  const handleOpenNewReview = useCallback(async (options: { silent?: boolean } = {}) => {
+    if (!session?.session_id) return null;
+    return loadOpenNewReview(session.session_id, { openModal: true, silent: options.silent });
+  }, [loadOpenNewReview, session?.session_id]);
+
+  const handleSaveOpenNewReview = useCallback(async (updates: OpenNewReviewUpdateItem[]) => {
+    if (!session?.session_id) return;
+    if (!updates.length) {
+      toast.warning(t('Please enter at least one missing value before saving.'));
+      return;
+    }
+
+    setSavingOpenNewReview(true);
+    try {
+      const result = await updateOpenNewReview(session.session_id, updates);
+      setOpenNewReview(result);
+      await loadSessionStatus(session.session_id);
+
+      if ((result.summary?.pending_accounts || 0) > 0) {
+        toast.success(t('Saved. {{count}} account(s) still need review.', { count: result.summary.pending_accounts }));
+      } else {
+        toast.success(t('Open-new review is complete. Export is now available.'));
+      }
+    } catch (err) {
+      console.error('Error saving open-new review:', err);
+      const msg = err.response?.data?.detail || t('Failed to save open-new review');
+      toast.error(msg);
+    } finally {
+      setSavingOpenNewReview(false);
+    }
+  }, [loadSessionStatus, session?.session_id, t]);
 
   const handleRunSettlement = async () => {
     if (!session?.session_id) return;
@@ -444,6 +523,8 @@ const CashReport = () => {
     if (!session?.session_id) return;
 
     setOpenNewError(null);
+    setOpenNewReview(null);
+    setShowOpenNewReview(false);
     setReconcileResult(null);
     setReconcileError(null);
     setShowProgress(true);
@@ -452,9 +533,19 @@ const CashReport = () => {
     openNewSSE.startWorkflow(() => streamOpenNewProgress(session.session_id));
 
     try {
-      await runOpenNewAutomation(session.session_id, lookupFiles);
+      const result = await runOpenNewAutomation(session.session_id, lookupFiles);
       await loadSessionStatus(session.session_id);
       setLookupFiles([]);
+
+      const pendingAccounts = Number(result?.open_new_review?.pending_accounts || 0);
+      if (pendingAccounts > 0) {
+        await loadOpenNewReview(session.session_id, { openModal: true, silent: true });
+        toast.warning(
+          t('Open-new finished, but {{count}} account(s) still need metadata before export.', {
+            count: pendingAccounts,
+          })
+        );
+      }
     } catch (err) {
       console.error('Error running open-new:', err);
       const msg = err.response?.data?.detail || t('Failed to run open-new automation');
@@ -494,10 +585,50 @@ const CashReport = () => {
     }
   };
 
-  // handleRunReconcile removed — Reconcile step is currently locked
+  const handleRunReconcile = async () => {
+    if (!session?.session_id) return;
+    if (reconcileFiles.length === 0) {
+      toast.error(t('Please upload at least one reconcile lookup file'));
+      return;
+    }
+
+    setReconcileRunning(true);
+    setReconcileError(null);
+    setReconcileResult(null);
+    setSettlementError(null);
+    setOpenNewError(null);
+
+    try {
+      const { blob, filename } = await runReconcileChecks(session.session_id, reconcileFiles);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      setReconcileResult({ success: true });
+      toast.success(t('Reconcile completed and Excel exported'));
+    } catch (err) {
+      console.error('Error running reconcile:', err);
+      let msg = t('Failed to run reconcile');
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          msg = json.detail || msg;
+        } catch { /* ignore parse errors */ }
+      } else {
+        msg = err.response?.data?.detail || msg;
+      }
+      setReconcileError(msg);
+      toast.error(msg);
+    } finally {
+      setReconcileRunning(false);
+    }
+  };
 
 
-  const handleDownload = async (step) => {
+  const handleDownload = async (step?) => {
     if (!session?.session_id) return;
 
     setDownloading(true);
@@ -544,6 +675,7 @@ const CashReport = () => {
           settlementSSE.resetAll();
           openNewSSE.resetAll();
           setLookupFiles([]);
+          setReconcileFiles([]);
           setUploadError(null);
           setMovementError(null);
           setSettlementError(null);
@@ -551,6 +683,8 @@ const CashReport = () => {
           setReconcileError(null);
           setReconcileRunning(false);
           setReconcileResult(null);
+          setOpenNewReview(null);
+          setShowOpenNewReview(false);
           setHasDownloadedResult(false);
 
           await loadSessionStatus(session.session_id);
@@ -587,6 +721,7 @@ const CashReport = () => {
           settlementSSE.resetAll();
           openNewSSE.resetAll();
           setLookupFiles([]);
+          setReconcileFiles([]);
           setUploadError(null);
           setMovementError(null);
           setSettlementError(null);
@@ -594,6 +729,8 @@ const CashReport = () => {
           setReconcileError(null);
           setReconcileRunning(false);
           setReconcileResult(null);
+          setOpenNewReview(null);
+          setShowOpenNewReview(false);
           setHasDownloadedResult(false);
 
           setSession(null);
@@ -624,6 +761,7 @@ const CashReport = () => {
       reader.readAsArrayBuffer(file);
     });
   }, []);
+
 
   const handleFilesSelected = useCallback(async (selectedFiles) => {
     const validExts = ['.xlsx', '.xls'];
@@ -741,6 +879,8 @@ const CashReport = () => {
     // Reset settlement & open-new state if re-uploading
     settlementSSE.resetAll();
     openNewSSE.resetAll();
+    setOpenNewReview(null);
+    setShowOpenNewReview(false);
     setHasDownloadedResult(false);
     setReconcileResult(null);
     setReconcileError(null);
@@ -821,6 +961,32 @@ const CashReport = () => {
     setLookupFiles(prev => prev.filter((_, i) => i !== index));
   }, []);
 
+  const handleReconcileFilesSelected = useCallback((selectedFiles) => {
+    const pendingKeys = new Set(reconcileFiles.map((file) => `${file.name}__${file.size}`));
+    let duplicates = 0;
+
+    const newFiles = selectedFiles.filter((file) => {
+      const key = `${file.name}__${file.size}`;
+      if (pendingKeys.has(key)) {
+        duplicates++;
+        return false;
+      }
+      pendingKeys.add(key);
+      return true;
+    });
+
+    if (duplicates > 0) {
+      toast.warning(t('{{count}} duplicate reconcile file(s) skipped', { count: duplicates }));
+    }
+    if (newFiles.length > 0) {
+      setReconcileFiles(prev => [...prev, ...newFiles]);
+    }
+  }, [reconcileFiles, t]);
+
+  const removeReconcileFile = useCallback((index) => {
+    setReconcileFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
   const hasSession = !!session?.session_id;
   const parseCount = (value, fallback = 0) => {
     const parsed = Number(value);
@@ -834,31 +1000,37 @@ const CashReport = () => {
   const settlementCount = parseCount(session?.breakdown?.settlement, 0);
   const openNewCount = parseCount(session?.breakdown?.open_new, 0);
   const movementRows = transactionCount;
+  const openNewReviewSummary = openNewReview?.summary || session?.open_new_review || null;
+  const openNewReviewTracked = parseCount(openNewReviewSummary?.tracked_accounts, 0);
+  const openNewReviewPending = parseCount(openNewReviewSummary?.pending_accounts, 0);
+  const openNewReviewReady = parseCount(openNewReviewSummary?.ready_accounts, 0);
+  const hasPendingOpenNewReview = openNewReviewPending > 0;
   // canRunReconcile removed — Reconcile step is currently locked
 
   // Detect if any settlement/open-new activity has started
-  const hasSettlementStarted = settlementSSE.isRunning || settlementSSE.currentStep || settlementSSE.result || settlementSSE.error;
-  const hasOpenNewStarted = openNewSSE.isRunning || openNewSSE.currentStep || openNewSSE.result || openNewSSE.error;
+  const hasSettlementStarted = settlementSSE.isRunning || settlementSSE.currentStep || settlementSSE.result || settlementSSE.error || settlementCount > 0;
+  const hasOpenNewStarted = openNewSSE.isRunning || openNewSSE.currentStep || openNewSSE.result || openNewSSE.error || openNewCount > 0 || openNewReviewTracked > 0;
   const isAutomationTabLocked = settlementSSE.isRunning || openNewSSE.isRunning || reconcileRunning;
 
   // Dynamic session sub-state badge (#1)
   const sessionBadge = (() => {
-    if (uploading || uploadingMovement) return { label: t('Uploading'), color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' };
-    if (settlementSSE.isRunning) return { label: t('Settlement running'), color: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400' };
-    if (openNewSSE.isRunning) return { label: t('Open-new running'), color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' };
-    if (reconcileRunning) return { label: t('Reconcile running'), color: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400' };
-    if (resetting) return { label: t('Resetting'), color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' };
-    if (settlementSSE.result || openNewSSE.result || reconcileResult) return { label: t('Completed'), color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' };
-    if (settlementError || openNewError || reconcileError || uploadError || movementError) return { label: t('Error'), color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' };
-    if (movementRows > 0) return { label: t('Ready'), color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' };
-    return { label: t('Draft'), color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' };
+    if (uploading || uploadingMovement) return { label: t('Uploading'), color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400', tone: 'busy' };
+    if (settlementSSE.isRunning) return { label: t('Settlement running'), color: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400', tone: 'busy' };
+    if (openNewSSE.isRunning) return { label: t('Open-new running'), color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400', tone: 'busy' };
+    if (reconcileRunning) return { label: t('Reconcile running'), color: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400', tone: 'busy' };
+    if (resetting) return { label: t('Resetting'), color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400', tone: 'warn' };
+    if (hasPendingOpenNewReview) return { label: t('{{count}} pending review', { count: openNewReviewPending }), color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400', tone: 'warn' };
+    if (settlementSSE.result || openNewSSE.result || reconcileResult) return { label: t('Completed'), color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400', tone: 'ready' };
+    if (settlementError || openNewError || reconcileError || uploadError || movementError) return { label: t('Error'), color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400', tone: 'error' };
+    if (movementRows > 0) return { label: t('Ready'), color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400', tone: 'ready' };
+    return { label: t('Draft'), color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400', tone: 'idle' };
   })();
 
   // Export dropdown options
   const exportOptions = [
     { label: t('Latest (full file)'), step: undefined },
-    ...(settlementSSE.result ? [{ label: t('After Settlement'), step: 'settlement' }] : []),
-    ...(openNewSSE.result ? [{ label: t('After Open-new'), step: 'open_new' }] : []),
+    ...(hasSettlementStarted ? [{ label: t('After Settlement'), step: 'settlement' }] : []),
+    ...(hasOpenNewStarted ? [{ label: t('After Open-new'), step: 'open_new' }] : []),
   ];
 
   // Action menu items for overflow dropdown
@@ -950,10 +1122,10 @@ const CashReport = () => {
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="relative flex h-2 w-2">
                             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                              sessionBadge.label === 'Ready' ? 'bg-emerald-400' : 'bg-amber-400'
+                              sessionBadge.tone === 'ready' ? 'bg-emerald-400' : sessionBadge.tone === 'error' ? 'bg-red-400' : 'bg-amber-400'
                             }`} />
                             <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                              sessionBadge.label === 'Ready' ? 'bg-emerald-500' : 'bg-amber-500'
+                              sessionBadge.tone === 'ready' ? 'bg-emerald-500' : sessionBadge.tone === 'error' ? 'bg-red-500' : 'bg-amber-500'
                             }`} />
                           </span>
                           <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
@@ -1002,14 +1174,14 @@ const CashReport = () => {
                             initial={{ opacity: 0, y: -4, scale: 0.97 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                            transition={{ duration: 0.12 }}
-                            className="absolute right-0 mt-1.5 w-56 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-black/30 z-20 overflow-hidden p-1.5"
-                          >
-                            {exportOptions.map((opt, i) => (
-                              <button
-                                key={i}
-                                onClick={() => { handleDownload(opt.step); setShowExportMenu(false); }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors text-left"
+                          transition={{ duration: 0.12 }}
+                          className="absolute right-0 mt-1.5 w-56 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-black/30 z-20 overflow-hidden p-1.5"
+                        >
+                          {exportOptions.map((opt, i) => (
+                            <button
+                              key={i}
+                              onClick={() => { handleDownload(opt.step); setShowExportMenu(false); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors text-left"
                               >
                                 <div className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
                                   <ArrowDownTrayIcon className="w-3.5 h-3.5 text-gray-500" />
@@ -1024,6 +1196,7 @@ const CashReport = () => {
                     <ActionMenu items={actionMenuItems} />
                   </div>
                 </div>
+
 
                 {/* Mobile info strip (hidden on sm+) */}
                 <div className="sm:hidden px-6 pb-3 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
@@ -1107,13 +1280,32 @@ const CashReport = () => {
                         </span>
                       </button>
                       <button
-                        disabled
+                        onClick={() => setAutomationTab('reconcile')}
+                        disabled={isAutomationTabLocked}
                         aria-label={t('Reconcile tab')}
-                        title={t('Reconcile is currently locked')}
-                        className="relative z-10 flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 text-gray-400 dark:text-gray-500 opacity-60 cursor-not-allowed"
+                        className="relative z-10 flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        <LockClosedIcon className="w-4 h-4" />
-                        {t('Reconcile')}
+                        {automationTab === 'reconcile' && (
+                          <motion.div
+                            layoutId="activeTab"
+                            className="absolute inset-0 bg-white dark:bg-[#2a2a2a] rounded-xl shadow-sm"
+                            transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                          />
+                        )}
+                        <span className={`relative z-10 flex items-center gap-1.5 ${
+                          automationTab === 'reconcile'
+                            ? 'text-cyan-700 dark:text-cyan-300'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                        }`}>
+                          {reconcileRunning
+                            ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                            : <DocumentChartBarIcon className="w-4 h-4" />
+                          }
+                          {t('Reconcile')}
+                          {reconcileResult && !reconcileRunning && (
+                            <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
+                          )}
+                        </span>
                       </button>
                     </div>
 
@@ -1180,30 +1372,31 @@ const CashReport = () => {
                             onRemoveFile={removeLookupFile}
                             colorTheme="purple"
                           />
-                          <button
-                            onClick={handlePreviewOpenNew}
-                            disabled={previewingOpenNew || openNewSSE.isRunning || settlementSSE.isRunning || reconcileRunning}
-                            aria-label={t('Preview open-new candidates')}
-                            title={t('Preview what open-new will do (dry run)')}
-                            className="flex items-center gap-1.5 px-4 py-2.5 bg-white dark:bg-[#2a2a2a] text-purple-600 dark:text-purple-400 font-bold rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-purple-200 dark:border-purple-700/50 shadow-sm transition-all disabled:opacity-50 text-sm shrink-0"
-                          >
-                            {previewingOpenNew
-                              ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                              : <EyeIcon className="w-4 h-4" />
-                            }
-                            {t('Preview')}
-                          </button>
-                          <button
-                            onClick={handleRunOpenNew}
-                            disabled={openNewSSE.isRunning || settlementSSE.isRunning || reconcileRunning}
-                            className="flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl font-bold shadow-md shadow-purple-500/20 transition-all disabled:opacity-50 text-sm shrink-0"
-                          >
-                            {openNewSSE.isRunning
-                              ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                              : <PlayIcon className="w-4 h-4" />
-                            }
-                            {openNewSSE.isRunning ? t('Running Open New...') : t('Run Open New')}
-                          </button>
+                          {hasPendingOpenNewReview ? (
+                            <button
+                              onClick={() => { void handleOpenNewReview(); }}
+                              disabled={openNewSSE.isRunning}
+                              className="flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl font-bold shadow-md shadow-amber-500/20 transition-all disabled:opacity-50 text-sm shrink-0"
+                            >
+                              <ExclamationCircleIcon className="w-4 h-4" />
+                              {t('Review Open New')}
+                              <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold leading-none">
+                                {openNewReviewPending}
+                              </span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={handleRunOpenNew}
+                              disabled={openNewSSE.isRunning || settlementSSE.isRunning || reconcileRunning}
+                              className="flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl font-bold shadow-md shadow-purple-500/20 transition-all disabled:opacity-50 text-sm shrink-0"
+                            >
+                              {openNewSSE.isRunning
+                                ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                                : <PlayIcon className="w-4 h-4" />
+                              }
+                              {openNewSSE.isRunning ? t('Running Open New...') : t('Run Open New')}
+                            </button>
+                          )}
                         </motion.div>
                       ) : (
                         <motion.div
@@ -1212,10 +1405,37 @@ const CashReport = () => {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -6 }}
                           transition={{ duration: 0.15 }}
-                          className="flex items-center justify-center gap-2 py-2 text-gray-400 dark:text-gray-500"
+                          className="flex items-center gap-2"
                         >
-                          <LockClosedIcon className="w-4 h-4" />
-                          <span className="text-sm font-medium">{t('Reconcile is currently locked')}</span>
+                          <FileUploadZone
+                            onFilesSelected={handleReconcileFilesSelected}
+                            accept=".xlsx,.xls"
+                            multiple
+                            compact
+                            selectedFiles={reconcileFiles}
+                            label={t('Upload Reconcile Lookup')}
+                            hint={t('Multi-sheet cash balance file')}
+                            colorTheme="blue"
+                            showFileList={false}
+                            id="reconcile-files-upload"
+                            className="flex-1 min-w-0"
+                          />
+                          <FilesDialogButton
+                            files={reconcileFiles}
+                            onRemoveFile={removeReconcileFile}
+                            colorTheme="blue"
+                          />
+                          <button
+                            onClick={handleRunReconcile}
+                            disabled={reconcileRunning || settlementSSE.isRunning || openNewSSE.isRunning || reconcileFiles.length === 0}
+                            className="flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-600 hover:to-sky-700 text-white rounded-xl font-bold shadow-md shadow-cyan-500/20 transition-all disabled:opacity-50 text-sm shrink-0"
+                          >
+                            {reconcileRunning
+                              ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                              : <DocumentChartBarIcon className="w-4 h-4" />
+                            }
+                            {reconcileRunning ? t('Running Reconcile...') : t('Run Reconcile')}
+                          </button>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -1274,7 +1494,7 @@ const CashReport = () => {
               {/* Upload Card */}
               <motion.div
                 layout
-                className="flex-1 w-full min-w-0 bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 relative z-10"
+                className="flex-1 w-full min-w-0 shrink-0 bg-white dark:bg-[#222] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 relative z-10"
                 data-tour="upload"
               >
                 {/* Header */}
@@ -1396,14 +1616,11 @@ const CashReport = () => {
                         ) : (
                           <>
                             <CloudArrowUpIcon className="w-5 h-5" />
-                            {t('Quick Upload {{count}} file(s)', { count: files.length })}
+                            {t('Quick Upload')}
                           </>
                         )}
                       </button>
                     </div>
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      {t('Use Review Nature if you want to edit Nature and let the system learn from your corrections. Quick Upload skips review.')}
-                    </p>
                   </div>
 
                   {/* Vertical Divider */}
@@ -1488,9 +1705,6 @@ const CashReport = () => {
                         )}
                       </button>
                     </div>
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      {t('Use Review Nature to review/classify Movement rows before writing and let the system learn from your changes. Quick Upload skips review.')}
-                    </p>
                   </div>
 
                 </div>
@@ -1513,6 +1727,10 @@ const CashReport = () => {
                 settlementStepRefs={settlementStepRefs}
                 openNewStepRefs={openNewStepRefs}
                 onDownload={handleDownload}
+                openNewReviewSummary={openNewReviewSummary}
+                onOpenNewReview={() => {
+                  void handleOpenNewReview();
+                }}
               />
 
               {/* Mobile: Progress Panel */}
@@ -1530,6 +1748,10 @@ const CashReport = () => {
                 openNewError={openNewError}
                 onClose={() => setShowProgress(false)}
                 onDownload={handleDownload}
+                openNewReviewSummary={openNewReviewSummary}
+                onOpenNewReview={() => {
+                  void handleOpenNewReview();
+                }}
               />
             </div>
           )}
@@ -1579,6 +1801,7 @@ const CashReport = () => {
               </motion.div>
             ))}
           </AnimatePresence>
+
         </div>{/* end full-width section */}
 
         {/* Onboarding Tour */}
@@ -1605,6 +1828,26 @@ const CashReport = () => {
       <OpenNewPreviewModal
         preview={openNewPreview}
         onClose={() => setOpenNewPreview(null)}
+      />
+
+      <OpenNewReviewModal
+        open={showOpenNewReview}
+        review={openNewReview}
+        loading={loadingOpenNewReview}
+        saving={savingOpenNewReview}
+        downloading={downloading}
+        onClose={() => setShowOpenNewReview(false)}
+        onReload={() => {
+          if (session?.session_id) {
+            void loadOpenNewReview(session.session_id, { openModal: true });
+          }
+        }}
+        onSave={(updates) => {
+          void handleSaveOpenNewReview(updates);
+        }}
+        onDownload={() => {
+          void handleDownload();
+        }}
       />
 
       <ClassificationReviewModal

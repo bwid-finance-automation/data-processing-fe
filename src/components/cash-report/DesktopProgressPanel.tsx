@@ -6,10 +6,12 @@ import {
   ArrowsRightLeftIcon,
   BanknotesIcon,
   DocumentChartBarIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import UploadProgressPanel from './UploadProgressPanel';
 import AutomationStepsList from './AutomationStepsList';
+import type { OpenNewReviewSummary } from '../../services/cash-report/cash-report-apis';
 
 interface StepDef {
   key: string;
@@ -19,13 +21,13 @@ interface StepDef {
 }
 
 interface SSEState {
-  steps: any[];
+  steps: unknown[];
   isComplete: boolean;
   error: string | null;
   isRunning: boolean;
   currentStep: string;
   completedSteps: string[];
-  result: any;
+  result: Record<string, unknown> | null;
 }
 
 interface DesktopProgressPanelProps {
@@ -44,6 +46,8 @@ interface DesktopProgressPanelProps {
   settlementStepRefs: MutableRefObject<Record<string, HTMLDivElement | null>>;
   openNewStepRefs: MutableRefObject<Record<string, HTMLDivElement | null>>;
   onDownload: (step: string) => void;
+  openNewReviewSummary?: OpenNewReviewSummary | null;
+  onOpenNewReview: () => void;
 }
 
 export default function DesktopProgressPanel({
@@ -62,8 +66,12 @@ export default function DesktopProgressPanel({
   settlementStepRefs,
   openNewStepRefs,
   onDownload,
+  openNewReviewSummary,
+  onOpenNewReview,
 }: DesktopProgressPanelProps) {
   const { t } = useTranslation();
+  const openNewPending = Number(openNewReviewSummary?.pending_accounts || 0);
+  const openNewCanExport = openNewReviewSummary?.can_export ?? true;
 
   return (
     <AnimatePresence mode="popLayout">
@@ -150,11 +158,11 @@ export default function DesktopProgressPanel({
                       <div className="grid grid-cols-2 gap-2 mb-3">
                         <div className="text-center p-2 bg-white dark:bg-white/5 rounded-lg">
                           <p className="text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-bold">{t('Created')}</p>
-                          <p className="text-xl font-bold text-emerald-800 dark:text-emerald-300">{settlementSSE.result.counter_entries_created ?? 0}</p>
+                          <p className="text-xl font-bold text-emerald-800 dark:text-emerald-300">{Number(settlementSSE.result?.counter_entries_created || 0)}</p>
                         </div>
                         <div className="text-center p-2 bg-white dark:bg-white/5 rounded-lg">
                           <p className="text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-bold">{t('Cleaned')}</p>
-                          <p className="text-xl font-bold text-emerald-800 dark:text-emerald-300">{settlementSSE.result.saving_rows_removed ?? 0}</p>
+                          <p className="text-xl font-bold text-emerald-800 dark:text-emerald-300">{Number(settlementSSE.result?.saving_rows_removed || 0)}</p>
                         </div>
                       </div>
 
@@ -212,11 +220,11 @@ export default function DesktopProgressPanel({
                       <div className="grid grid-cols-2 gap-2 mb-3">
                         <div className="text-center p-2 bg-white dark:bg-white/5 rounded-lg">
                           <p className="text-[10px] uppercase text-purple-600 dark:text-purple-400 font-bold">{t('Created')}</p>
-                          <p className="text-xl font-bold text-purple-800 dark:text-purple-300">{openNewSSE.result.counter_entries_created ?? 0}</p>
+                          <p className="text-xl font-bold text-purple-800 dark:text-purple-300">{Number(openNewSSE.result?.counter_entries_created || 0)}</p>
                         </div>
                         <div className="text-center p-2 bg-white dark:bg-white/5 rounded-lg">
                           <p className="text-[10px] uppercase text-purple-600 dark:text-purple-400 font-bold">{t('Candidates')}</p>
-                          <p className="text-xl font-bold text-purple-800 dark:text-purple-300">{openNewSSE.result.candidates_found ?? 0}</p>
+                          <p className="text-xl font-bold text-purple-800 dark:text-purple-300">{Number(openNewSSE.result?.candidates_found || 0)}</p>
                         </div>
                       </div>
 
@@ -228,6 +236,14 @@ export default function DesktopProgressPanel({
                         {downloading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <ArrowDownTrayIcon className="w-3 h-3" />}
                         {t('Download Result')}
                       </button>
+                      {openNewPending > 0 && (
+                        <button
+                          onClick={onOpenNewReview}
+                          className="w-full py-1.5 text-amber-600 dark:text-amber-400 text-xs font-medium hover:underline flex items-center justify-center gap-1"
+                        >
+                          {t('{{count}} account(s) need review', { count: openNewPending })}
+                        </button>
+                      )}
                     </motion.div>
                   )}
                 </motion.div>

@@ -28,6 +28,52 @@ export interface LearnedRulesResponse {
   rules: LearnedRule[];
 }
 
+export interface OpenNewReviewItem {
+  account_number: string;
+  row: number;
+  entity?: string;
+  bank_branch?: string;
+  bank_name?: string;
+  currency?: string;
+  principal_amount?: number;
+  opening_date?: string | null;
+  maturity_date?: string | null;
+  term_months?: number | null;
+  term_days?: number | null;
+  interest_rate?: number | null;
+  missing_fields?: string[];
+  review_reason?: string;
+  source_description?: string | null;
+  source_row?: number | null;
+  linked_current_account?: string | null;
+  no_lookup_data?: boolean;
+}
+
+export interface OpenNewReviewSummary {
+  tracked_accounts: number;
+  pending_accounts: number;
+  ready_accounts: number;
+  can_export: boolean;
+  updated_at?: string | null;
+}
+
+export interface OpenNewReviewResponse {
+  success?: boolean;
+  session_id: string;
+  items: OpenNewReviewItem[];
+  summary: OpenNewReviewSummary;
+  download_url?: string | null;
+}
+
+export interface OpenNewReviewUpdateItem {
+  account_number: string;
+  opening_date?: string | null;
+  maturity_date?: string | null;
+  term_months?: number | null;
+  term_days?: number | null;
+  interest_rate?: number | null;
+}
+
 /**
  * Initialize a new cash report session
  * @param {Object} config - Session configuration
@@ -307,16 +353,30 @@ export const runOpenNewAutomation = async (sessionId, lookupFiles = []) => {
 };
 
 /**
- * Run Step 8 + Step 9 reconcile checks using real workbook data.
+ * Run reconcile checks and download the modified lookup file with closing balances filled in.
  * @param {string} sessionId - Session ID
- * @returns {Promise} Reconcile result payload
+ * @param {File[]} lookupFiles - Required reconcile lookup files
+ * @returns {Promise<{blob: Blob, filename: string}>} Modified file for download
  */
-export const runReconcileChecks = async (sessionId) => {
+export const runReconcileChecks = async (sessionId, lookupFiles = []) => {
   try {
+    const formData = new FormData();
+    let originalFilename = 'reconcile_result.xlsx';
+    if (lookupFiles && lookupFiles.length > 0) {
+      lookupFiles.forEach((file) => {
+        formData.append('lookup_files', file);
+        if (file.name) originalFilename = file.name;
+      });
+    }
     const response = await apiClient.post(
-      `${FINANCE_API_BASE_URL}/cash-report/run-reconcile/${sessionId}`
+      `${FINANCE_API_BASE_URL}/cash-report/run-reconcile/${sessionId}`,
+      formData,
+      { responseType: 'blob' },
     );
-    return response.data;
+    const disposition = response.headers['content-disposition'] || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : originalFilename;
+    return { blob: response.data as Blob, filename };
   } catch (error) {
     console.error('Error running reconcile checks:', error);
     throw error;
@@ -506,6 +566,45 @@ export const previewMovementData = async (sessionId, limit = 20) => {
     return response.data;
   } catch (error) {
     console.error('Error previewing data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get open-new rows that still need manual metadata before export.
+ * @param {string} sessionId - Session ID
+ * @returns {Promise<OpenNewReviewResponse>} Review payload
+ */
+export const getOpenNewReview = async (sessionId): Promise<OpenNewReviewResponse> => {
+  try {
+    const response = await apiClient.get(
+      `${FINANCE_API_BASE_URL}/cash-report/open-new-review/${sessionId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error loading open-new review:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update missing open-new metadata before export.
+ * @param {string} sessionId - Session ID
+ * @param {OpenNewReviewUpdateItem[]} updates - Batch row updates
+ * @returns {Promise<OpenNewReviewResponse>} Updated review payload
+ */
+export const updateOpenNewReview = async (
+  sessionId,
+  updates: OpenNewReviewUpdateItem[] = [],
+): Promise<OpenNewReviewResponse> => {
+  try {
+    const response = await apiClient.put(
+      `${FINANCE_API_BASE_URL}/cash-report/open-new-review/${sessionId}`,
+      { updates }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error saving open-new review:', error);
     throw error;
   }
 };
