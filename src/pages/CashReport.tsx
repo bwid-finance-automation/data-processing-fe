@@ -28,7 +28,6 @@ import {
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../configs/AuthProvider';
 import { Breadcrumb, FileUploadZone, ActionMenu, FilesDialogButton } from '@components/common';
 import TutorialGuide from '../components/cash-report/TutorialGuide';
 import ConfirmDialog from '../components/cash-report/ConfirmDialog';
@@ -56,14 +55,12 @@ import {
   streamOpenNewProgress,
   previewSettlement,
   previewOpenNew,
-  approveTransactions,
   uploadAndPreview,
   confirmClassifications,
 } from '../services/cash-report/cash-report-apis';
 
 const CashReport = () => {
   const { t, i18n } = useTranslation();
-  const { user: authUser } = useAuth();
 
   // SSE progress hooks (replaces ~20 individual state variables)
   const uploadSSE = useSSEProgress();
@@ -85,8 +82,6 @@ const CashReport = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadingMovement, setUploadingMovement] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [approving, setApproving] = useState(false);
-  const canApprove = authUser?.email === 'bwid.finance1@gmail.com';
   const [resetting, setResetting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [resetSlow, setResetSlow] = useState(false);
@@ -498,23 +493,6 @@ const CashReport = () => {
       toast.error(t('Failed to download'));
     } finally {
       setDownloading(false);
-    }
-  };
-
-  const handleApproveTransactions = async () => {
-    if (!session?.session_id) return;
-    setApproving(true);
-    try {
-      const result = await approveTransactions(session.session_id, true);
-      toast.success(
-        `Approved! Appended ${result.appended || 0}, updated ${result.updated || 0}, skipped ${result.skipped || 0}`
-      );
-    } catch (err) {
-      console.error('Error approving:', err);
-      const detail = (err as any).response?.data?.detail || 'Failed to approve transactions';
-      toast.error(detail);
-    } finally {
-      setApproving(false);
     }
   };
 
@@ -1018,17 +996,6 @@ const CashReport = () => {
                         )}
                       </AnimatePresence>
                     </div>
-                    {canApprove && <button
-                      onClick={handleApproveTransactions}
-                      disabled={approving || !session?.session_id}
-                      title={t('Export verified transactions to training corpus')}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-700/50 transition-colors disabled:opacity-50"
-                    >
-                      <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                        {approving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
-                      </div>
-                      {approving ? t('Approving...') : t('Approve')}
-                    </button>}
                     <ActionMenu items={actionMenuItems} />
                   </div>
                 </div>

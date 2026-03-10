@@ -34,8 +34,8 @@ export interface LearnedRulesResponse {
  * @param {string} config.openingDate - Report period start date (YYYY-MM-DD)
  * @param {string} config.endingDate - Report period end date (YYYY-MM-DD)
  * @param {string} config.periodName - Period name (e.g., "W3-4Jan26")
- * @param {File|null} config.templateFile - Optional user-uploaded .xlsx template.
- *   When provided, the system uses this file as the base and immediately runs:
+ * @param {File} config.templateFile - Required user-uploaded .xlsx template.
+ *   The system uses this file as the base and immediately runs:
  *   (1) update Summary dates/FX/period, (2) copy Cash Balance → Prior Period,
  *   (3) clear Movement sheet.
  * @returns {Promise} Session info with session_id and movement_prepared flag
@@ -47,9 +47,7 @@ export const initAutomationSession = async (config) => {
   if (config.periodName) {
     formData.append('period_name', config.periodName);
   }
-  if (config.templateFile) {
-    formData.append('template_file', config.templateFile);
-  }
+  formData.append('template_file', config.templateFile);
 
   try {
     const response = await apiClient.post(
@@ -507,28 +505,6 @@ export const streamTestProgress = () => {
   return new EventSource(
     `${FINANCE_API_BASE_URL}/cash-report/test-progress`
   );
-};
-
-/**
- * Approve session classifications and export verified transactions
- * to Transactions.csv ground-truth corpus.
- *
- * Call ONLY after verifying Summary "Test E.O.P" = TRUE in Excel.
- * @param {string} sessionId
- * @param {boolean} [force=false] - Skip server-side validation checks
- */
-export const approveTransactions = async (sessionId, force = false) => {
-  try {
-    const response = await apiClient.post(
-      `${FINANCE_API_BASE_URL}/cash-report/approve-transactions/${sessionId}`,
-      null,
-      { params: force ? { force: true } : {} }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error approving transactions:', error);
-    throw error;
-  }
 };
 
 export const previewMovementData = async (sessionId, limit = 20) => {

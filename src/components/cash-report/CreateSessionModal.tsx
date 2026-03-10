@@ -36,6 +36,11 @@ export default function CreateSessionModal({ open, onClose, onCreated }: CreateS
       return;
     }
 
+    if (!templateFile) {
+      toast.error(t('Please upload the completed cash report template for this period'));
+      return;
+    }
+
     const opening = new Date(openingDate);
     const ending = new Date(endingDate);
 
@@ -63,7 +68,7 @@ export default function CreateSessionModal({ open, onClose, onCreated }: CreateS
         openingDate,
         endingDate,
         periodName: autoPeriodName,
-        templateFile: templateFile || null,
+        templateFile,
       });
 
       onClose();
@@ -214,7 +219,7 @@ export default function CreateSessionModal({ open, onClose, onCreated }: CreateS
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('Template File')}
+                  {t('Template File')} *
                   <span className="ml-1 text-xs font-normal text-gray-400 dark:text-gray-500">
                     ({t('optional — upload previous period\'s completed file')})
                   </span>
@@ -273,7 +278,7 @@ export default function CreateSessionModal({ open, onClose, onCreated }: CreateS
               </button>
               <button
                 onClick={handleInitSession}
-                disabled={initializing || !openingDate || !endingDate}
+                disabled={initializing || !openingDate || !endingDate || !templateFile}
                 className="flex-1 py-2.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg font-medium hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {initializing ? (

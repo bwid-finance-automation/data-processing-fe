@@ -64,6 +64,9 @@ export default function ClassificationReviewModal({
   const { t } = useTranslation();
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [statusFilter, setStatusFilter] = useState<'all' | 'review' | 'ok'>('all');
+  const [natureFilter, setNatureFilter] = useState('all');
+
+  const getEffectiveNature = (tx: any) => (drafts[tx.index] ?? tx.nature ?? '').trim();
 
   useEffect(() => {
     if (preview?.transactions) {
@@ -72,6 +75,8 @@ export default function ClassificationReviewModal({
         nextDrafts[tx.index] = tx.nature || '';
       }
       setDrafts(nextDrafts);
+      setStatusFilter('all');
+      setNatureFilter('all');
     }
   }, [preview]);
 
@@ -86,16 +91,33 @@ export default function ClassificationReviewModal({
       .filter((tx: any) => tx.nature);
   }, [drafts, preview]);
 
-  const filteredTransactions = useMemo(() => {
+  const statusFilteredTransactions = useMemo(() => {
     const txs = preview?.transactions || [];
-    if (statusFilter === 'review') {
-      return txs.filter((tx: any) => tx.needs_review);
-    }
-    if (statusFilter === 'ok') {
-      return txs.filter((tx: any) => !tx.needs_review);
-    }
-    return txs;
+    return txs.filter((tx: any) => {
+      if (statusFilter === 'review' && !tx.needs_review) return false;
+      if (statusFilter === 'ok' && tx.needs_review) return false;
+      return true;
+    });
   }, [preview, statusFilter]);
+
+  const natureCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    statusFilteredTransactions.forEach((tx: any) => {
+      const nature = getEffectiveNature(tx);
+      if (!nature) return;
+      counts.set(nature, (counts.get(nature) ?? 0) + 1);
+    });
+    return counts;
+  }, [statusFilteredTransactions, drafts]);
+
+  const availableNatureOptions = useMemo(() => {
+    return ['all', ...Array.from(natureCounts.keys()).sort((a, b) => a.localeCompare(b))];
+  }, [natureCounts]);
+
+  const filteredTransactions = useMemo(() => {
+    if (natureFilter === 'all') return statusFilteredTransactions;
+    return statusFilteredTransactions.filter((tx: any) => getEffectiveNature(tx) === natureFilter);
+  }, [statusFilteredTransactions, natureFilter, drafts]);
 
   const handleNatureChange = (index: number, nature: string) => {
     setDrafts((prev) => ({ ...prev, [index]: nature }));
@@ -164,34 +186,55 @@ export default function ClassificationReviewModal({
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {[
-                  { key: 'all', label: t('All'), count: preview?.total_transactions ?? 0 },
-                  { key: 'review', label: t('Review'), count: preview?.review_stats?.needs_review ?? 0 },
-                  { key: 'ok', label: t('OK'), count: (preview?.total_transactions ?? 0) - (preview?.review_stats?.needs_review ?? 0) },
-                ].map((option) => {
-                  const active = statusFilter === option.key;
-                  return (
-                    <button
-                      key={option.key}
-                      onClick={() => setStatusFilter(option.key as 'all' | 'review' | 'ok')}
-                      className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium transition-colors ${
-                        active
-                          ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
-                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#232323] dark:text-gray-300 dark:hover:bg-[#2b2b2b]'
-                      }`}
-                    >
-                      <span>{option.label}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        active
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-800/40 dark:text-blue-200'
-                          : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
-                      }`}>
-                        {option.count}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    { key: 'all', label: t('All'), count: preview?.total_transactions ?? 0 },
+                    { key: 'review', label: t('Review'), count: preview?.review_stats?.needs_review ?? 0 },
+                    { key: 'ok', label: t('OK'), count: (preview?.total_transactions ?? 0) - (preview?.review_stats?.needs_review ?? 0) },
+                  ].map((option) => {
+                    const active = statusFilter === option.key;
+                    return (
+                      <button
+                        key={option.key}
+                        onClick={() => setStatusFilter(option.key as 'all' | 'review' | 'ok')}
+                        className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium transition-colors ${
+                          active
+                            ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                            : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#232323] dark:text-gray-300 dark:hover:bg-[#2b2b2b]'
+                        }`}
+                      >
+                        <span>{option.label}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          active
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-800/40 dark:text-blue-200'
+                            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+                        }`}>
+                          {option.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                    {t('Nature')}
+                  </span>
+                  <select
+                    value={natureFilter}
+                    onChange={(e) => setNatureFilter(e.target.value)}
+                    className="min-w-[240px] rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-blue-400 dark:border-gray-700 dark:bg-[#232323] dark:text-gray-200"
+                  >
+                    {availableNatureOptions.map((nature) => (
+                      <option key={nature} value={nature}>
+                        {nature === 'all'
+                          ? `${t('All natures')} (${statusFilteredTransactions.length})`
+                          : `${nature} (${natureCounts.get(nature) ?? 0})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
