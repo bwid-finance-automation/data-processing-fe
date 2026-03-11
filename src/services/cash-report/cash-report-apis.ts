@@ -67,6 +67,7 @@ export interface OpenNewReviewResponse {
 
 export interface OpenNewReviewUpdateItem {
   account_number: string;
+  new_account_number?: string | null;
   opening_date?: string | null;
   maturity_date?: string | null;
   term_months?: number | null;

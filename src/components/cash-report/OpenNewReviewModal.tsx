@@ -27,6 +27,7 @@ interface OpenNewReviewModalProps {
 }
 
 interface DraftRow {
+  new_account_number: string;
   opening_date: string;
   maturity_date: string;
   term_months: string;
@@ -38,6 +39,7 @@ const buildDrafts = (items: OpenNewReviewItem[] = []) =>
   items.reduce<Record<string, DraftRow>>((acc, item) => {
     const numericRate = Number(item.interest_rate);
     acc[item.account_number] = {
+      new_account_number: '',
       opening_date: item.opening_date ? String(item.opening_date).slice(0, 10) : '',
       maturity_date: item.maturity_date ? String(item.maturity_date).slice(0, 10) : '',
       term_months: item.term_months != null ? String(item.term_months) : '',
@@ -52,6 +54,7 @@ const buildDrafts = (items: OpenNewReviewItem[] = []) =>
 
 const hasAnyValue = (draft?: DraftRow) =>
   !!(
+    draft?.new_account_number ||
     draft?.opening_date ||
     draft?.maturity_date ||
     draft?.term_months ||
@@ -106,6 +109,7 @@ export default function OpenNewReviewModal({
   const handleFieldChange = (accountNumber: string, field: keyof DraftRow, value: string) => {
     setDrafts((prev) => {
       const current = prev[accountNumber] || {
+        new_account_number: '',
         opening_date: '',
         maturity_date: '',
         term_months: '',
@@ -139,6 +143,7 @@ export default function OpenNewReviewModal({
         if (!hasAnyValue(draft)) return null;
         return {
           account_number: item.account_number,
+          new_account_number: draft.new_account_number || null,
           opening_date: draft.opening_date || null,
           maturity_date: draft.maturity_date || null,
           term_months: draft.term_months === '' ? null : Number(draft.term_months),
@@ -230,13 +235,18 @@ export default function OpenNewReviewModal({
                 <div className="space-y-3">
                   {items.map((item) => {
                     const draft = drafts[item.account_number] || {
+                      new_account_number: '',
                       opening_date: '',
                       maturity_date: '',
                       term_months: '',
                       term_days: '',
                       interest_rate: '',
                     };
-                    const missing = item.missing_fields || [];
+                    const isSuffixAccount = item.account_number.includes('_');
+                    const missing = [
+                      ...(isSuffixAccount ? ['account_number'] : []),
+                      ...(item.missing_fields || []),
+                    ];
                     const contextParts = [
                       item.entity,
                       item.bank_branch || item.bank_name,
@@ -269,6 +279,24 @@ export default function OpenNewReviewModal({
                             ))}
                           </div>
                         </div>
+
+                        {/* Editable account number for suffix accounts */}
+                        {isSuffixAccount && (
+                          <div className="mb-2.5">
+                            <label className="space-y-1">
+                              <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                {t('Saving Account No.')}
+                              </span>
+                              <input
+                                type="text"
+                                value={draft.new_account_number}
+                                onChange={(e) => handleFieldChange(item.account_number, 'new_account_number', e.target.value)}
+                                className={INPUT_CLS}
+                              />
+                            </label>
+                          </div>
+                        )}
+
                         <div className="mb-3 text-xs text-gray-500 dark:text-gray-400">
                           {contextParts.join(' / ')}
                         </div>
