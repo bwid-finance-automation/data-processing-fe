@@ -27,15 +27,6 @@ export const HISTORY_API_BASE_URL = `${BASE_URL}/history`;
 // AI Usage API
 export const AI_USAGE_API_BASE_URL = `${BASE_URL}/ai-usage`;
 
-// Debug: Log API URLs in development
-if (import.meta.env.DEV) {
-  console.log('🔧 API Configuration:');
-  console.log('  BASE_URL:', BASE_URL);
-  console.log('  FINANCE_API_BASE_URL:', FINANCE_API_BASE_URL);
-  console.log('  FPA_API_BASE_URL:', FPA_API_BASE_URL);
-  console.log('  HISTORY_API_BASE_URL:', HISTORY_API_BASE_URL);
-}
-
 // Common axios configuration
 const commonConfig = {
   timeout: 1800000, // 30 minutes for large file processing and AI OCR

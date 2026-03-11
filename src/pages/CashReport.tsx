@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx-js-style';
+import * as XLSX from 'xlsx';
 import {
   DocumentTextIcon,
   CloudArrowUpIcon,
