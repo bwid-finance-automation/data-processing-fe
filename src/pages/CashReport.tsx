@@ -195,13 +195,31 @@ const CashReport = () => {
     return detail || fallbackMessage;
   };
 
-  const loadSessionStatus = useCallback(async (sessionId) => {
+  const loadSessionStatus = useCallback(async (sessionId, options: { recoverOnNotFound?: boolean } = {}) => {
+    const { recoverOnNotFound = true } = options;
     try {
       const result = await getAutomationSessionStatus(sessionId);
       setSession(result);
       return result;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading session status:', err);
+      if (err?.response?.status === 404) {
+        setSession(null);
+        if (recoverOnNotFound) {
+          try {
+            const listResult = await listAutomationSessions();
+            const sessions = listResult.sessions || [];
+            const fallback = sessions.find((item) => item.session_id !== sessionId) || sessions[0];
+            if (fallback?.session_id) {
+              const fallbackResult = await getAutomationSessionStatus(fallback.session_id);
+              setSession(fallbackResult);
+              return fallbackResult;
+            }
+          } catch (recoverErr) {
+            console.error('Error recovering from missing session:', recoverErr);
+          }
+        }
+      }
       return null;
     }
   }, []);
@@ -235,10 +253,13 @@ const CashReport = () => {
       const result = await listAutomationSessions();
       if (result.sessions?.length > 0) {
         const activeSession = result.sessions[0];
-        await loadSessionStatus(activeSession.session_id);
+        await loadSessionStatus(activeSession.session_id, { recoverOnNotFound: false });
+      } else {
+        setSession(null);
       }
     } catch (err) {
       console.error('Error loading sessions:', err);
+      setSession(null);
     } finally {
       setLoadingSessions(false);
     }
