@@ -78,6 +78,8 @@ function NatureCombobox({
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -93,28 +95,43 @@ function NatureCombobox({
     return NATURE_OPTIONS.filter((n) => n.toLowerCase().includes(q));
   }, [search]);
 
+  const handleOpen = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const dropdownH = 300;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setPos({
+        top: spaceBelow >= dropdownH ? rect.bottom + 4 : rect.top - dropdownH - 4,
+        left: Math.min(rect.left, window.innerWidth - 288),
+      });
+    }
+    setOpen(!open);
+    setSearch('');
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref}>
       <div
-        className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-sm transition-colors cursor-pointer ${
+        ref={triggerRef}
+        className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-colors cursor-pointer ${
           isChanged
             ? 'border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20'
             : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-[#232323] dark:hover:border-gray-600'
         }`}
-        onClick={() => {
-          setOpen(!open);
-          setSearch('');
-          setTimeout(() => inputRef.current?.focus(), 0);
-        }}
+        onClick={handleOpen}
       >
         <span className={`flex-1 truncate ${value ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
           {value || 'Select nature...'}
         </span>
-        <ChevronUpDownIcon className="h-4 w-4 shrink-0 text-gray-400" />
+        <ChevronUpDownIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
       </div>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-72 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-[#232323]">
+        <div
+          className="fixed z-50 w-72 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-[#232323]"
+          style={{ top: pos.top, left: pos.left }}
+        >
           <div className="border-b border-gray-100 p-2 dark:border-gray-700">
             <input
               ref={inputRef}
