@@ -239,6 +239,15 @@ export default function ClassificationReviewModal({
     setDrafts((prev) => ({ ...prev, [index]: nature }));
   };
 
+  const handleClose = () => {
+    if (modifications.length > 0) {
+      if (!window.confirm(t('You have {{count}} unsaved change(s). Are you sure you want to leave?', { count: modifications.length }))) {
+        return;
+      }
+    }
+    onClose();
+  };
+
   return (
     <AnimatePresence>
       {preview && (
@@ -247,7 +256,7 @@ export default function ClassificationReviewModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={onClose}
+          onClick={handleClose}
         >
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
@@ -273,7 +282,7 @@ export default function ClassificationReviewModal({
                   </div>
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="rounded-xl p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
                 >
                   <XMarkIcon className="h-5 w-5" />
@@ -287,7 +296,7 @@ export default function ClassificationReviewModal({
                   { label: t('Need Review'), value: preview?.review_stats?.needs_review ?? 0, color: 'text-amber-600 dark:text-amber-400' },
                   { label: t('Changes'), value: modifications.length, color: 'text-blue-600 dark:text-blue-400' },
                   { label: t('High Conf.'), value: preview?.review_stats?.high_confidence ?? 0, color: 'text-emerald-600 dark:text-emerald-400' },
-                  { label: t('Low Conf.'), value: preview?.review_stats?.low_confidence ?? 0, color: 'text-red-500 dark:text-red-400' },
+                  { label: t('Low'), value: preview?.review_stats?.low_confidence ?? 0, color: 'text-red-500 dark:text-red-400' },
                 ].map((s) => (
                   <span key={s.label} className="inline-flex items-center gap-1.5">
                     <span className="text-gray-500 dark:text-gray-400">{s.label}</span>
@@ -302,7 +311,7 @@ export default function ClassificationReviewModal({
                   {[
                     { key: 'all', label: t('All'), count: preview?.total_transactions ?? 0 },
                     { key: 'review', label: t('Review'), count: preview?.review_stats?.needs_review ?? 0 },
-                    { key: 'low_conf', label: t('Low Conf.'), count: preview?.review_stats?.low_confidence ?? 0 },
+                    { key: 'low_conf', label: t('Low'), count: preview?.review_stats?.low_confidence ?? 0 },
                     { key: 'ok', label: t('OK'), count: (preview?.total_transactions ?? 0) - (preview?.review_stats?.needs_review ?? 0) },
                   ].map((option) => {
                     const active = statusFilter === option.key;
@@ -456,7 +465,7 @@ export default function ClassificationReviewModal({
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   {t('Cancel')}
