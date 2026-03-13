@@ -20,9 +20,7 @@ interface SSEState {
 
 interface MobileProgressPanelProps {
   visible: boolean;
-  uploading: boolean;
   uploadingMovement: boolean;
-  uploadSSE: SSEState;
   movementSSE: SSEState;
   settlementSSE: SSEState;
   openNewSSE: SSEState;
@@ -38,9 +36,7 @@ interface MobileProgressPanelProps {
 
 export default function MobileProgressPanel({
   visible,
-  uploading,
   uploadingMovement,
-  uploadSSE,
   movementSSE,
   settlementSSE,
   openNewSSE,
@@ -54,7 +50,7 @@ export default function MobileProgressPanel({
   onOpenNewReview,
 }: MobileProgressPanelProps) {
   const { t } = useTranslation();
-  const isRunning = uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning;
+  const isRunning = uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning;
   const openNewPending = Number(openNewReviewSummary?.pending_accounts || 0);
   const openNewCanExport = openNewReviewSummary?.can_export ?? true;
 
@@ -94,27 +90,12 @@ export default function MobileProgressPanel({
             <div className="p-4 space-y-4">
               <UploadProgressPanel
                 isVisible={true}
-                steps={uploadSSE.steps}
-                isComplete={uploadSSE.isComplete}
-                isError={!!uploadSSE.error}
-                errorMessage={uploadSSE.error}
-                isActive={uploading}
+                steps={movementSSE.steps}
+                isComplete={movementSSE.isComplete}
+                isError={!!movementSSE.error}
+                errorMessage={movementSSE.error}
+                isActive={uploadingMovement}
               />
-
-              {/* Mobile Movement Upload */}
-              {(movementSSE.steps.length > 0 || uploadingMovement) && (
-                <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('Movement Data')}</p>
-                  <UploadProgressPanel
-                    isVisible={true}
-                    steps={movementSSE.steps}
-                    isComplete={movementSSE.isComplete}
-                    isError={!!movementSSE.error}
-                    errorMessage={movementSSE.error}
-                    isActive={uploadingMovement}
-                  />
-                </div>
-              )}
 
               {/* Mobile Settlement */}
               {hasSettlementStarted && (

@@ -40,7 +40,6 @@ import DesktopProgressPanel from '../components/cash-report/DesktopProgressPanel
 import MobileProgressPanel from '../components/cash-report/MobileProgressPanel';
 import useSSEProgress from '../hooks/useSSEProgress';
 import {
-  uploadBankStatements,
   uploadMovementFile,
   uploadMovementAndPreview,
   runSettlementAutomation,
@@ -57,7 +56,6 @@ import {
   streamOpenNewProgress,
   previewSettlement,
   previewOpenNew,
-  uploadAndPreview,
   confirmClassifications,
   updateOpenNewReview,
   type OpenNewReviewResponse,
@@ -68,7 +66,6 @@ const CashReport = () => {
   const { t } = useTranslation();
 
   // SSE progress hooks (replaces ~20 individual state variables)
-  const uploadSSE = useSSEProgress();
   const movementSSE = useSSEProgress();
   const settlementSSE = useSSEProgress();
   const openNewSSE = useSSEProgress();
@@ -80,11 +77,9 @@ const CashReport = () => {
   // Form state
 
   // File upload state
-  const [files, setFiles] = useState([]);
   const [movementFile, setMovementFile] = useState(null);
 
   // Loading states
-  const [uploading, setUploading] = useState(false);
   const [uploadingMovement, setUploadingMovement] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -92,14 +87,13 @@ const CashReport = () => {
   const [resetSlow, setResetSlow] = useState(false);
 
   // UI state
-  const [showProgress, setShowProgress] = useState(false);
+  const [showProgress] = useState(true);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showLearnedRules, setShowLearnedRules] = useState(false);
   const [uploadPreview, setUploadPreview] = useState(null);
-  const [uploadPreviewSource, setUploadPreviewSource] = useState<'bank' | 'movement' | null>(null);
   const [automationTab, setAutomationTab] = useState('settlement'); // 'settlement' | 'open_new' | 'reconcile'
   const [_hasDownloadedResult, setHasDownloadedResult] = useState(false);
 
@@ -167,12 +161,6 @@ const CashReport = () => {
     }
   }, [openNewSSE.currentStep]);
 
-  // Auto-open progress panel when any process starts running
-  useEffect(() => {
-    if (settlementSSE.isRunning || openNewSSE.isRunning || uploading || uploadingMovement) {
-      setShowProgress(true);
-    }
-  }, [settlementSSE.isRunning, openNewSSE.isRunning, uploading, uploadingMovement]);
 
   const breadcrumbItems = [
     { label: t('Home'), href: '/' },
@@ -300,108 +288,6 @@ const CashReport = () => {
     setShowCreateModal(true);
   };
 
-  const handleUpload = async () => {
-    if (!session?.session_id || files.length === 0) {
-      toast.error(t('Please select files to upload'));
-      return;
-    }
-
-    setUploading(true);
-    setUploadError(null);
-    setShowProgress(true);
-
-    // Reset settlement & open-new state if re-uploading
-    settlementSSE.resetAll();
-    openNewSSE.resetAll();
-    setOpenNewReview(null);
-    setShowOpenNewReview(false);
-    setHasDownloadedResult(false);
-    setReconcileResult(null);
-    setReconcileError(null);
-
-    // Start SSE stream for upload progress
-    uploadSSE.startUploadStream(() => streamUploadProgress(session.session_id));
-
-    try {
-      const result = await uploadBankStatements(session.session_id, files, true);
-      const added = result.total_transactions_added || 0;
-      const skipped = result.total_transactions_skipped || 0;
-
-      if (!uploadSSE.isComplete) {
-        uploadSSE.setIsComplete(true);
-        uploadSSE.setSteps((prev) => {
-          if (prev.length === 0 || prev[prev.length - 1]?.type !== 'complete') {
-            return [...prev, {
-              type: 'complete',
-              step: 'done',
-              message: added > 0
-                ? t('Upload complete! {{count}} transactions processed.', { count: added })
-                : t('Upload complete'),
-              percentage: 100,
-            }];
-          }
-          return prev;
-        });
-      }
-
-      if (added > 0) {
-        if (skipped > 0) {
-          toast.success(t('Uploaded {{added}} transactions ({{skipped}} skipped — outside period)', { added, skipped }));
-        } else {
-          toast.success(t('Uploaded {{count}} transactions', { count: added }));
-        }
-        if ((result?.duplicate_files || 0) > 0) {
-          toast.warning(t('{{count}} bank statement file(s) were skipped because they were already uploaded', { count: result.duplicate_files }));
-        }
-      } else if (result.warning === 'duplicate_file' || (result?.duplicate_files || 0) > 0) {
-        toast.warning(result.message || t('This bank statement file was already uploaded in this session'));
-      } else if (result.warning === 'date_mismatch') {
-        toast.error(result.message || t('All transactions were outside the session period. Please check if the correct period was selected.'));
-      } else {
-        toast.warning(result.message || t('No valid transactions found in uploaded files'));
-      }
-
-      setFiles([]);
-      await loadSessionStatus(session.session_id);
-    } catch (err) {
-      console.error('Error uploading:', err);
-      const msg = err.response?.data?.detail || t('Failed to upload files');
-      setUploadError(msg);
-      uploadSSE.setError(msg);
-      toast.error(t('Failed to upload files'));
-    } finally {
-      setUploading(false);
-      uploadSSE.close();
-    }
-  };
-
-  const handleUploadPreview = async () => {
-    if (!session?.session_id || files.length === 0) {
-      toast.error(t('Please select files to review'));
-      return;
-    }
-
-    setPreviewingUpload(true);
-    setUploadError(null);
-    try {
-      const result = await uploadAndPreview(session.session_id, files, true);
-      if (result?.status === 'duplicate_file' || result?.duplicate_file) {
-        toast.warning(result?.message || t('This bank statement file was already uploaded in this session'));
-        return;
-      }
-      setUploadPreview(result);
-      setUploadPreviewSource('bank');
-      toast.success(t('Preview ready. Review Nature before confirming.'));
-    } catch (err) {
-      console.error('Error generating preview:', err);
-      const msg = getErrorDetail(err, t('Failed to generate preview'));
-      setUploadError(msg);
-      toast.error(msg);
-    } finally {
-      setPreviewingUpload(false);
-    }
-  };
-
   const handleConfirmPreview = async (modifications) => {
     if (!session?.session_id) return;
 
@@ -410,23 +296,13 @@ const CashReport = () => {
       const result = await confirmClassifications(session.session_id, modifications);
       if (result?.status === 'duplicate_file' || result?.duplicate_file) {
         setUploadPreview(null);
-        if (uploadPreviewSource === 'movement') {
-          setMovementFile(null);
-        } else {
-          setFiles([]);
-        }
-        setUploadPreviewSource(null);
+        setMovementFile(null);
         await loadSessionStatus(session.session_id);
         toast.warning(result?.message || t('This file was already uploaded in this session'));
         return;
       }
       setUploadPreview(null);
-      if (uploadPreviewSource === 'movement') {
-        setMovementFile(null);
-      } else {
-        setFiles([]);
-      }
-      setUploadPreviewSource(null);
+      setMovementFile(null);
       await loadSessionStatus(session.session_id);
       toast.success(
         t('Confirmed. Learned {{reference}} corrections and {{keyword}} promoted rules.', {
@@ -458,7 +334,7 @@ const CashReport = () => {
         return;
       }
       setUploadPreview(result);
-      setUploadPreviewSource('movement');
+
       toast.success(t('Movement preview ready. Review Nature before confirming.'));
     } catch (err) {
       console.error('Error generating Movement preview:', err);
@@ -525,7 +401,7 @@ const CashReport = () => {
     setSettlementError(null);
     setReconcileResult(null);
     setReconcileError(null);
-    setShowProgress(true);
+
 
     // Start SSE workflow stream
     settlementSSE.startWorkflow(() => streamSettlementProgress(session.session_id));
@@ -552,7 +428,7 @@ const CashReport = () => {
     setShowOpenNewReview(false);
     setReconcileResult(null);
     setReconcileError(null);
-    setShowProgress(true);
+
 
     // Start SSE workflow stream
     openNewSSE.startWorkflow(() => streamOpenNewProgress(session.session_id));
@@ -695,8 +571,8 @@ const CashReport = () => {
           toast.success(t('Session reset successfully'));
 
           // Clear all progress data via hooks
-          setShowProgress(false);
-          uploadSSE.resetAll();
+
+
           settlementSSE.resetAll();
           openNewSSE.resetAll();
           setLookupFiles([]);
@@ -741,8 +617,8 @@ const CashReport = () => {
           toast.success(t('Session deleted successfully'));
 
           // Clear all progress data via hooks
-          setShowProgress(false);
-          uploadSSE.resetAll();
+
+
           settlementSSE.resetAll();
           openNewSSE.resetAll();
           setLookupFiles([]);
@@ -788,64 +664,6 @@ const CashReport = () => {
   }, []);
 
 
-  const handleFilesSelected = useCallback(async (selectedFiles) => {
-    const validExts = ['.xlsx', '.xls'];
-    const invalidFiles = selectedFiles.filter(f => !validExts.some(ext => f.name.toLowerCase().endsWith(ext)));
-    if (invalidFiles.length > 0) {
-      toast.error(t('Upload parsed bank statement Excel files (.xlsx, .xls)'));
-      return;
-    }
-
-    // Validate file content - check it's a bank statement, not a movement file
-    for (const file of selectedFiles) {
-      try {
-        const { sheetNames, sheets } = await readExcelHeaders(file);
-        const firstSheet = sheets[sheetNames[0]];
-        const cellA1 = firstSheet?.['A1']?.v?.toString().toLowerCase() || '';
-
-        if (cellA1.includes('source')) {
-          setMovementFile(file);
-          toast.info(t('Moved to Movement Data upload zone'));
-          return;
-        }
-
-        if (!sheetNames.includes('Template details')) {
-          toast.error(t('It is not a valid parsed bank statement file'));
-          return;
-        }
-      } catch {
-        toast.error(t('Cannot read file. Please upload a valid Excel file'));
-        return;
-      }
-    }
-
-    const uploadedNames = new Set(
-      (session?.uploaded_files || []).map(f => f.filename)
-    );
-    const pendingNames = new Set(files.map(f => f.name));
-
-    let alreadyUploaded = 0;
-    let alreadyPending = 0;
-    const newFiles = selectedFiles.filter(f => {
-      if (uploadedNames.has(f.name)) { alreadyUploaded++; return false; }
-      if (pendingNames.has(f.name)) { alreadyPending++; return false; }
-      return true;
-    });
-
-    if (alreadyUploaded > 0) {
-      toast.warning(t('{{count}} file(s) already uploaded', { count: alreadyUploaded }));
-    }
-    if (alreadyPending > 0) {
-      toast.warning(t('{{count}} duplicate file(s) skipped', { count: alreadyPending }));
-    }
-    if (newFiles.length > 0) {
-      setFiles(prev => [...prev, ...newFiles]);
-    }
-  }, [t, files, session?.uploaded_files, readExcelHeaders]);
-
-  const handleRemoveFile = useCallback((index) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-  }, []);
 
   // Movement Data file handlers
   const handleMovementFileSelected = useCallback(async (selectedFiles) => {
@@ -857,21 +675,9 @@ const CashReport = () => {
         return;
       }
 
-      // Validate file content - check it's a movement file, not a bank statement
+      // Validate file content
       try {
         const { sheetNames, sheets } = await readExcelHeaders(file);
-
-        if (sheetNames.includes('Template details')) {
-          const uploadedNames = new Set((session?.uploaded_files || []).map(f => f.filename));
-          if (!uploadedNames.has(file.name)) {
-            setFiles(prev => [...prev, file]);
-            toast.info(t('Moved to Bank Statements upload zone'));
-          } else {
-            toast.warning(t('This file was already uploaded'));
-          }
-          return;
-        }
-
         const firstSheet = sheets[sheetNames[0]];
         const cellA1 = firstSheet?.['A1']?.v?.toString().toLowerCase() || '';
         if (!cellA1.includes('source')) {
@@ -899,7 +705,7 @@ const CashReport = () => {
 
     setUploadingMovement(true);
     setMovementError(null);
-    setShowProgress(true);
+
 
     // Reset settlement & open-new state if re-uploading
     settlementSSE.resetAll();
@@ -1039,7 +845,7 @@ const CashReport = () => {
 
   // Dynamic session sub-state badge (#1)
   const sessionBadge = (() => {
-    if (uploading || uploadingMovement) return { label: t('Uploading'), color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400', tone: 'busy' };
+    if (uploadingMovement) return { label: t('Uploading'), color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400', tone: 'busy' };
     if (settlementSSE.isRunning) return { label: t('Settlement running'), color: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400', tone: 'busy' };
     if (openNewSSE.isRunning) return { label: t('Open-new running'), color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400', tone: 'busy' };
     if (reconcileRunning) return { label: t('Reconcile running'), color: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400', tone: 'busy' };
@@ -1528,132 +1334,11 @@ const CashReport = () => {
                     {t('Upload Files')}
                   </h2>
 
-                  {/* Toggle Progress Panel */}
-                  {(uploadSSE.steps.length > 0 || movementSSE.steps.length > 0 || uploading || uploadingMovement || hasSettlementStarted || hasOpenNewStarted) && (
-                    <button
-                      onClick={() => setShowProgress(!showProgress)}
-                      aria-label={showProgress ? t('Hide progress panel') : t('Show progress panel')}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                        showProgress
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
-                      }`}
-                    >
-                      {showProgress ? (
-                        <>
-                          <span>{t('Hide Progress')}</span>
-                          <ChevronRightIcon className="w-4 h-4" />
-                        </>
-                      ) : (
-                        <>
-                          <ChevronLeftIcon className="w-4 h-4" />
-                          <span>{t('Show Progress')}</span>
-                          {(uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning) && (
-                            <span className="relative flex h-2.5 w-2.5 ml-1">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </button>
-                  )}
                 </div>
 
-                {/* Two Upload Zones Side by Side */}
-                <div className="flex flex-col md:flex-row gap-0 p-6">
-
-                  {/* LEFT: Bank Statements */}
-                  <div className="flex-1 min-w-0 flex flex-col">
-                    <div className="flex items-start justify-between mb-1">
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {t('Upload Bank Statements')}
-                        </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          {t('Upload parsed bank statement Excel files')}
-                        </p>
-                      </div>
-                      <FilesDialogButton
-                        files={[
-                          ...(session?.uploaded_files || [])
-                            .filter(f => f.file_type !== 'movement')
-                            .map(f => ({ name: f.filename, size: f.file_size || 0 })),
-                          ...files,
-                        ]}
-                        onRemoveFile={files.length > 0 ? (index) => {
-                          const uploadedCount = (session?.uploaded_files || []).filter(f => f.file_type !== 'movement').length;
-                          if (index >= uploadedCount) handleRemoveFile(index - uploadedCount);
-                        } : undefined}
-                        disabled={uploading || uploadingMovement}
-                        colorTheme="emerald"
-                      />
-                    </div>
-
-                    <div className="flex-1 mt-2">
-                      <FileUploadZone
-                        onFilesSelected={handleFilesSelected}
-                        accept=".xlsx,.xls"
-                        multiple={true}
-                        disabled={uploading || uploadingMovement}
-                        selectedFiles={files}
-                        onRemoveFile={handleRemoveFile}
-                        onClear={() => setFiles([])}
-                        colorTheme="emerald"
-                        label={t('Drop Excel files here')}
-                        hint={t('Parsed bank statements (.xlsx)')}
-                        showFileList={false}
-                      />
-                    </div>
-
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      <button
-                        onClick={() => {
-                          handleUploadPreview();
-                        }}
-                        disabled={previewingUpload || uploading || uploadingMovement || files.length === 0}
-                        className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg font-medium hover:from-amber-600 hover:to-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        {previewingUpload ? (
-                          <>
-                            <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                            {t('Preparing Review...')}
-                          </>
-                        ) : (
-                          <>
-                            <EyeIcon className="w-5 h-5" />
-                            {t('Review Nature')}
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleUpload();
-                        }}
-                        disabled={uploading || uploadingMovement || previewingUpload || files.length === 0}
-                        className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        {uploading ? (
-                          <>
-                            <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                            {t('Uploading...')}
-                          </>
-                        ) : (
-                          <>
-                            <CloudArrowUpIcon className="w-5 h-5" />
-                            {t('Quick Upload')}
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Vertical Divider */}
-                  <div className="hidden md:block w-px bg-gray-200 dark:bg-gray-700 mx-6" />
-                  <div className="md:hidden h-px bg-gray-200 dark:bg-gray-700 my-6" />
-
-                  {/* RIGHT: Movement Data */}
-                  <div className="flex-1 min-w-0 flex flex-col">
+                {/* Upload Movement Data */}
+                <div className="p-6">
+                  <div className="flex flex-col">
                     <div className="flex items-start justify-between mb-1">
                       <div>
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -1674,7 +1359,7 @@ const CashReport = () => {
                           const uploadedCount = (session?.uploaded_files || []).filter(f => f.file_type === 'movement').length;
                           if (index >= uploadedCount) handleRemoveMovementFile();
                         } : undefined}
-                        disabled={uploadingMovement || uploading}
+                        disabled={uploadingMovement}
                         colorTheme="purple"
                       />
                     </div>
@@ -1697,7 +1382,7 @@ const CashReport = () => {
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
                       <button
                         onClick={handleUploadMovementPreview}
-                        disabled={previewingUpload || uploading || uploadingMovement || !movementFile}
+                        disabled={previewingUpload || uploadingMovement || !movementFile}
                         className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg font-medium hover:from-amber-600 hover:to-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {previewingUpload ? (
@@ -1714,7 +1399,7 @@ const CashReport = () => {
                       </button>
                       <button
                         onClick={handleUploadMovement}
-                        disabled={uploadingMovement || uploading || previewingUpload || !movementFile}
+                        disabled={uploadingMovement || previewingUpload || !movementFile}
                         className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-violet-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {uploadingMovement ? (
@@ -1738,10 +1423,8 @@ const CashReport = () => {
               {/* RIGHT: Sliding Progress Panel (Desktop) */}
               <DesktopProgressPanel
                 showProgress={showProgress}
-                uploading={uploading}
                 uploadingMovement={uploadingMovement}
                 downloading={downloading}
-                uploadSSE={uploadSSE}
                 movementSSE={movementSSE}
                 settlementSSE={settlementSSE}
                 openNewSSE={openNewSSE}
@@ -1760,10 +1443,8 @@ const CashReport = () => {
 
               {/* Mobile: Progress Panel */}
               <MobileProgressPanel
-                visible={showProgress || uploading || uploadingMovement || settlementSSE.isRunning || openNewSSE.isRunning}
-                uploading={uploading}
+                visible={true}
                 uploadingMovement={uploadingMovement}
-                uploadSSE={uploadSSE}
                 movementSSE={movementSSE}
                 settlementSSE={settlementSSE}
                 openNewSSE={openNewSSE}
@@ -1771,7 +1452,7 @@ const CashReport = () => {
                 hasOpenNewStarted={hasOpenNewStarted}
                 settlementError={settlementError}
                 openNewError={openNewError}
-                onClose={() => setShowProgress(false)}
+                onClose={() => {}}
                 onDownload={handleDownload}
                 openNewReviewSummary={openNewReviewSummary}
                 onOpenNewReview={() => {
@@ -1880,7 +1561,7 @@ const CashReport = () => {
         confirming={confirmingPreview}
         onClose={() => {
           setUploadPreview(null);
-          setUploadPreviewSource(null);
+
         }}
         onConfirm={handleConfirmPreview}
       />

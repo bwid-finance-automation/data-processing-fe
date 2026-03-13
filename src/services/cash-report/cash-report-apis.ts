@@ -114,37 +114,6 @@ export const initAutomationSession = async (config) => {
 };
 
 /**
- * Upload parsed bank statement files to a session
- * @param {string} sessionId - Session ID
- * @param {File[]} files - Parsed bank statement Excel files
- * @param {boolean} filterByDate - Filter transactions by session date range (default: true)
- * @returns {Promise} Upload result with transaction counts
- */
-export const uploadBankStatements = async (sessionId, files, filterByDate = true) => {
-  const formData = new FormData();
-  files.forEach((file) => {
-    formData.append('files', file);
-  });
-  formData.append('filter_by_date', String(filterByDate));
-
-  try {
-    const response = await apiClient.post(
-      `${FINANCE_API_BASE_URL}/cash-report/upload-statements/${sessionId}`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error uploading bank statements:', error);
-    throw error;
-  }
-};
-
-/**
  * Upload Movement Netsuite & Manual file to a session
  * Pre-classified transactions (no AI needed). Filters out "Automation" rows.
  * @param {string} sessionId - Session ID
@@ -436,38 +405,6 @@ export const previewOpenNew = async (sessionId, lookupFiles = []) => {
     return response.data;
   } catch (error) {
     console.error('Error previewing open-new:', error);
-    throw error;
-  }
-};
-
-/**
- * Upload files and get classification preview (does NOT write to Excel)
- * Call confirmClassifications() after user reviews the results
- * @param {string} sessionId - Session ID
- * @param {File[]} files - Parsed bank statement Excel files
- * @param {boolean} filterByDate - Filter by session date range
- * @returns {Promise} Preview with classified transactions and stats
- */
-export const uploadAndPreview = async (sessionId, files, filterByDate = true) => {
-  const formData = new FormData();
-  files.forEach((file) => {
-    formData.append('files', file);
-  });
-  formData.append('filter_by_date', String(filterByDate));
-
-  try {
-    const response = await apiClient.post(
-      `${FINANCE_API_BASE_URL}/cash-report/upload-preview/${sessionId}`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error uploading preview:', error);
     throw error;
   }
 };

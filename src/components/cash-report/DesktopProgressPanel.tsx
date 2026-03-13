@@ -5,7 +5,6 @@ import {
   ArrowDownTrayIcon,
   ArrowsRightLeftIcon,
   BanknotesIcon,
-  DocumentChartBarIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
@@ -32,10 +31,8 @@ interface SSEState {
 
 interface DesktopProgressPanelProps {
   showProgress: boolean;
-  uploading: boolean;
   uploadingMovement: boolean;
   downloading: boolean;
-  uploadSSE: SSEState;
   movementSSE: SSEState;
   settlementSSE: SSEState;
   openNewSSE: SSEState;
@@ -52,10 +49,8 @@ interface DesktopProgressPanelProps {
 
 export default function DesktopProgressPanel({
   showProgress,
-  uploading,
   uploadingMovement,
   downloading,
-  uploadSSE,
   movementSSE,
   settlementSSE,
   openNewSSE,
@@ -85,37 +80,16 @@ export default function DesktopProgressPanel({
         >
           <div className="absolute inset-0 w-[380px] overflow-y-auto">
             <div className="flex flex-col p-4 gap-4">
-              {/* Section 1: Bank Statement Upload Progress */}
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('Progress')}</h2>
+              {/* Movement Data Upload Progress */}
               <UploadProgressPanel
                 isVisible={true}
-                steps={uploadSSE.steps}
-                isComplete={uploadSSE.isComplete}
-                isError={!!uploadSSE.error}
-                errorMessage={uploadSSE.error}
-                isActive={uploading}
+                steps={movementSSE.steps}
+                isComplete={movementSSE.isComplete}
+                isError={!!movementSSE.error}
+                errorMessage={movementSSE.error}
+                isActive={uploadingMovement}
               />
-
-              {/* Section 1b: Movement Data Upload Progress */}
-              {(movementSSE.steps.length > 0 || uploadingMovement) && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="border-t border-gray-100 dark:border-gray-800 pt-4"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <DocumentChartBarIcon className={`w-5 h-5 ${uploadingMovement ? 'text-purple-500 animate-pulse' : 'text-emerald-500'}`} />
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{t('Movement Data')}</h3>
-                  </div>
-                  <UploadProgressPanel
-                    isVisible={true}
-                    steps={movementSSE.steps}
-                    isComplete={movementSSE.isComplete}
-                    isError={!!movementSSE.error}
-                    errorMessage={movementSSE.error}
-                    isActive={uploadingMovement}
-                  />
-                </motion.div>
-              )}
 
               {/* Section 2: Settlement Progress */}
               {hasSettlementStarted && (

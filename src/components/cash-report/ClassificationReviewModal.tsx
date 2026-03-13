@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowPathIcon,
   CheckCircleIcon,
+  ChevronUpDownIcon,
   ExclamationTriangleIcon,
   PencilSquareIcon,
   XMarkIcon,
@@ -53,6 +54,103 @@ function formatConfidence(value: unknown) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return '-';
   return `${Math.round(numeric * 100)}%`;
+}
+
+function confidenceColor(level: string | undefined) {
+  if (!level) return 'text-gray-400';
+  const l = level.toLowerCase();
+  if (l === 'high') return 'text-emerald-600 dark:text-emerald-400';
+  if (l === 'medium') return 'text-amber-600 dark:text-amber-400';
+  return 'text-red-500 dark:text-red-400';
+}
+
+/* ── Combobox dropdown for nature selection ── */
+function NatureCombobox({
+  value,
+  onChange,
+  isChanged,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  isChanged: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!search) return NATURE_OPTIONS;
+    const q = search.toLowerCase();
+    return NATURE_OPTIONS.filter((n) => n.toLowerCase().includes(q));
+  }, [search]);
+
+  return (
+    <div ref={ref} className="relative">
+      <div
+        className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-sm transition-colors cursor-pointer ${
+          isChanged
+            ? 'border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20'
+            : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-[#232323] dark:hover:border-gray-600'
+        }`}
+        onClick={() => {
+          setOpen(!open);
+          setSearch('');
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }}
+      >
+        <span className={`flex-1 truncate ${value ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
+          {value || 'Select nature...'}
+        </span>
+        <ChevronUpDownIcon className="h-4 w-4 shrink-0 text-gray-400" />
+      </div>
+
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 w-72 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-[#232323]">
+          <div className="border-b border-gray-100 p-2 dark:border-gray-700">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg bg-gray-50 px-3 py-1.5 text-sm outline-none dark:bg-[#1b1b1b] dark:text-white"
+            />
+          </div>
+          <div className="max-h-56 overflow-y-auto py-1">
+            {filtered.length === 0 && (
+              <div className="px-3 py-2 text-sm text-gray-400">No match</div>
+            )}
+            {filtered.map((nature) => (
+              <button
+                key={nature}
+                onClick={() => {
+                  onChange(nature);
+                  setOpen(false);
+                  setSearch('');
+                }}
+                className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20 ${
+                  nature === value
+                    ? 'bg-blue-50 font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                    : 'text-gray-700 dark:text-gray-200'
+                }`}
+              >
+                {nature}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ClassificationReviewModal({
@@ -140,6 +238,7 @@ export default function ClassificationReviewModal({
             className="flex max-h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#1b1b1b]"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* ── Header ── */}
             <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
@@ -163,6 +262,7 @@ export default function ClassificationReviewModal({
                 </button>
               </div>
 
+              {/* ── Stats ── */}
               <div className="mt-4 grid gap-3 md:grid-cols-5">
                 <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-[#232323]">
                   <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('Transactions')}</div>
@@ -186,6 +286,7 @@ export default function ClassificationReviewModal({
                 </div>
               </div>
 
+              {/* ── Filters ── */}
               <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
                   {[
@@ -238,18 +339,18 @@ export default function ClassificationReviewModal({
               </div>
             </div>
 
+            {/* ── Table ── */}
             <div className="flex-1 overflow-auto">
-              <table className="min-w-[1450px] w-full text-sm">
+              <table className="min-w-[1100px] w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-gray-900 text-left text-xs uppercase tracking-[0.16em] text-white">
                   <tr>
-                    <th className="px-4 py-3">{t('#')}</th>
-                    <th className="px-4 py-3">{t('Review')}</th>
+                    <th className="w-14 px-4 py-3 text-center">{t('#')}</th>
+                    <th className="w-20 px-3 py-3 text-center">{t('Status')}</th>
                     <th className="px-4 py-3">{t('Description')}</th>
-                    <th className="px-4 py-3">{t('Debit')}</th>
-                    <th className="px-4 py-3">{t('Credit')}</th>
-                    <th className="px-4 py-3">{t('Suggested Nature')}</th>
-                    <th className="px-4 py-3">{t('Edit Nature')}</th>
-                    <th className="px-4 py-3">{t('Confidence')}</th>
+                    <th className="w-32 px-4 py-3 text-right">{t('Debit')}</th>
+                    <th className="w-32 px-4 py-3 text-right">{t('Credit')}</th>
+                    <th className="w-64 px-4 py-3">{t('Nature')}</th>
+                    <th className="w-24 px-4 py-3 text-center">{t('Conf.')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -266,8 +367,13 @@ export default function ClassificationReviewModal({
                               : 'bg-white dark:bg-[#1b1b1b]'
                         }
                       >
-                        <td className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">{tx.index}</td>
-                        <td className="px-4 py-3">
+                        {/* Index */}
+                        <td className="px-4 py-3 text-center font-medium text-gray-400 dark:text-gray-500">
+                          {tx.index}
+                        </td>
+
+                        {/* Status badge */}
+                        <td className="px-3 py-3 text-center">
                           {tx.needs_review ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                               <ExclamationTriangleIcon className="h-3.5 w-3.5" />
@@ -280,43 +386,56 @@ export default function ClassificationReviewModal({
                             </span>
                           )}
                         </td>
-                        <td className="max-w-[420px] px-4 py-3 text-gray-700 dark:text-gray-300">
-                          <div className="break-words">{tx.description || '-'}</div>
-                          <div className="mt-1 text-xs text-gray-400">
-                            {tx.review_reason || '-'}
-                          </div>
+
+                        {/* Description — wider, with review reason */}
+                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                          <div className="break-words leading-relaxed">{tx.description || '-'}</div>
+                          {tx.review_reason && (
+                            <div className="mt-1 text-xs leading-snug text-amber-600 dark:text-amber-400">
+                              {tx.review_reason}
+                            </div>
+                          )}
                         </td>
-                        <td className="px-4 py-3 font-mono text-gray-600 dark:text-gray-300">{formatAmount(tx.debit)}</td>
-                        <td className="px-4 py-3 font-mono text-gray-600 dark:text-gray-300">{formatAmount(tx.credit)}</td>
-                        <td className="px-4 py-3 text-gray-700 dark:text-gray-200">{tx.nature || '-'}</td>
+
+                        {/* Amounts — right-aligned for easier scanning */}
+                        <td className="px-4 py-3 text-right font-mono text-gray-600 dark:text-gray-300">
+                          {formatAmount(tx.debit)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-gray-600 dark:text-gray-300">
+                          {formatAmount(tx.credit)}
+                        </td>
+
+                        {/* Nature — merged: combobox with original shown as subtitle when changed */}
                         <td className="px-4 py-3">
-                          <input
-                            list="cash-report-nature-options"
+                          <NatureCombobox
                             value={drafts[tx.index] ?? ''}
-                            onChange={(e) => handleNatureChange(tx.index, e.target.value)}
-                            className={`w-full min-w-[220px] rounded-xl border px-3 py-2 text-sm outline-none transition-colors ${
-                              isChanged
-                                ? 'border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/10'
-                                : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-[#232323]'
-                            } text-gray-900 dark:text-white`}
+                            onChange={(v) => handleNatureChange(tx.index, v)}
+                            isChanged={isChanged}
                           />
+                          {isChanged && (
+                            <div className="mt-1 text-xs text-gray-400 line-through">
+                              {tx.nature || '-'}
+                            </div>
+                          )}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-gray-700 dark:text-gray-200">{formatConfidence(tx.confidence_score)}</div>
-                          <div className="text-xs text-gray-400">{tx.confidence_level || '-'}</div>
+
+                        {/* Confidence — color-coded */}
+                        <td className="px-4 py-3 text-center">
+                          <div className={`text-sm font-semibold ${confidenceColor(tx.confidence_level)}`}>
+                            {formatConfidence(tx.confidence_score)}
+                          </div>
+                          <div className={`text-[11px] ${confidenceColor(tx.confidence_level)}`}>
+                            {tx.confidence_level || '-'}
+                          </div>
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-              <datalist id="cash-report-nature-options">
-                {NATURE_OPTIONS.map((nature) => (
-                  <option key={nature} value={nature} />
-                ))}
-              </datalist>
             </div>
 
+            {/* ── Footer ── */}
             <div className="flex items-center justify-between gap-4 border-t border-gray-200 px-6 py-4 dark:border-gray-800">
               <div className="text-sm text-gray-500 dark:text-gray-400">
                 {t('{{shown}} row(s) shown, {{changed}} row(s) changed. Confirm to write preview results and learn from the corrections.', {
