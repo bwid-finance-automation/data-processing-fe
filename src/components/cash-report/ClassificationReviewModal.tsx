@@ -262,28 +262,20 @@ export default function ClassificationReviewModal({
                 </button>
               </div>
 
-              {/* ── Stats ── */}
-              <div className="mt-4 grid gap-3 md:grid-cols-5">
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-[#232323]">
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('Transactions')}</div>
-                  <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{preview?.total_transactions ?? 0}</div>
-                </div>
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-[#232323]">
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('Need Review')}</div>
-                  <div className="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-300">{preview?.review_stats?.needs_review ?? 0}</div>
-                </div>
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-[#232323]">
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('Manual Changes')}</div>
-                  <div className="mt-1 text-2xl font-bold text-blue-700 dark:text-blue-300">{modifications.length}</div>
-                </div>
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-[#232323]">
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('High Confidence')}</div>
-                  <div className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">{preview?.review_stats?.high_confidence ?? 0}</div>
-                </div>
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-[#232323]">
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('Low Confidence')}</div>
-                  <div className="mt-1 text-2xl font-bold text-red-700 dark:text-red-300">{preview?.review_stats?.low_confidence ?? 0}</div>
-                </div>
+              {/* ── Stats (compact) ── */}
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                {[
+                  { label: t('Transactions'), value: preview?.total_transactions ?? 0, color: 'text-gray-900 dark:text-white' },
+                  { label: t('Need Review'), value: preview?.review_stats?.needs_review ?? 0, color: 'text-amber-600 dark:text-amber-400' },
+                  { label: t('Changes'), value: modifications.length, color: 'text-blue-600 dark:text-blue-400' },
+                  { label: t('High Conf.'), value: preview?.review_stats?.high_confidence ?? 0, color: 'text-emerald-600 dark:text-emerald-400' },
+                  { label: t('Low Conf.'), value: preview?.review_stats?.low_confidence ?? 0, color: 'text-red-500 dark:text-red-400' },
+                ].map((s) => (
+                  <span key={s.label} className="inline-flex items-center gap-1.5">
+                    <span className="text-gray-500 dark:text-gray-400">{s.label}</span>
+                    <span className={`font-bold ${s.color}`}>{s.value}</span>
+                  </span>
+                ))}
               </div>
 
               {/* ── Filters ── */}
