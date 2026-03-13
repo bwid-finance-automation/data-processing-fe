@@ -87,7 +87,9 @@ export default function CreateSessionModal({ open, onClose, onCreated }: CreateS
     } catch (err: any) {
       console.error('Error initializing session:', err);
       if (err?.response?.status === 409) {
-        toast.info(err.response?.data?.detail || t('An active session already exists. Loaded the current session instead.'));
+        const detail = err.response?.data?.detail;
+        const message = typeof detail === 'object' ? detail.message : detail;
+        toast.info(message || t('An active session already exists. Loaded the current session instead.'));
         onClose();
         await onCreated();
         return;

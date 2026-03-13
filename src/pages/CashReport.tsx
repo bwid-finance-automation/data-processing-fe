@@ -199,6 +199,10 @@ const CashReport = () => {
     const { recoverOnNotFound = true } = options;
     try {
       const result = await getAutomationSessionStatus(sessionId);
+      // Backend resolved to a different active session (stale ID auto-recovery)
+      if (result.resolved_session_id && result.resolved_session_id !== sessionId) {
+        console.info(`Session ${sessionId} not found, resolved to ${result.resolved_session_id}`);
+      }
       setSession(result);
       return result;
     } catch (err: any) {
