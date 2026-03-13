@@ -161,7 +161,7 @@ export default function ClassificationReviewModal({
 }: ClassificationReviewModalProps) {
   const { t } = useTranslation();
   const [drafts, setDrafts] = useState<Record<number, string>>({});
-  const [statusFilter, setStatusFilter] = useState<'all' | 'review' | 'ok'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'review' | 'ok' | 'low_conf'>('all');
   const [natureFilter, setNatureFilter] = useState('all');
 
   const getEffectiveNature = (tx: any) => (drafts[tx.index] ?? tx.nature ?? '').trim();
@@ -194,6 +194,7 @@ export default function ClassificationReviewModal({
     return txs.filter((tx: any) => {
       if (statusFilter === 'review' && !tx.needs_review) return false;
       if (statusFilter === 'ok' && tx.needs_review) return false;
+      if (statusFilter === 'low_conf' && tx.confidence_level?.toLowerCase() !== 'low') return false;
       return true;
     });
   }, [preview, statusFilter]);
@@ -284,13 +285,14 @@ export default function ClassificationReviewModal({
                   {[
                     { key: 'all', label: t('All'), count: preview?.total_transactions ?? 0 },
                     { key: 'review', label: t('Review'), count: preview?.review_stats?.needs_review ?? 0 },
+                    { key: 'low_conf', label: t('Low Conf.'), count: preview?.review_stats?.low_confidence ?? 0 },
                     { key: 'ok', label: t('OK'), count: (preview?.total_transactions ?? 0) - (preview?.review_stats?.needs_review ?? 0) },
                   ].map((option) => {
                     const active = statusFilter === option.key;
                     return (
                       <button
                         key={option.key}
-                        onClick={() => setStatusFilter(option.key as 'all' | 'review' | 'ok')}
+                        onClick={() => setStatusFilter(option.key as 'all' | 'review' | 'ok' | 'low_conf')}
                         className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium transition-colors ${
                           active
                             ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
@@ -333,16 +335,23 @@ export default function ClassificationReviewModal({
 
             {/* ── Table ── */}
             <div className="flex-1 overflow-auto">
-              <table className="min-w-[1100px] w-full text-sm">
+              <table className="w-full table-fixed text-sm">
+                <colgroup>
+                  <col className="w-10" />
+                  <col className="w-16" />
+                  <col />
+                  <col className="w-28" />
+                  <col className="w-28" />
+                  <col className="w-48" />
+                </colgroup>
                 <thead className="sticky top-0 z-10 bg-gray-900 text-left text-xs uppercase tracking-[0.16em] text-white">
                   <tr>
-                    <th className="w-14 px-4 py-3 text-center">{t('#')}</th>
-                    <th className="w-20 px-3 py-3 text-center">{t('Status')}</th>
-                    <th className="px-4 py-3">{t('Description')}</th>
-                    <th className="w-32 px-4 py-3 text-right">{t('Debit')}</th>
-                    <th className="w-32 px-4 py-3 text-right">{t('Credit')}</th>
-                    <th className="w-64 px-4 py-3">{t('Nature')}</th>
-                    <th className="w-24 px-4 py-3 text-center">{t('Conf.')}</th>
+                    <th className="px-2 py-3 text-center">{t('#')}</th>
+                    <th className="px-2 py-3 text-center">{t('Status')}</th>
+                    <th className="px-3 py-3">{t('Description')}</th>
+                    <th className="px-2 py-3 text-right">{t('Debit')}</th>
+                    <th className="px-2 py-3 text-right">{t('Credit')}</th>
+                    <th className="px-2 py-3">{t('Nature')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -360,65 +369,58 @@ export default function ClassificationReviewModal({
                         }
                       >
                         {/* Index */}
-                        <td className="px-4 py-3 text-center font-medium text-gray-400 dark:text-gray-500">
+                        <td className="px-2 py-2.5 text-center font-medium text-gray-400 dark:text-gray-500 text-xs">
                           {tx.index}
                         </td>
 
-                        {/* Status badge */}
-                        <td className="px-3 py-3 text-center">
+                        {/* Status badge + confidence */}
+                        <td className="px-2 py-2.5 text-center">
                           {tx.needs_review ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                              <ExclamationTriangleIcon className="h-3.5 w-3.5" />
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                              <ExclamationTriangleIcon className="h-3 w-3" />
                               {t('Review')}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                              <CheckCircleIcon className="h-3.5 w-3.5" />
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+                              <CheckCircleIcon className="h-3 w-3" />
                               {t('OK')}
                             </span>
                           )}
+                          <div className={`mt-0.5 text-[10px] font-medium ${confidenceColor(tx.confidence_level)}`}>
+                            {formatConfidence(tx.confidence_score)}
+                          </div>
                         </td>
 
-                        {/* Description — wider, with review reason */}
-                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                          <div className="break-words leading-relaxed">{tx.description || '-'}</div>
+                        {/* Description */}
+                        <td className="px-3 py-2.5 text-gray-700 dark:text-gray-300">
+                          <div className="break-words text-xs leading-relaxed">{tx.description || '-'}</div>
                           {tx.review_reason && (
-                            <div className="mt-1 text-xs leading-snug text-amber-600 dark:text-amber-400">
+                            <div className="mt-0.5 text-[10px] leading-snug text-amber-600 dark:text-amber-400">
                               {tx.review_reason}
                             </div>
                           )}
                         </td>
 
-                        {/* Amounts — right-aligned for easier scanning */}
-                        <td className="px-4 py-3 text-right font-mono text-gray-600 dark:text-gray-300">
+                        {/* Amounts */}
+                        <td className="px-2 py-2.5 text-right font-mono text-xs text-gray-600 dark:text-gray-300">
                           {formatAmount(tx.debit)}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-gray-600 dark:text-gray-300">
+                        <td className="px-2 py-2.5 text-right font-mono text-xs text-gray-600 dark:text-gray-300">
                           {formatAmount(tx.credit)}
                         </td>
 
-                        {/* Nature — merged: combobox with original shown as subtitle when changed */}
-                        <td className="px-4 py-3">
+                        {/* Nature */}
+                        <td className="px-2 py-2.5">
                           <NatureCombobox
                             value={drafts[tx.index] ?? ''}
                             onChange={(v) => handleNatureChange(tx.index, v)}
                             isChanged={isChanged}
                           />
                           {isChanged && (
-                            <div className="mt-1 text-xs text-gray-400 line-through">
+                            <div className="mt-0.5 text-[10px] text-gray-400 line-through truncate">
                               {tx.nature || '-'}
                             </div>
                           )}
-                        </td>
-
-                        {/* Confidence — color-coded */}
-                        <td className="px-4 py-3 text-center">
-                          <div className={`text-sm font-semibold ${confidenceColor(tx.confidence_level)}`}>
-                            {formatConfidence(tx.confidence_score)}
-                          </div>
-                          <div className={`text-[11px] ${confidenceColor(tx.confidence_level)}`}>
-                            {tx.confidence_level || '-'}
-                          </div>
                         </td>
                       </tr>
                     );
