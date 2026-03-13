@@ -310,7 +310,7 @@ export default function ClassificationReviewModal({
                       <button
                         key={option.key}
                         onClick={() => setStatusFilter(option.key as 'all' | 'review' | 'ok' | 'low_conf')}
-                        className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium transition-colors ${
+                        className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
                           active
                             ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
                             : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#232323] dark:text-gray-300 dark:hover:bg-[#2b2b2b]'
