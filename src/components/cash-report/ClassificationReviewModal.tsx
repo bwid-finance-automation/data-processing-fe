@@ -239,11 +239,12 @@ export default function ClassificationReviewModal({
     setDrafts((prev) => ({ ...prev, [index]: nature }));
   };
 
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
   const handleClose = () => {
     if (modifications.length > 0) {
-      if (!window.confirm(t('You have {{count}} unsaved change(s). Are you sure you want to leave?', { count: modifications.length }))) {
-        return;
-      }
+      setShowLeaveConfirm(true);
+      return;
     }
     onClose();
   };
@@ -262,7 +263,7 @@ export default function ClassificationReviewModal({
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.98 }}
-            className="flex max-h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#1b1b1b]"
+            className="relative flex max-h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#1b1b1b]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* ── Header ── */}
@@ -480,6 +481,41 @@ export default function ClassificationReviewModal({
                 </button>
               </div>
             </div>
+
+            {/* ── Leave confirmation overlay ── */}
+            {showLeaveConfirm && (
+              <div className="absolute inset-0 z-40 flex items-center justify-center rounded-3xl bg-black/50">
+                <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#232323]">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-xl bg-amber-100 p-2 dark:bg-amber-900/30">
+                      <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {t('Unsaved changes')}
+                      </h4>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {t('You have {{count}} unsaved change(s). Are you sure you want to leave?', { count: modifications.length })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5 flex justify-end gap-2">
+                    <button
+                      onClick={() => setShowLeaveConfirm(false)}
+                      className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    >
+                      {t('Stay')}
+                    </button>
+                    <button
+                      onClick={() => { setShowLeaveConfirm(false); onClose(); }}
+                      className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                    >
+                      {t('Leave')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         </motion.div>
       )}
